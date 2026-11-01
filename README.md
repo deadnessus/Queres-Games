@@ -52,8 +52,13 @@ Edite `src/data/devs.ts`.
 
 ## Publicar no Cloudflare
 
-O Cloudflare lê este repositório. Cada push na branch `main` publica o site sozinho.
+O site roda no Cloudflare Pages, ligado a este repositório. Cada push na branch `main` publica o site sozinho.
 
-- Comando de build: `npm run build`
-- Comando de deploy: `npx wrangler deploy`
-- A configuração está em `wrangler.jsonc`.
+Configuração do projeto (em Workers & Pages, projeto `queres-games`, Settings, Build):
+
+- Framework preset: **Astro**
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Versão do Node: vem do arquivo `.node-version` (o Astro exige 22.23.4 ou mais novo)
+
+O arquivo `wrangler.jsonc` guarda o nome do projeto e a pasta de saída.
