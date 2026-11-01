@@ -1,0 +1,34 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { devs, creditos } from '../data/devs';
+
+interface Props {
+  jogo: CollectionEntry<'jogos'>;
+  sombra?: string;
+}
+
+const { jogo, sombra = 'var(--rosa)' } = Astro.props;
+const d = jogo.data;
+const jogavel = d.status === 'jogavel';
+---
+<article class="card" style={`--sombra:${sombra}`}>
+  <div class="card-capa" style={`background:linear-gradient(160deg, ${d.cores[0]}, ${d.cores[1]})`}>
+    {d.capa ? (
+      <img src={d.capa} alt={`Cena do jogo ${d.titulo}`} loading="lazy" width="800" height="450" />
+    ) : (
+      <span class="card-capa-texto">{d.titulo}</span>
+    )}
+  </div>
+  <div class="card-corpo">
+    <span class:list={['selo', jogavel ? 'selo-jogavel' : 'selo-dev']}>
+      {jogavel ? 'Jogável' : 'Em desenvolvimento'}
+    </span>
+    <h3>{d.titulo}</h3>
+    <p>{d.descricao}</p>
+    <div class="autores">
+      {d.autores.map((a) => <i style={`background:${devs[a].cor}`}></i>)}
+      <span>Por {creditos(d.autores)}</span>
+    </div>
+    <a href={d.url} class="card-jogar" aria-label={`Jogar ${d.titulo}`}>Jogar →</a>
+  </div>
+</article>

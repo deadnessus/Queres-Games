@@ -1,0 +1,17 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  jogoTitulo?: string;
+  cor?: string;
+}
+
+const { post, jogoTitulo, cor = 'var(--rosa)' } = Astro.props;
+const data = post.data.data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+---
+<a href={`/blog/${post.id}/`} class="post-card" style={`--cor:${cor}`}>
+  <span class="post-meta">{data}{jogoTitulo ? ` · ${jogoTitulo}` : ''}</span>
+  <span class="post-titulo">{post.data.titulo}</span>
+  <span class="post-resumo">{post.data.resumo}</span>
+</a>

@@ -1,0 +1,27 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+
+const jogos = await getCollection('jogos');
+const titulos = Object.fromEntries(jogos.map((j) => [j.id, j.data.titulo]));
+const posts = (await getCollection('blog')).sort((a, b) => b.data.data.valueOf() - a.data.data.valueOf());
+const cores = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
+---
+<Base titulo="Blog" descricao="O andamento dos jogos de Jojô e Bento.">
+  <div class="pagina">
+    <header class="pagina-titulo">
+      <h1>Blog</h1>
+      <p>Como cada jogo está indo: o que ficou pronto, o que deu errado e o que vem a seguir.</p>
+    </header>
+    <section class="secao" style="padding-top:0">
+      {posts.length ? (
+        <div class="posts">
+          {posts.map((p, i) => <PostCard post={p} jogoTitulo={p.data.jogo ? titulos[p.data.jogo] : undefined} cor={cores[i % cores.length]} />)}
+        </div>
+      ) : (
+        <p class="vazio">Ainda não tem posts. Volte logo!</p>
+      )}
+    </section>
+  </div>
+</Base>

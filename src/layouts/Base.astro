@@ -1,0 +1,57 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  titulo?: string;
+  descricao?: string;
+}
+
+const {
+  titulo,
+  descricao = 'Todos os jogos criados pelos irmãos Jojô e Bento, para jogar no navegador.',
+} = Astro.props;
+
+const tituloCompleto = titulo ? `${titulo} · queres.games` : 'queres.games · jogos feitos por Jojô e Bento';
+const caminho = Astro.url.pathname;
+const ativo = (base: string) => (caminho === base || caminho.startsWith(base) ? 'page' : undefined);
+---
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{tituloCompleto}</title>
+    <meta name="description" content={descricao} />
+    <link rel="canonical" href={new URL(caminho, Astro.site)} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="queres.games" />
+    <meta property="og:title" content={tituloCompleto} />
+    <meta property="og:description" content={descricao} />
+    <meta property="og:locale" content="pt_BR" />
+    <meta name="theme-color" content="#14102b" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;700;800&display=swap"
+    />
+  </head>
+  <body>
+    <header class="topo">
+      <a href="/" class="logo">queres<span>.</span>games</a>
+      <nav class="menu" aria-label="Principal">
+        <a href="/jogos/" aria-current={ativo('/jogos')}>Jogos</a>
+        <a href="/blog/" aria-current={ativo('/blog')}>Blog</a>
+        <a href="/sobre/" aria-current={ativo('/sobre')}>Sobre</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="rodape">
+      <a href="/" class="logo">queres<span>.</span>games</a>
+      <span>Feito por Joaquim e Bento Quéres.</span>
+    </footer>
+  </body>
+</html>
