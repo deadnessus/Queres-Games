@@ -1,6 +1,11 @@
 (() => {
 'use strict';
 
+// A versão vem do "?v=" do <script> no index.html (um só lugar para atualizar).
+const VERSION = (() => {
+  try { return new URL(document.currentScript.src).searchParams.get('v'); } catch (e) { return null; }
+})() || window.JOPUZZLE_VERSION || 'dev';
+
 const TIME_LIMIT = 45;                  // segundos por puzzle
 const COLORS = ['#FF4DA6', '#38E1FF', '#FFD93D', '#8CFF6B', '#FF9F43', '#B58CFF'];
 const MAX_CELL = 56;                    // tamanho máximo da célula no tabuleiro (px)
@@ -43,6 +48,7 @@ const el = {
   overlay: $('overlay'), endStars: $('end-stars').querySelectorAll('svg'), endTime: $('end-time'),
 };
 
+$('version').textContent = 'v' + VERSION;
 const key = (x, y) => x + ',' + y;
 const vibrate = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* sem vibração */ } };
 

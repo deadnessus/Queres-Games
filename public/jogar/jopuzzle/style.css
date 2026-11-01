@@ -208,3 +208,11 @@ svg { display: block; }
 .overlay[data-kind="lose"] .end-stars svg { fill: var(--dim); filter: none; animation: none; }
 .overlay[data-kind="lose"] .end-time { color: var(--pink); }
 .overlay[data-kind="lose"] .end-time svg { stroke: var(--pink); }
+
+/* versão do jogo: aparece só na tela inicial e na pausa */
+.version {
+  position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  text-align: center; font-size: 14px; letter-spacing: .06em; color: rgba(255, 255, 255, .5);
+  font-variant-numeric: tabular-nums;
+}
+.overlay[data-kind="win"] .version, .overlay[data-kind="lose"] .version { display: none; }
