@@ -6,14 +6,14 @@ export const devs: Record<DevId, { nome: string; nomeReal: string; inicial: stri
     nomeReal: 'Joaquim',
     inicial: 'J',
     cor: 'var(--rosa)',
-    bio: '[Uma frase sobre o Jojô: o que faz nos jogos, o que mais gosta.]',
+    bio: '' // escreva aqui uma frase sobre o Jojô,
   },
   bento: {
     nome: 'Bento',
     nomeReal: 'Bento',
     inicial: 'B',
     cor: 'var(--ciano)',
-    bio: '[Uma frase sobre o Bento: o que faz nos jogos, o que mais gosta.]',
+    bio: '' // escreva aqui uma frase sobre o Bento,
   },
 };
 

@@ -7,7 +7,7 @@ import { devs } from '../data/devs';
       <div class="dev-letra" style={`background:${d.cor}`}>{d.inicial}</div>
       <div>
         <h3>{d.nomeReal}</h3>
-        <p>{d.bio}</p>
+        {d.bio && <p>{d.bio}</p>}
       </div>
     </div>
   ))}
