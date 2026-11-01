@@ -68,6 +68,7 @@ function loadLevel(index) {
   el.boardPieces.innerHTML = '';
   el.tray.innerHTML = '';
   el.dragLayer.innerHTML = '';
+  if (S.drag) clearTimeout(S.drag.timer);
   S.drag = null;
 
   S.pieces = Object.keys(groups).sort().map((ch, i) => {
@@ -236,7 +237,11 @@ function onDown(e, p) {
   if (S.status !== 'playing' || S.drag) return;
   e.preventDefault();
   select(p);
-  S.drag = { p, id: e.pointerId, sx: e.clientX, sy: e.clientY, active: false };
+  const d = { p, id: e.pointerId, sx: e.clientX, sy: e.clientY, active: false, held: false };
+  d.timer = setTimeout(() => {
+    if (S.drag === d && !d.active) { d.held = true; onHold(p); }
+  }, HOLD_MS);
+  S.drag = d;
 }
 
 function startDrag(d) {
@@ -268,6 +273,7 @@ window.addEventListener('pointermove', (e) => {
   if (!d || e.pointerId !== d.id) return;
   if (!d.active) {
     if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < DRAG_THRESHOLD) return;
+    clearTimeout(d.timer);
     startDrag(d);
   }
   moveDrag(e.clientX, e.clientY);
@@ -277,8 +283,9 @@ function endDrag(e, cancelled) {
   const d = S.drag;
   if (!d || (e && e.pointerId !== d.id)) return;
   S.drag = null;
+  clearTimeout(d.timer);
   showGhost(d.p, null);
-  if (!d.active) { select(d.p); if (!cancelled) onTap(d.p); return; }
+  if (!d.active) { select(d.p); if (!cancelled && !d.held) onTap(d.p); return; }
   if (d.snap && !cancelled) {
     placeOnBoard(d.p, d.snap.ax, d.snap.ay);
     d.p.el.classList.remove('pop'); void d.p.el.offsetWidth; d.p.el.classList.add('pop');
@@ -294,19 +301,21 @@ window.addEventListener('pointerup', (e) => endDrag(e, false));
 window.addEventListener('pointercancel', (e) => endDrag(e, true));
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 
+/* ---------- Safari/iOS: sem zoom por toque duplo ou pinça ---------- */
+let lastTouchEnd = { t: 0, target: null };
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd.t < 350 && e.target === lastTouchEnd.target) e.preventDefault();
+  lastTouchEnd = { t: now, target: e.target };
+}, { passive: false });
+document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', (e) => e.preventDefault());
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
+
 /* ---------- girar e espelhar ---------- */
-// Um toque na peça gira; dois toques seguidos espelham.
-const DOUBLE_TAP_MS = 300;
-let lastTap = { p: null, t: 0, snap: null };
-
-function snapshot(p) { return { cells: p.cells, state: p.state, ax: p.ax, ay: p.ay }; }
-
-function restore(p, snap) {
-  p.cells = snap.cells;
-  buildCells(p);
-  if (snap.state === 'board') placeOnBoard(p, snap.ax, snap.ay);
-  else placeInTray(p);
-}
+// Um toque na peça gira. Segurar o dedo na peça (sem arrastar) espelha.
+// Não usamos toque duplo: o Safari do iPhone o interpreta como zoom.
+const HOLD_MS = 350;
 
 // Aplica a transformação. Na bandeja sempre vale; no tabuleiro só se a peça
 // ainda couber (gira de novo até achar uma posição que caiba). Devolve se mudou.
@@ -339,18 +348,18 @@ function shake(p) {
 
 function onTap(p) {
   if (S.status !== 'playing') return;
-  const now = performance.now();
-  const second = lastTap.p === p && now - lastTap.t < DOUBLE_TAP_MS;
-  if (second) {
-    // o primeiro toque já girou: desfaz e espelha no lugar
-    restore(p, lastTap.snap);
-    lastTap = { p: null, t: 0, snap: null };
-    if (transform(p, mirror, 1)) vibrate([8, 30, 8]); else shake(p);
-    return;
-  }
-  const snap = snapshot(p);
-  if (transform(p, rotate, 3)) { vibrate(8); lastTap = { p, t: now, snap }; }
-  else { shake(p); lastTap = { p: null, t: 0, snap: null }; }
+  if (transform(p, rotate, 3)) {
+    vibrate(6);
+    p.el.classList.remove('wiggle'); void p.el.offsetWidth; p.el.classList.add('wiggle');
+  } else shake(p);
+}
+
+function onHold(p) {
+  if (S.status !== 'playing') return;
+  if (transform(p, mirror, 1)) {
+    vibrate([10, 30, 10]);
+    p.el.classList.remove('flip'); void p.el.offsetWidth; p.el.classList.add('flip');
+  } else shake(p);
 }
 
 /* ---------- tempo, estrelas e fim de jogo ---------- */
@@ -438,7 +447,8 @@ function pause() {
 function setMode(mode) {
   if (mode === S.mode) return;
   stopClock();
-  if (S.drag) S.drag = null;
+  if (S.drag) clearTimeout(S.drag.timer);
+  S.drag = null;
   S.mode = mode;
   loadLevel(S.levels[mode]);
 }
@@ -450,6 +460,7 @@ $('mode-super').addEventListener('click', () => setMode('super'));
 function giveUp() {
   if (S.status !== 'playing' && S.status !== 'paused') return;
   stopClock();
+  if (S.drag) clearTimeout(S.drag.timer);
   S.drag = null;
   el.overlay.hidden = true;
   loadLevel(S.level + 1);

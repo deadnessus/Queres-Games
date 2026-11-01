@@ -19,7 +19,7 @@ html, body {
   color: #fff;
   font-family: 'Rajdhani', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-weight: 700;
-  touch-action: none;
+  touch-action: manipulation;   /* sem zoom por toque duplo */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -127,6 +127,10 @@ svg { display: block; }
 }
 .piece.sel .cell { background: color-mix(in srgb, var(--col) 42%, transparent); }
 .piece.dragging { filter: drop-shadow(0 14px 12px rgba(0, 0, 0, .6)); z-index: 5; }
+.piece.flip { animation: flip .28s ease-out; }
+@keyframes flip { 0% { transform: scaleX(-.1); } 100% { transform: scaleX(1); } }
+.piece.wiggle { animation: wiggle .16s ease-out; }
+@keyframes wiggle { 0% { transform: rotate(-4deg) scale(1.04); } 55% { transform: rotate(1.5deg); } 100% { transform: rotate(0); } }
 .piece.shake { animation: shake .22s ease-in-out; }
 @keyframes shake { 20% { transform: translateX(-4px); } 60% { transform: translateX(4px); } }
 .piece.pop { animation: pop .18s ease-out; }
@@ -157,6 +161,8 @@ svg { display: block; }
 .lg { display: flex; align-items: center; gap: 5px; }
 .lg svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; margin-right: 2px; }
 .lg .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.lg .hold { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; position: relative; }
+.lg .hold::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: currentColor; }
 .icon-btn.warn {
   border-color: var(--pink); color: var(--pink); background: rgba(255, 77, 166, .08);
   box-shadow: 0 0 14px rgba(255, 77, 166, .45), inset 0 0 10px rgba(255, 77, 166, .2);
