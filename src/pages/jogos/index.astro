@@ -1,0 +1,21 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import GameCard from '../../components/GameCard.astro';
+
+const jogos = (await getCollection('jogos')).sort((a, b) => a.data.ordem - b.data.ordem);
+const sombras = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
+---
+<Base titulo="Jogos" descricao="Os jogos dos irmãos Jojô e Bento, para jogar no navegador.">
+  <div class="pagina">
+    <header class="pagina-titulo">
+      <h1>Jogos</h1>
+      <p>Todos rodam direto no navegador, no computador ou no celular.</p>
+    </header>
+    <section class="secao" style="padding-top:0">
+      <div class="grade">
+        {jogos.map((j, i) => <GameCard jogo={j} sombra={sombras[i % sombras.length]} />)}
+      </div>
+    </section>
+  </div>
+</Base>

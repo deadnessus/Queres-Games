@@ -1,0 +1,78 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import GameCard from '../components/GameCard.astro';
+import PostCard from '../components/PostCard.astro';
+import Devs from '../components/Devs.astro';
+
+const jogos = (await getCollection('jogos')).sort((a, b) => a.data.ordem - b.data.ordem);
+const destaque = jogos.find((j) => j.data.destaque) ?? jogos[0];
+const posts = (await getCollection('blog')).sort((a, b) => b.data.data.valueOf() - a.data.data.valueOf()).slice(0, 3);
+const titulos = Object.fromEntries(jogos.map((j) => [j.id, j.data.titulo]));
+const sombras = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
+const coresPost = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
+---
+<Base>
+  <div class="pagina">
+    <section class="hero">
+      <div class="hero-texto">
+        <div class="hero-etiqueta">JOGOS FEITOS POR DOIS IRMÃOS</div>
+        <h1>Joaquim e Bento <span>criam jogos.</span></h1>
+        <p>
+          Aqui ficam todos os jogos dos irmãos Quéres. Escolha um, jogue no navegador e acompanhe no blog como cada
+          um foi feito.
+        </p>
+        <div class="botoes">
+          <a href="#jogos" class="btn">JOGAR AGORA</a>
+          <a href="/blog/" class="btn btn-vazado">LER O BLOG</a>
+        </div>
+      </div>
+      {destaque && (
+        <div class="hero-destaque">
+          <a href={destaque.data.url} class="janela" aria-label={`Jogar ${destaque.data.titulo}`}>
+            <div class="janela-barra">
+              <i style="background:var(--rosa)"></i><i style="background:var(--amarelo)"></i><i style="background:var(--ciano)"></i>
+              <b>DESTAQUE</b>
+            </div>
+            <div class="janela-tela" style={`background:linear-gradient(180deg, ${destaque.data.cores[0]}, ${destaque.data.cores[1]})`}>
+              {destaque.data.capa && <img src={destaque.data.capa} alt={`Cena do jogo ${destaque.data.titulo}`} width="800" height="450" />}
+            </div>
+            <div class="janela-legenda">{destaque.data.titulo}</div>
+          </a>
+        </div>
+      )}
+    </section>
+
+    <section id="jogos" class="secao">
+      <h2 class="titulo-secao">Jogos</h2>
+      <p class="sub-secao">Todos rodam direto no navegador, no computador ou no celular.</p>
+      <div class="grade">
+        {jogos.map((j, i) => <GameCard jogo={j} sombra={sombras[i % sombras.length]} />)}
+      </div>
+    </section>
+  </div>
+
+  <section id="sobre" class="secao-faixa">
+    <div class="pagina">
+      <h2 class="titulo-secao">Quem faz</h2>
+      <p class="sub-secao">Dois irmãos, uma ideia por vez.</p>
+      <Devs />
+    </div>
+  </section>
+
+  <div class="pagina">
+    <section id="blog" class="secao" style="padding-top:88px">
+      <div class="cabeca-secao">
+        <h2 class="titulo-secao" style="margin-bottom:0">Blog</h2>
+        <a href="/blog/" class="link-mais">Ver todos os posts →</a>
+      </div>
+      {posts.length ? (
+        <div class="posts">
+          {posts.map((p, i) => <PostCard post={p} jogoTitulo={p.data.jogo ? titulos[p.data.jogo] : undefined} cor={coresPost[i % coresPost.length]} />)}
+        </div>
+      ) : (
+        <p class="vazio">Ainda não tem posts. Volte logo!</p>
+      )}
+    </section>
+  </div>
+</Base>
