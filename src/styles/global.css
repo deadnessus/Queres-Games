@@ -78,7 +78,7 @@ h2.titulo-secao { font-size: 22px; color: var(--amarelo); margin-bottom: 12px; }
 .janela-legenda { padding: 14px 18px; font-weight: 800; color: var(--texto-suave); }
 
 /* Cards de jogo */
-.grade { display: flex; flex-wrap: wrap; gap: 32px; }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 32px; }
 .card {
   flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column;
   background: var(--painel); border: 3px solid #ffffff; box-shadow: 8px 8px 0 var(--sombra, var(--rosa));

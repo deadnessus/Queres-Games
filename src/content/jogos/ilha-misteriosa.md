@@ -1,6 +1,6 @@
 ---
 titulo: A Ilha Misteriosa
-descricao: RPG de sobrevivência. Seja o engenheiro Cyrus Smith numa ilha vulcânica: recolha recursos, construa, plante e troque com as tribos.
+descricao: "RPG de sobrevivência. Seja o engenheiro Cyrus Smith numa ilha vulcânica: recolha recursos, construa, plante e troque com as tribos."
 status: jogavel
 autores: [jojo, bento]
 ordem: 5
