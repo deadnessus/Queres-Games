@@ -4,6 +4,7 @@ descricao: Pilote um foguete pela Conjectura de Collatz. Preveja voos, corra con
 status: jogavel
 autores: [jojo, bento]
 ordem: 3
+capa: /capas/collatz-rocket.webp
 cores: ['#3b2f8f', '#3ee6d0']
 url: /jogar/collatz-rocket/
 ---
