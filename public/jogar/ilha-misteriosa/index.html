@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2b1a0e">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>A Ilha Misteriosa — Engineer's Survival</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game">
+
+    <!-- ===== Viewport do Mundo (75% superiores) ===== -->
+    <div id="world">
+      <canvas id="gameCanvas"></canvas>
+      <div id="buildBanner" class="hidden"></div>
+      <button id="fsBtn" class="touch-only" data-action="fullscreen" aria-label="Tela cheia">⛶</button>
+      <button id="cancelBtn" class="hidden" aria-label="Cancelar">✕ Cancelar</button>
+      <div id="statusStrip" aria-label="Condições ativas"></div>
+      <div id="locationBadge">Praia do Naufrágio &middot; Setor 5-9</div>
+      <div id="tooltip" class="hidden" role="tooltip"></div>
+      <div id="toast" class="hidden"></div>
+    </div>
+
+    <!-- ===== Gabinete de Engenharia Vitoriano (25% inferiores) ===== -->
+    <div id="cabinet">
+
+      <!-- Bloco esquerdo: Terminal de Log Narrativo -->
+      <section class="panel" id="logPanel">
+        <div class="plate">DIÁRIO DE BORDO</div>
+        <div class="glass crt" id="logBox" aria-live="polite"></div>
+      </section>
+
+      <!-- Bloco central: Ferramentas e Botões Mecânicos -->
+      <section class="panel" id="toolsPanel">
+        <div class="plate">FERRAMENTAS ATIVAS</div>
+        <div class="hands">
+          <div class="slot" id="slotMain" title="Clique para guardar">
+            <span class="slot-label">Mão Direita</span>
+            <div class="glass slot-body" id="slotMainBody"></div>
+          </div>
+          <div class="slot" id="slotOff" title="Clique para guardar">
+            <span class="slot-label">Mão Esquerda</span>
+            <div class="glass slot-body" id="slotOffBody"></div>
+          </div>
+        </div>
+        <div class="buttons">
+          <button class="brass-btn" data-action="inventory"><kbd>I</kbd><span class="lg">Inventário &amp; Sucata</span><span class="sh">Inventário</span></button>
+          <button class="brass-btn" data-action="craft"><kbd>C</kbd><span class="lg">Engenharia &amp; Criação</span><span class="sh">Criação</span></button>
+          <button class="brass-btn" data-action="map"><kbd>M</kbd><span class="lg">Mapa Cartográfico</span><span class="sh">Mapa</span></button>
+          <button class="brass-btn half" data-action="journal"><kbd>J</kbd><span class="lg">Diário Científico</span><span class="sh">Diário</span></button>
+          <button class="brass-btn half" data-action="rest"><kbd>R</kbd><span class="lg">Descansar / Passar Tempo</span><span class="sh">Descansar</span></button>
+        </div>
+        <div class="tools-foot">
+          <span id="xpLine">Nível 1 &middot; XP 0/100</span>
+          <span class="foot-btns">
+            <button class="mini-btn" data-action="save" title="Salvar agora">Salvar</button>
+            <button class="mini-btn" data-action="newgame" title="Reiniciar a aventura">Novo Jogo</button>
+          </span>
+        </div>
+      </section>
+
+      <!-- Bloco direito: Mostradores Biológicos e Relógio de Bolso -->
+      <section class="panel" id="vitalsPanel">
+        <div class="clock">
+          <div class="clock-face">
+            <div class="clk-day" id="clkDay">Dia 1</div>
+            <div class="clk-time" id="clkTime">08:00</div>
+          </div>
+          <div class="glass clock-info">
+            <div id="clkWeather">Sol</div>
+            <div id="clkTemp">37.0°C</div>
+            <div id="clkCiv" title="Índice de Civilização">IC 0</div>
+            <div id="clkPower" class="hidden" title="Energia elétrica armazenada"></div>
+          </div>
+        </div>
+        <div class="gauges" id="gauges">
+          <div class="gauge" data-g="hp"><span class="g-label">HP</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">100</span></div>
+          <div class="gauge" data-g="stamina"><span class="g-label">STA</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">100</span></div>
+          <div class="gauge" data-g="calories"><span class="g-label">KCAL</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">2200</span></div>
+          <div class="gauge" data-g="hydration"><span class="g-label">H&#8322;O</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">85%</span></div>
+          <div class="gauge" data-g="immunity"><span class="g-label">IMUN</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">72%</span></div>
+          <div class="gauge" data-g="comfort"><span class="g-label">CONF</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">40%</span></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Aviso para girar o celular -->
+    <div id="rotateOverlay">
+      <div class="rot-box">
+        <div class="rot-icon">📱↻</div>
+        <h2>Gire o celular</h2>
+        <p>A Ilha Misteriosa foi feita para o modo <b>paisagem</b> (horizontal).</p>
+        <button class="btn" id="rotateFs">Tela cheia em paisagem</button>
+      </div>
+    </div>
+
+    <!-- ===== Modais ===== -->
+    <div id="modalRoot" class="hidden">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal" id="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 id="modalTitle"></h2>
+          <button class="modal-close" id="modalClose" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-foot" id="modalFoot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts clássicos (funcionam direto de file://, sem servidor) -->
+  <script src="src/config.js"></script>
+  <script src="src/iso.js"></script>
+  <script src="src/voxel.js"></script>
+  <script src="src/models.js"></script>
+  <script src="src/models2.js"></script>
+  <script src="src/sprites.js"></script>
+  <script src="src/crafting.js"></script>
+  <script src="src/world.js"></script>
+  <script src="src/state.js"></script>
+  <script src="src/building.js"></script>
+  <script src="src/farming.js"></script>
+  <script src="src/stations.js"></script>
+  <script src="src/island.js"></script>
+  <script src="src/economy.js"></script>
+  <script src="src/player.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
