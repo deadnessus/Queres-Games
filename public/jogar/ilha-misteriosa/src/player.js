@@ -546,6 +546,18 @@
       return true;
     },
 
+    /** Cria uma pilha no chão (sem tirar da mochila) — reembolso de obras. Retorna true se coube em algum tile. */
+    spawnDrop(id, qty) {
+      const t = this.dropTile();
+      if (!t || qty <= 0) return false;
+      const drops = D().world.drops; const k = key(t.x, t.y);
+      const pile = drops[k] || (drops[k] = []);
+      const ent = pile.find((q) => q.id === id);
+      if (ent) ent.qty += qty; else pile.push({ id, qty });
+      Ilha.World.bump();
+      return true;
+    },
+
     openPickup(x, y) { Ilha.UI.pickupPos = { x, y }; Ilha.UI.open('pickup'); },
 
     /** Pega itens da pilha em (x,y). Retorna a quantidade pega. */
@@ -672,6 +684,11 @@
       },
 
       door(x, y) { Ilha.Building.toggleDoor(x, y); },
+      site(x, y) {
+        const site = Ilha.Sites.siteAt(x, y);
+        if (!site) { say('Esta obra não existe mais.', 'hint'); return; }
+        Ilha.UI.openSite(site);
+      },
       crop(x, y) { Ilha.Farming.openMenu(x, y); },
       station(x, y) { Ilha.UI.openStation(x, y); },
       machine(x, y, id, def) { Ilha.UI.menu(def.name, [], Ilha.Stations.machineInfo(x, y, id)); },
@@ -805,6 +822,16 @@
             const stn = Ilha.Stations.get(x, y);
             if (stn && stn.type !== 'chest') lines.push({ text: stn.active ? 'Em operação' : (stn.recipe ? 'Parado / aguardando insumos' : 'Sem receita selecionada'), cls: stn.active ? 'ok' : 'dim' });
           }
+          if (def.handler === 'site') {
+            const site = Ilha.Sites.siteAt(x, y);
+            if (site) {
+              const sr = Ilha.Sites.recipeOf(site);
+              title = `Obra: ${sr.name.replace(' (obra)', '')}`;
+              lines.push({ text: `Progresso: ${site.done}/${site.hours} h (${Math.round(Ilha.Sites.progress(site) * 100)}%)`, cls: 'act' });
+              lines.push({ text: `Custo por hora: -${sr.site.kcal} kcal · stamina -${Math.round(sr.site.stamina * this.staminaMult())}`, cls: '' });
+              lines.push({ text: 'Dá para parar e continuar depois.', cls: 'dim' });
+            }
+          }
           if (def.handler === 'door') lines.push({ text: Ilha.Building.isDoorOpen(x, y) ? 'Aberta' : 'Fechada (clique direito para travar aberta)', cls: 'dim' });
           if (def.blast && C.count('nitro') > 0) lines.push({ text: 'Você tem Nitroglicerina: pode detonar!', cls: 'act' });
           if (def.handler === 'filter') lines.push({ text: `Água Suja no inventário: ${C.count('dirty_water')}`, cls: '' });
@@ -890,8 +917,9 @@
         Ilha.State.advance(60);
         if (d.dead) break;
         slept++;
-        if (st.calories <= 0 || st.hydration <= 0) {
-          Ilha.State.log('Você acorda sobressaltado pela fome ou pela sede.', 'bad');
+        // Fome e sede NÃO interrompem o sono: só o HP perto da morte acorda Cyrus.
+        if (st.hp <= Math.max(20, st.maxHp * B.SLEEP_WAKE_HP_FRAC)) {
+          Ilha.State.log(`Você acorda à beira da morte (HP ${Math.round(st.hp)}): o corpo não aguenta mais — coma, beba e se trate!`, 'bad');
           break;
         }
       }

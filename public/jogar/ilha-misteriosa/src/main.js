@@ -340,7 +340,20 @@
       ctx.strokeStyle = ok ? 'rgba(120,230,110,0.95)' : 'rgba(240,80,60,0.95)';
       ctx.fillStyle = ok ? 'rgba(120,230,110,0.18)' : 'rgba(240,80,60,0.2)';
       ctx.lineWidth = 2;
-      diamondPath(ctx, c.x, c.y, hw - 1, hh - 1); ctx.fill(); ctx.stroke();
+      const rr = Bd.mode !== 'demolish' ? Bd.modeRecipe() : null;
+      if (rr && rr.layer === 'prefab') {                       // pegada 5x5 da casa
+        const tiles = Ilha.Sites.layout(rr, mouse.tx, mouse.ty).sort((a, b) => (a.x + a.y) - (b.x + b.y));
+        tiles.forEach((t) => {
+          const tc = proj(t.x, t.y);
+          diamondPath(ctx, tc.x, tc.y, hw - 1, hh - 1); ctx.fill(); ctx.stroke();
+          if (t.role === 'wall' || t.role === 'window') {
+            const ws = SE.object('SITE_WALL_2', t.x, t.y, now);
+            if (ws) { ctx.globalAlpha = 0.45; ctx.drawImage(ws.c, tc.x - ws.ax * S, tc.y - ws.ay * S, ws.w * S, ws.h * S); ctx.globalAlpha = 1; }
+          }
+        });
+      } else {
+        diamondPath(ctx, c.x, c.y, hw - 1, hh - 1); ctx.fill(); ctx.stroke();
+      }
       if (spr) { ctx.globalAlpha = 0.55; ctx.drawImage(spr.c, c.x - spr.ax * S, c.y - spr.ay * S, spr.w * S, spr.h * S); }
       ctx.restore();
     }
