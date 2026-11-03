@@ -47,6 +47,7 @@
     craftTab: null,
     stationPos: null,
     mapSel: null,
+    pickupPos: null,
     trade: null,
     journalTab: 'diag',
     lastLogId: 0,
@@ -218,6 +219,7 @@
         map: () => this.buildMap(),
         station: () => this.buildStation(),
         trade: () => this.buildTrade(),
+        pickup: () => this.buildPickup(),
       };
       if (name === 'craft' && !this.craftTab) this.craftTab = D().player.era;
       const build = (opts && opts.build) || builders[name];
@@ -324,9 +326,9 @@
           acts.push(el('button', { class: 'btn sm', disabled: busy, text: eq.offHand === e.id ? '✔ Mão E.' : 'Mão E.', onclick: () => this.run(() => C.equip(e.id, 'offHand')) }));
         }
         if (C.SCRAP[e.id]) acts.push(el('button', { class: 'btn sm', disabled: busy, text: 'Desmontar (Scrap)', onclick: () => this.run(() => C.scrap(e.id)) }));
-        acts.push(el('button', { class: 'btn sm danger', disabled: busy, title: 'Jogar fora 1 unidade', text: '🗑 1', onclick: () => this.run(() => C.discard(e.id, 1)) }));
-        if (e.qty > 1) acts.push(el('button', { class: 'btn sm danger', disabled: busy, title: 'Jogar fora todas as unidades', text: '🗑 Todos',
-          onclick: () => this.confirm(`Descartar ${e.qty}x ${it.name}? Não dá para recuperar.`, () => { C.discard(e.id, e.qty); this.refresh(true); this.open('inventory'); }) }));
+        acts.push(el('button', { class: 'btn sm danger', disabled: busy, title: 'Largar 1 unidade no chão', text: '🗑 1', onclick: () => this.run(() => C.discard(e.id, 1)) }));
+        if (e.qty > 1) acts.push(el('button', { class: 'btn sm danger', disabled: busy, title: 'Largar todas as unidades no chão', text: '🗑 Todos',
+          onclick: () => this.confirm(`Largar ${e.qty}x ${it.name} no chão? Você poderá pegá-los de novo depois.`, () => { C.discard(e.id, e.qty); this.refresh(true); this.open('inventory'); }) }));
         const extra = C.SCRAP[e.id] ? ' → ' + C.SCRAP[e.id].out.map((o) => `${o.qty}x ${C.ITEMS[o.id].name}`).join(', ') : '';
         body.appendChild(el('div', { class: 'row' },
           iconImg(it.icon, 3),
@@ -528,6 +530,24 @@
           el('div', { class: 'acts' }, el('button', { class: 'btn sm', disabled: busy, text: 'Desmontar', onclick: () => this.run(() => C.scrap(e.id, true)) })))));
       }
       return { title: def.name, body, foot: close };
+    },
+
+    buildPickup() {
+      const C = Cr(); const P = Pl(); const pos = this.pickupPos || { x: 0, y: 0 };
+      const body = el('div'); const pile = P.dropsAt(pos.x, pos.y).slice();
+      const foot = [el('button', { class: 'btn', text: 'Fechar', onclick: () => this.closeModal() })];
+      if (!pile.length) { this.closeModal(); return { title: 'Itens no chão', body, foot: [] }; }
+      body.appendChild(el('p', { class: 'small muted', text: `Itens largados no tile (${pos.x},${pos.y}). Pegar custa 1 minuto por vez; o limite de peso da mochila vale.` }));
+      pile.forEach((q) => {
+        const it = C.ITEMS[q.id]; const busy = D().dead || D().sleeping;
+        body.appendChild(el('div', { class: 'row' }, iconImg(it.icon, 3),
+          el('div', { class: 'info' }, el('div', { class: 'name', text: `${it.name}  ×${q.qty}${q.charge ? ' (' + q.charge + ' porções)' : ''}` }), el('div', { class: 'desc', text: `${(it.weight * q.qty).toFixed(1)} kg · cabem ${Math.min(q.qty, C.room(q.id))} na mochila` })),
+          el('div', { class: 'acts' },
+            el('button', { class: 'btn sm', disabled: busy, text: 'Pegar 1', onclick: () => this.run(() => P.pickup(pos.x, pos.y, q.id, 1)) }),
+            el('button', { class: 'btn sm', disabled: busy, text: 'Pegar todos', onclick: () => this.run(() => P.pickup(pos.x, pos.y, q.id, q.qty)) }))));
+      });
+      foot.unshift(el('button', { class: 'btn', text: '🧺 Pegar tudo', onclick: () => this.run(() => { pile.forEach((q) => P.pickup(pos.x, pos.y, q.id, q.qty)); }) }));
+      return { title: 'Itens no chão', body, foot };
     },
 
     openStation(x, y) { this.stationPos = { x, y }; this.open('station'); },

@@ -129,7 +129,7 @@
       if (!Array.isArray(w.floors) || w.floors.length !== H) w.floors = blank();
       if (!Array.isArray(w.roofs) || w.roofs.length !== H) w.roofs = blank();
       w.crops = w.crops || {}; w.stations = w.stations || {}; w.doorsOpen = w.doorsOpen || {};
-      w.mods = w.mods || {}; w.ash = w.ash || {};
+      w.mods = w.mods || {}; w.ash = w.ash || {}; w.drops = w.drops || {};
       d.power = d.power || { stored: 0, cap: 0, gen: 0, use: 0, on: {} };
       Ilha.Island.migrate(d);
       if (typeof d.rainedToday !== 'boolean') d.rainedToday = false;

@@ -306,7 +306,15 @@
       if (!Ilha.World.inBounds(x, y)) return;
       this.cancelRoute();
       const dist = Math.max(Math.abs(x - p.x), Math.abs(y - p.y));
-      if (dist === 0) return;
+      const hasDrops = this.dropsAt(x, y).length > 0 && !Ilha.World.objectAt(x, y);
+      if (dist === 0) { if (forceInteract && hasDrops) this.openPickup(x, y); return; }
+      if (forceInteract && hasDrops) {              // toque longo numa pilha: vai até ela e abre a lista
+        if (dist === 1) { this.openPickup(x, y); return; }
+        const pth = this.findRouteTo(x, y, false);
+        if (!pth) { say('Não há caminho até lá.', 'hint'); return; }
+        this.route = { path: pth, interact: { x, y } };
+        return;
+      }
       const interact = forceInteract || this.tileWantsInteract(x, y);
       if (interact) {
         if (dist === 1) { this.interactAt(x, y); return; }
@@ -367,7 +375,7 @@
       const p = PL();
       const dx = x - p.x, dy = y - p.y;
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1) {
-        if (dx === 0 && dy === 0) return;
+        if (dx === 0 && dy === 0) { if (this.dropsAt(x, y).length) this.openPickup(x, y); return; }
         say('Longe demais. Aproxime-se (tile adjacente) para interagir.', 'hint');
         return;
       }
@@ -376,6 +384,7 @@
       Ilha.State.touch();
 
       const objId = Ilha.World.objectAt(x, y);
+      if (!objId && this.dropsAt(x, y).length) { this.openPickup(x, y); return; }
       if (objId) {
         const def = Config.OBJECTS[objId];
         if (def.inert) { Ilha.State.log(`${def.name}. ${def.note || ''}`, 'hint'); Ilha.UI.toast(def.note || def.name); return; }
@@ -501,6 +510,64 @@
       Ilha.State.log(`BOOM! A nitroglicerina estilhaça [${def.name}]. Estilhaços ferem Cyrus (-10 HP). Obteve: ${got.join(', ') || 'nada'}.`, 'bad');
       const p = PL();
       if (!p.crafted.first_blast) { p.crafted.first_blast = true; this.gainXP(40, 'primeira detonação'); }
+    },
+
+    // ------------------------------------------------------------
+    // Itens no chão (descartar = largar; pegar por toque longo / clique direito)
+    // ------------------------------------------------------------
+    dropsAt(x, y) { const dr = D().world.drops; return (dr && dr[key(x, y)]) || []; },
+
+    /** Tile onde largar: o de Cyrus ou o vizinho livre mais próximo (sem água nem objeto). */
+    dropTile() {
+      const p = PL(); const W = Ilha.World;
+      const ok = (x, y) => { if (!W.inBounds(x, y)) return false; const t = Config.TERRAIN[W.terrainAt(x, y)]; return t.walk && !t.water && !W.objectAt(x, y); };
+      const order = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+      for (const [dx, dy] of order) if (ok(p.x + dx, p.y + dy)) return { x: p.x + dx, y: p.y + dy };
+      return null;
+    },
+
+    dropItems(id, qty) {
+      const inv = PL().inventory; const e = inv.find((i) => i.id === id);
+      if (!e || qty <= 0) return false;
+      const t = this.dropTile();
+      if (!t) { say('Sem espaço para largar itens aqui. Mova-se para um terreno livre.'); return false; }
+      const n = Math.min(qty, e.qty);
+      const charge = id === 'pot_water' ? Math.round((e.charge || e.qty * 5) * n / e.qty) : 0;
+      Crafting().remove(id, n);
+      const left = inv.find((i) => i.id === id);
+      if (left && id === 'pot_water') left.charge = Math.max(0, (left.charge || 0) - charge);
+      const drops = D().world.drops; const k = key(t.x, t.y);
+      const pile = drops[k] || (drops[k] = []);
+      const ent = pile.find((q) => q.id === id);
+      if (ent) { ent.qty += n; if (charge) ent.charge = (ent.charge || 0) + charge; }
+      else pile.push(charge ? { id, qty: n, charge } : { id, qty: n });
+      Ilha.State.log(`Você larga no chão: ${n}x [${Crafting().name(id)}]${(t.x !== PL().x || t.y !== PL().y) ? ' (no tile ao lado)' : ''}. Toque longo / clique direito na pilha para pegar.`, 'hint');
+      Ilha.World.bump(); Ilha.State.touch();
+      return true;
+    },
+
+    openPickup(x, y) { Ilha.UI.pickupPos = { x, y }; Ilha.UI.open('pickup'); },
+
+    /** Pega itens da pilha em (x,y). Retorna a quantidade pega. */
+    pickup(x, y, id, qty) {
+      const C = Crafting(); const drops = D().world.drops; const k = key(x, y);
+      const pile = drops[k]; if (!pile) return 0;
+      const ent = pile.find((q) => q.id === id); if (!ent) return 0;
+      const want = Math.min(qty, ent.qty);
+      const per = ent.charge ? ent.charge / ent.qty : 0;
+      const room = C.room(id);
+      const n = Math.min(want, room);
+      if (n <= 0) { say('Mochila cheia: libere peso para pegar.'); return 0; }
+      const ch = per ? Math.round(per * n) : undefined;
+      const got = C.add(id, n, ch);
+      ent.qty -= got; if (ent.charge) ent.charge = Math.max(0, ent.charge - (ch || 0));
+      if (ent.qty <= 0) pile.splice(pile.indexOf(ent), 1);
+      if (!pile.length) delete drops[k];
+      if (got < want) Ilha.State.log('Sua mochila encheu: parte dos itens ficou no chão.', 'warn');
+      Ilha.State.log(`Você pega do chão: ${got}x [${C.name(id)}].`, 'good');
+      this.advanceBy(1, { kcal: 0, stamina: 0 });
+      Ilha.World.bump(); Ilha.State.touch();
+      return got;
     },
 
     drinkRiver() {
@@ -760,6 +827,12 @@
         if (tid === 'TILLED_SOIL') lines.push({ text: 'Ação (clique direito): plantar / cuidar', cls: 'act' });
         const fl = Ilha.World.floorAt(x, y); if (fl) lines.push({ text: 'Piso construído', cls: 'dim' });
         if (Ilha.World.roofAt(x, y)) lines.push({ text: 'Telhado acima', cls: 'dim' });
+      }
+      const piles = this.dropsAt(x, y);
+      if (piles.length) {
+        lines.push({ text: 'Itens no chão: ' + piles.map((q) => `${q.qty}x ${C.name(q.id)}`).join(', '), cls: 'act' });
+        lines.push({ text: 'Pegar: ' + (document.body.classList.contains('touch') ? 'toque longo' : 'clique direito'), cls: 'ok' });
+        if (!objId) title = 'Itens largados · ' + title;
       }
       lines.push({ text: adjacent ? (document.body.classList.contains('touch') ? 'Ao alcance — toque longo' : 'Ao alcance — clique / [E]') : (dist === 0 ? 'Você está aqui' : 'Fora de alcance'), cls: adjacent ? 'ok' : 'dim' });
       return { title, lines };

@@ -201,7 +201,7 @@
     const blank = () => Array.from({ length: H }, () => new Array(W).fill(null));
     return {
       terrain, objects, loot, regen: {}, uses: {}, fires: {}, dug: {}, seed,
-      floors: blank(), roofs: blank(), crops: {}, stations: {}, doorsOpen: {}, mods: {}, ash: {},
+      floors: blank(), roofs: blank(), crops: {}, stations: {}, doorsOpen: {}, mods: {}, ash: {}, drops: {},
     };
   }
 

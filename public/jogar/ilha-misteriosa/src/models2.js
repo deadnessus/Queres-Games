@@ -320,6 +320,25 @@
     return m;
   }
 
+  // ---------------- Pilhas de itens largados ----------------
+  function pile(large) {
+    const m = new Model(); const R = mulberry32(large ? 77 : 33);
+    const burlap = (x, y, z) => jit([180, 142, 86], 0.1, x, y, z, 5);
+    m.ellipsoid(-3, -1, 3, 4.2, 3.6, 3.6, burlap);
+    m.cyl(-3, -1, 6, 8, 1, [120, 90, 50]);
+    m.box(2, 6, 1, 5, 0, 3, (x, y, z) => jit(((z >> 1) & 1) ? C.woodA : C.woodB, 0.08, x, y, z, 6));
+    m.ellipsoid(0, 4, 1, 1.6, 1.4, 1.2, C.stone); m.ellipsoid(-6, 3, 1, 1.3, 1.3, 1.1, C.stoneL);
+    if (large) {
+      m.ellipsoid(3, -4, 4, 4, 3.4, 3.6, (x, y, z) => jit([196, 158, 98], 0.1, x, y, z, 7));
+      m.cyl(3, -4, 7, 9, 1, [120, 90, 50]);
+      m.box(-7, -2, 4, 9, 0, 4, (x, y, z) => jit(((x >> 1) & 1) ? C.woodB : C.woodA, 0.08, x, y, z, 8));
+      m.line(-7, -5, 1, 1, -6, 2, C.woodD, 1.3); m.line(-4, 6, 1, 3, 7, 2, C.woodL, 1.1);
+      m.ellipsoid(6, 0, 3, 1.4, 1.4, 3, [116, 196, 120]); m.cyl(6, 0, 5, 7, 0.9, C.glass);
+      for (let i = 0; i < 4; i++) m.line(-1, -2, 1, -1 + (R() - 0.5) * 6, -2 + (R() - 0.5) * 6, 3 + R() * 2, C.woodA, 0.6);
+    }
+    return m;
+  }
+
   // ---------------- Registro ----------------
   const O = Ilha.Models.OBJECTS;
   const add = (name, variants, build, extra) => { O[name] = Object.assign({ variants, build }, extra); };
@@ -337,6 +356,8 @@
   add('BED_RUSTIC', 1, () => bed(false));
   add('BED_COMFORT', 1, () => bed(true));
   add('CHEST', 1, () => chest());
+  add('ITEM_PILE_S', 1, () => pile(false));
+  add('ITEM_PILE_L', 1, () => pile(true));
   add('FIREPLACE_UNLIT', 1, () => fireplace(false, 0));
   add('FIREPLACE_LIT', 1, (v, f) => fireplace(true, f), { frames: 3 });
   add('WORKBENCH', 1, () => workbench());
