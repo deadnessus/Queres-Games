@@ -324,6 +324,9 @@
           acts.push(el('button', { class: 'btn sm', disabled: busy, text: eq.offHand === e.id ? '✔ Mão E.' : 'Mão E.', onclick: () => this.run(() => C.equip(e.id, 'offHand')) }));
         }
         if (C.SCRAP[e.id]) acts.push(el('button', { class: 'btn sm', disabled: busy, text: 'Desmontar (Scrap)', onclick: () => this.run(() => C.scrap(e.id)) }));
+        acts.push(el('button', { class: 'btn sm danger', disabled: busy, title: 'Jogar fora 1 unidade', text: '🗑 1', onclick: () => this.run(() => C.discard(e.id, 1)) }));
+        if (e.qty > 1) acts.push(el('button', { class: 'btn sm danger', disabled: busy, title: 'Jogar fora todas as unidades', text: '🗑 Todos',
+          onclick: () => this.confirm(`Descartar ${e.qty}x ${it.name}? Não dá para recuperar.`, () => { C.discard(e.id, e.qty); this.refresh(true); this.open('inventory'); }) }));
         const extra = C.SCRAP[e.id] ? ' → ' + C.SCRAP[e.id].out.map((o) => `${o.qty}x ${C.ITEMS[o.id].name}`).join(', ') : '';
         body.appendChild(el('div', { class: 'row' },
           iconImg(it.icon, 3),
