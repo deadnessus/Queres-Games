@@ -366,6 +366,19 @@
       return m;
     },
 
+    /** Descarta (joga fora) itens da mochila. Não gasta tempo. */
+    discard(id, qty) {
+      const e = P().inventory.find((i) => i.id === id);
+      if (!e || qty <= 0) return false;
+      const n = Math.min(qty, e.qty);
+      this.remove(id, n);
+      const left = P().inventory.find((i) => i.id === id);
+      if (left && id === 'pot_water') left.charge = Math.min(left.charge || 0, left.qty * 5);
+      S().log(`Você descartou ${n}x [${ITEMS[id].name}].`, 'hint');
+      S().touch();
+      return true;
+    },
+
     // ---------------- Consumo ----------------
     useItem(id) {
       const it = ITEMS[id];
