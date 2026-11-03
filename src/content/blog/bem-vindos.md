@@ -1,7 +1,7 @@
 ---
 titulo: Bem-vindos ao queres.games
 resumo: O site onde ficam todos os jogos feitos pelos irmãos Quéres.
-data: 2026-11-01
+data: 2026-11-01T16:15:00-03:00
 ---
 Este é o primeiro post do queres.games, o lugar onde ficam todos os jogos feitos pelo Jojô e pelo Bento.
 
