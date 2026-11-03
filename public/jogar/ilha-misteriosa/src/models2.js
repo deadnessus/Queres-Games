@@ -339,6 +339,75 @@
     return m;
   }
 
+
+  // ---------------- Canteiros de obra (construção inacabada) ----------------
+  // stage 0: estacas e corda · 1: montantes e tábuas · 2: quase pronta, cavalete e material
+  function siteWall(stage) {
+    const m = new Model(); const R = mulberry32(900 + stage);
+    const dirt = (x, y, z) => jit([118, 92, 60], 0.12, x, y, z, 11);
+    const raw = (x, y, z) => jit((((x + y + 32) >> 2) & 1) ? C.woodL : C.woodA, 0.07, x, y, z, 12);
+    const post = (x, y, z) => jit(C.woodB, 0.07, x, y, z, 13);
+    const rope = [216, 198, 142];
+    m.box(-8, 8, -8, 8, 0, 1, dirt);
+    const px = [-7, 0, 6];
+    if (stage === 0) {
+      [[-7, -7], [6, -7], [-7, 6], [6, 6], [0, 0]].forEach(([x, y], i) => m.box(x, x + 2, y, y + 2, 1, 9 + (i % 2) * 3, post));
+      m.line(-6, -6, 8, 6, -6, 8, rope); m.line(6, -6, 8, 6, 6, 8, rope); m.line(6, 6, 8, -6, 6, 8, rope); m.line(-6, 6, 8, -6, -6, 8, rope);
+      m.box(-6, 3, 1, 4, 1, 3, raw); m.box(-5, 4, 2, 5, 3, 5, raw);   // tábuas empilhadas
+      m.ellipsoid(4, -3, 2, 2.5, 2.5, 1.8, C.stoneD);
+    } else if (stage === 1) {
+      px.forEach((x) => [-7, 6].forEach((y) => m.box(x, x + 2, y, y + 2, 1, 21, post)));
+      m.box(-7, 8, -7, -5, 18, 20, raw); m.box(-7, 8, 5, 7, 18, 20, raw);          // vigas superiores
+      m.box(-7, 8, -7, -5, 1, 9, raw);                                              // cladding parcial (face)
+      m.line(-7, 6, 2, 6, 6, 19, C.woodD, 0.9);                                     // escora diagonal
+      m.box(-7, 0, 5, 7, 1, 5, (x, y, z) => jit(C.woodA, 0.07, x, y, z, 14));
+      m.line(-6, -6, 17, 6, -6, 17, rope);
+      for (let i = 0; i < 3; i++) m.box(-3 + i * 4, -1 + i * 4, 0, 6, 1, 3, raw);   // tábuas no chão
+    } else {
+      px.forEach((x) => [-7, 6].forEach((y) => m.box(x, x + 2, y, y + 2, 1, 29, post)));
+      m.box(-7, 8, -7, -5, 1, 18, raw); m.box(-7, 8, 5, 7, 1, 14, raw);            // cladding alto
+      m.box(-7, 8, -7, -5, 26, 29, (x, y, z) => jit(C.woodL, 0.06, x, y, z, 15));  // viga de topo
+      m.box(-7, 8, 5, 7, 26, 29, (x, y, z) => jit(C.woodL, 0.06, x, y, z, 16));
+      m.line(-7, -6, 18, 6, -6, 26, C.woodD, 0.9);
+      m.box(-4, 6, 0, 3, 1, 9, raw);                                                // cavalete + tábuas
+      m.box(-4, -3, 0, 3, 1, 13, post); m.box(5, 6, 0, 3, 1, 13, post);
+      m.ellipsoid(2, 4, 2, 2.2, 2.2, 1.6, C.thatchD);
+    }
+    return m;
+  }
+
+  function siteSmall(stage) {
+    const m = new Model();
+    const dirt = (x, y, z) => jit([118, 92, 60], 0.12, x, y, z, 21);
+    const raw = (x, y, z) => jit((((x + y + 32) >> 2) & 1) ? C.woodL : C.woodA, 0.07, x, y, z, 22);
+    const post = (x, y, z) => jit(C.woodB, 0.07, x, y, z, 23);
+    const blk = (x, y, z) => { const u = x + y; return jit(((z >> 1) & 1) ? (((u + 32) >> 2) & 1 ? C.stone : C.stoneD) : C.brick, 0.08, x, y, z, 24); };
+    const rope = [216, 198, 142];
+    m.box(-8, 8, -8, 8, 0, 1, dirt);
+    if (stage === 0) {
+      [[-7, -7], [6, -7], [-7, 6], [6, 6]].forEach(([x, y]) => m.box(x, x + 2, y, y + 2, 1, 11, post));
+      m.line(-6, -6, 10, 6, -6, 10, rope); m.line(6, -6, 10, 6, 6, 10, rope); m.line(6, 6, 10, -6, 6, 10, rope); m.line(-6, 6, 10, -6, -6, 10, rope);
+      m.box(-4, 4, -3, 3, 1, 3, (x, y, z) => jit(C.stoneD, 0.1, x, y, z, 25));      // base de pedra
+      m.box(-6, 2, 3, 6, 1, 3, raw); m.box(-5, 3, 4, 7, 3, 5, raw);
+    } else if (stage === 1) {
+      [[-7, -7], [6, -7], [-7, 6], [6, 6]].forEach(([x, y]) => m.box(x, x + 2, y, y + 2, 1, 20, post));
+      m.box(-7, 8, -7, -5, 14, 16, raw); m.box(-7, 8, 5, 7, 14, 16, raw);
+      m.box(-7, -5, -7, 8, 14, 16, raw); m.box(5, 7, -7, 8, 14, 16, raw);
+      m.box(-4, 4, -4, 4, 1, 11, blk);                                               // metade do corpo
+      m.line(-7, 6, 2, 6, 6, 14, C.woodD, 0.9);
+      m.box(-6, 0, -1, 3, 1, 3, raw);
+    } else {
+      [[-7, -7], [6, -7], [-7, 6], [6, 6]].forEach(([x, y]) => m.box(x, x + 2, y, y + 2, 1, 29, post));
+      m.box(-7, 8, -7, -5, 24, 26, raw); m.box(-7, 8, 5, 7, 24, 26, raw);
+      m.box(-7, -5, -7, 8, 24, 26, raw); m.box(5, 7, -7, 8, 24, 26, raw);
+      m.box(-7, 8, -7, -5, 12, 14, raw); m.box(-7, 8, 5, 7, 12, 14, raw);
+      m.box(-5, 5, -5, 5, 1, 19, blk);                                               // corpo quase pronto
+      m.line(-5, -6, 1, -5, -6, 26, C.woodD, 0.8);                                   // escada
+      m.box(2, 8, -8, -4, 1, 5, raw);
+    }
+    return m;
+  }
+
   // ---------------- Registro ----------------
   const O = Ilha.Models.OBJECTS;
   const add = (name, variants, build, extra) => { O[name] = Object.assign({ variants, build }, extra); };
@@ -353,6 +422,10 @@
   add('DOOR_WOOD', 1, () => door('X', false));
   add('ROOF_THATCH', 1, () => roof('thatch'), { noShadow: true });
   add('ROOF_TILE', 1, () => roof('tile'), { noShadow: true });
+  for (let st = 0; st < 3; st++) {
+    add(`SITE_WALL_${st}`, 1, () => siteWall(st));
+    add(`SITE_SMALL_${st}`, 1, () => siteSmall(st));
+  }
   add('BED_RUSTIC', 1, () => bed(false));
   add('BED_COMFORT', 1, () => bed(true));
   add('CHEST', 1, () => chest());

@@ -156,6 +156,14 @@
   struct('roof_thatch', 'Telhado de Palha', 'ROOF_THATCH', [{ id: 'wood_branch', qty: 6 }],
     { layer: 'roof', icon: 'roof', minutes: 15, kcal: 25, stamina: 3, xp: 10, minLevel: 3, desc: 'Cobre o cômodo. Precisa apoiar em parede ou em outro telhado.' });
 
+  // ---- Casas pré-fabricadas: obras de várias horas (5x5, interior 3x3) ----
+  const prefab = (id, name, inp, o) => R.push(Object.assign({ id, name, kind: 'structure', layer: 'prefab', place: 'HOUSE', in: inp }, o));
+  prefab('house_wood', 'Casa de Madeira (obra)', [{ id: 'plank', qty: 64 }, { id: 'wood_branch', qty: 120 }],
+    { icon: 'floor', minutes: 480, kcal: 880, stamina: 64, xp: 160, minLevel: 2,
+      site: { hours: 8, kcal: 110, stamina: 8 },
+      prefab: { wall: 'WALL_WOOD', door: 'DOOR_WOOD', window: null, floor: 'FLOOR_WOOD', roof: 'ROOF_THATCH' },
+      desc: 'Casa de 5x5 com piso, paredes, porta e telhado de palha, erguida de uma só vez. Dá para parar e continuar depois.' });
+
   // ---- Era 2: Cerâmica, Metalurgia e Agricultura (4–7) ----
   struct('kiln', 'Forno de Olaria (Kiln)', 'KILN', [{ id: 'clay', qty: 12 }, { id: 'stone', qty: 6 }],
     { minutes: 60, kcal: 100, stamina: 10, xp: 50, minLevel: 4, desc: 'Queima argila: tijolo refratário, telha, pote e vidro.' });
@@ -183,6 +191,11 @@
     { layer: 'roof', icon: 'roof', minutes: 20, kcal: 35, stamina: 4, xp: 20, minLevel: 5, desc: 'Cobertura de telhas cerâmicas.' });
   struct('fireplace', 'Lareira de Pedra', 'FIREPLACE_UNLIT', [{ id: 'stone', qty: 6 }, { id: 'refractory_brick', qty: 2 }],
     { minutes: 50, kcal: 80, stamina: 8, xp: 45, minLevel: 5, desc: 'Aquece o cômodo (+15 °C de isolamento quando acesa).' });
+  prefab('house_masonry', 'Casa de Alvenaria (obra)', [{ id: 'refractory_brick', qty: 45 }, { id: 'stone', qty: 27 }, { id: 'roof_tile', qty: 25 }, { id: 'glass', qty: 2 }, { id: 'plank', qty: 6 }],
+    { icon: 'floor', minutes: 720, kcal: 1500, stamina: 120, xp: 280, minLevel: 5,
+      site: { hours: 12, kcal: 125, stamina: 10 },
+      prefab: { wall: 'WALL_BRICK', door: 'DOOR_WOOD', window: 'WINDOW_GLASS', floor: 'FLOOR_STONE', roof: 'ROOF_TILE' },
+      desc: 'Casa de 5x5 de tijolo, piso de pedra, porta, janela de vidro e telhas. Obra longa, divisível em sessões.' });
   item('iron_pickaxe', 'Picareta de Ferro', { id: 'iron_pickaxe', qty: 1 }, [{ id: 'iron_ingot', qty: 3 }, { id: 'plank', qty: 2 }],
     { station: 'workbench', minutes: 40, kcal: 50, stamina: 5, xp: 70, minLevel: 5, desc: 'Habilita minerar os veios de ferro e cobre!' });
   struct('blast_furnace', 'Alto-Forno Catalão', 'BLAST_FURNACE', [{ id: 'refractory_brick', qty: 10 }, { id: 'stone', qty: 8 }, { anyOf: ['fiber', 'leather'], qty: 4 }],
@@ -250,6 +263,16 @@
   struct('telegraph', 'Estação de Telégrafo', 'TELEGRAPH', [{ id: 'copper_wire', qty: 10 }, { id: 'iron_ingot', qty: 4 }, { id: 'steel_ingot', qty: 2 }, { id: 'plank', qty: 4 }, { id: 'lens', qty: 2 }],
     { minutes: 180, kcal: 200, stamina: 20, xp: 400, minLevel: 15, desc: 'Estrutura final da Era 4: conecta a base às tribos (Sprint 4).' });
 
+
+  // Estruturas de 1 tile que levam 90 min ou mais viram OBRAS: o trabalho é dividido em horas
+  // e pode ser feito em várias sessões (ver sites.js). O custo total é o mesmo.
+  R.forEach((r) => {
+    if (r.kind === 'structure' && r.layer === 'object' && !r.site && (r.minutes || 0) >= 90) {
+      const hours = Math.ceil(r.minutes / 60);
+      r.site = { hours, kcal: Math.ceil(r.kcal / hours), stamina: Math.ceil(r.stamina / hours) };
+    }
+  });
+
   // Desmontagem (Salvage)
   const SCRAP = {
     pocket_watch_broken: { out: [{ id: 'gear', qty: 2 }, { id: 'spring', qty: 1 }, { id: 'lens', qty: 1 }], minutes: 20, xp: 30 },
@@ -263,7 +286,7 @@
     kiln: 'KILN', workbench: 'WORKBENCH', bed_rustic: 'BED_RUSTIC', chest: 'CHEST', blast_furnace: 'BLAST_FURNACE', fireplace: 'FIREPLACE_LIT',
     lab: 'LAB', water_wheel: 'WATER_WHEEL', sawmill: 'SAWMILL', mill: 'MILL', bed_comfort: 'BED_COMFORT', dynamo: 'DYNAMO',
     battery: 'BATTERY', battery_naval: 'BATTERY', lamp_post: 'LAMP_POST_ON', greenhouse: 'GREENHOUSE', workshop: 'WORKSHOP', telegraph: 'TELEGRAPH',
-    roof_thatch: 'ROOF_THATCH', roof_tile: 'ROOF_TILE',
+    roof_thatch: 'ROOF_THATCH', roof_tile: 'ROOF_TILE', house_wood: 'WALL_WOOD', house_masonry: 'WALL_BRICK',
   };
 
   // -----------------------------------------------------------------
@@ -488,7 +511,7 @@
         : !toolOk ? `Requer ${Config.TOOL_NAMES[r.tool] || r.tool} equipado`
         : !stationOk ? `Requer ${Config.STATION_NAMES[r.station] || r.station} por perto (até 2 tiles)`
         : !powerOk ? 'Sem energia elétrica (kWh)'
-        : missing.length ? 'Faltam ingredientes'
+        : (missing.length && !r.site) ? 'Faltam ingredientes'
         : !fireOk ? 'Requer Fogueira acesa por perto'
         : !placeOk ? placeMsg : '';
       return { ok: !reason, reason, missing, fireOk, levelOk, toolOk, stationOk, powerOk, placeOk, placeMsg };

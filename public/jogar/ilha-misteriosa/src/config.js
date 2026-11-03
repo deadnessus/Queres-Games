@@ -75,6 +75,7 @@
       HP_REGEN_PROTEIN_H: 1.4,
       BASE_MAX_HP: 100,
       BASE_MAX_STAMINA: 100,
+      SLEEP_WAKE_HP_FRAC: 0.2, // dormindo: só acorda (por fome/sede/dano) com HP <= 20% do máximo (mín. 20)
       STARVE_HP_H: 3,
       THIRST_HP_H: 4,
       COLD_HP_H: 1.5,
@@ -272,6 +273,9 @@
   struct('LAMP_POST', 'Poste de Luz Elétrica', { handler: 'machine', verb: 'Inspecionar', light: 7 });
   struct('GREENHOUSE', 'Estufa Climatizada', { handler: 'machine', verb: 'Inspecionar' });
   struct('TELEGRAPH', 'Estação de Telégrafo', { handler: 'machine', verb: 'Inspecionar' });
+  // Canteiros de obra (construção em andamento — ver sites.js)
+  struct('SITE_WALL', 'Obra em andamento (estrutura)', { handler: 'site', verb: 'Trabalhar na obra', site: true });
+  struct('SITE_SMALL', 'Obra em andamento', { handler: 'site', verb: 'Trabalhar na obra', site: true });
 
   // Culturas: 4 tipos x 4 estágios visuais
   Config.CROPS = {

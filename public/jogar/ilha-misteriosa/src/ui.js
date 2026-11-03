@@ -220,6 +220,7 @@
         station: () => this.buildStation(),
         trade: () => this.buildTrade(),
         pickup: () => this.buildPickup(),
+        site: () => this.buildSite(),
       };
       if (name === 'craft' && !this.craftTab) this.craftTab = D().player.era;
       const build = (opts && opts.build) || builders[name];
@@ -386,7 +387,7 @@
           const est = P.estimate(r);
           const chips = r.in.map((i) => {
             const have = C.ingHave(i);
-            return el('span', { class: 'chip ' + (have >= i.qty ? 'have' : 'miss'), text: `${C.ingName(i)} ${have}/${i.qty}` });
+            return el('span', { class: 'chip ' + (have >= i.qty ? 'have' : (r.site ? 'part' : 'miss')), text: `${C.ingName(i)} ${have}/${i.qty}` });
           });
           const notes = [];
           if (!st.levelOk) notes.push(el('span', { class: 'c-bad', text: ` 🔒 Requer Nível ${r.minLevel}` }));
@@ -396,16 +397,18 @@
           if (r.fire) notes.push(el('span', { class: st.fireOk ? 'c-ok' : 'c-bad', text: st.fireOk ? ' 🔥 Fogueira ✔' : ' 🔥 Requer fogo aceso próximo ✘' }));
           if (r.rule === 'river') notes.push(el('span', { class: 'c-warn', text: ' ≈ ao lado do rio' }));
           const crafted = p.crafted[r.id];
-          const can = st.levelOk && st.toolOk && !st.missing.length && (kind === 'structure' || (st.stationOk && st.fireOk && st.powerOk));
+          const can = st.levelOk && st.toolOk && (r.site || !st.missing.length) && (kind === 'structure' || (st.stationOk && st.fireOk && st.powerOk));
           body.appendChild(el('div', { class: 'row', style: st.levelOk ? '' : 'opacity:.6' },
             iconFor(r),
             el('div', { class: 'info' },
               el('div', { class: 'name', text: r.name + (crafted ? '' : `  ✦ novo (+${r.xp} XP)`) }),
               el('div', { class: 'desc', text: r.desc }),
               el('div', {}, chips, notes),
-              el('div', { class: 'desc', text: `⏱ ${est.minutes} min · ⚡ -${est.kcal} kcal · stamina -${est.stamina}` })),
+              r.site
+                ? el('div', { class: 'desc', text: `🏗 OBRA: ${r.site.hours} h de trabalho (${Ilha.Sites.isPrefab(r) ? 'terreno 5×5 · ' : ''}-${r.site.kcal} kcal e -${Math.round(r.site.stamina * P.staminaMult())} stamina por hora). Marcar não gasta nada: o material sai conforme você trabalha, e dá para parar e continuar depois.` })
+                : el('div', { class: 'desc', text: `⏱ ${est.minutes} min · ⚡ -${est.kcal} kcal · stamina -${est.stamina}` })),
             el('div', { class: 'acts' }, el('button', {
-              class: 'btn', disabled: !can || d.dead || d.sleeping, text: kind === 'item' ? 'Fabricar' : 'Construir',
+              class: 'btn', disabled: !can || d.dead || d.sleeping, text: kind === 'item' ? 'Fabricar' : (r.site ? 'Marcar obra' : 'Construir'),
               onclick: () => {
                 if (kind === 'item') this.run(() => C.craft(r.id));
                 else { this.closeModal(); Ilha.Building.setMode(r.id); }
@@ -550,6 +553,64 @@
       return { title: 'Itens no chão', body, foot };
     },
 
+
+    // ------------------------------------------------------------
+    // Obras (canteiros de construção)
+    // ------------------------------------------------------------
+    openSite(site) { this.siteKey = site.cx + ',' + site.cy; this.open('site'); },
+
+    buildSite() {
+      const d = D(); const C = Cr(); const Si = Ilha.Sites;
+      const site = Si.all()[this.siteKey];
+      const foot = [el('button', { class: 'btn', text: 'Fechar', onclick: () => this.closeModal() })];
+      if (!site) { this.closeModal(); return { title: 'Obra', body: el('div'), foot }; }
+      const r = Si.recipeOf(site);
+      const left = site.hours - site.done;
+      const body = el('div');
+      const pct = Math.round(Si.progress(site) * 100);
+      const stageTxt = ['Estacas e corda marcam o terreno.', 'A estrutura de montantes já está de pé.', 'Quase pronta: faltam os acabamentos.'][Si.stage(site)];
+      body.appendChild(el('p', { class: 'small', text: r.desc }));
+      body.appendChild(el('div', { class: 'diag' },
+        el('div', { class: 'top' }, el('b', { text: 'Progresso da obra' }), el('span', { text: `${site.done}/${site.hours} h · ${pct}%` })),
+        el('div', { class: 'meter', style: '--c:#d9a441' }, el('i', { style: `width:${pct}%` }))));
+      body.appendChild(el('p', { class: 'small muted', text: `${stageTxt} Cada hora de trabalho custa ${r.site.kcal} kcal e ${Math.round(r.site.stamina * Pl().staminaMult())} de stamina. A estrutura só aparece inteira quando as ${site.hours} horas forem cumpridas.` }));
+
+      const reach = Si.inReach(site);
+      if (!reach) body.appendChild(el('p', { class: 'c-warn small', text: '⚠ Você está longe da obra: aproxime-se (até 3 tiles) para trabalhar.' }));
+
+      body.appendChild(el('h3', { text: 'Materiais' }));
+      const next = Si.needFor(site, 1);
+      Si.materials(site).forEach((m, i) => {
+        const have = C.ingHave(m.ing);
+        body.appendChild(el('div', { class: 'row' },
+          el('div', { class: 'info' },
+            el('div', { class: 'name', text: C.ingName(m.ing) }),
+            el('div', { class: 'desc', text: `Já usado na obra: ${m.paid}/${m.total} · na mochila: ${have}${next[i] > 0 ? ` · próxima hora precisa de ${next[i]}` : ''}` })),
+          el('div', { class: 'acts' }, el('span', { class: 'chip ' + (have >= next[i] ? 'have' : 'miss'), text: have >= next[i] ? 'ok' : `faltam ${next[i] - have}` }))));
+      });
+      const unpaid = Si.materials(site).reduce((a, m) => a + (m.total - m.paid) * (m.ing.anyOf ? 0.5 : C.ITEMS[m.ing.id].weight), 0);
+      body.appendChild(el('p', { class: 'small muted', text: `Falta levar ~${unpaid.toFixed(0)} kg de material até o fim da obra (mochila: ${Config.MAX_WEIGHT} kg). Pode buscar em etapas: a obra espera.` }));
+
+      const busy = d.dead || d.sleeping;
+      const canHours = Math.min(left, 8);
+      if (this.siteHours == null || this.siteHours > canHours || this.siteHours < 1) this.siteHours = Math.min(2, left);
+      const label = el('b', { text: `${this.siteHours} h` });
+      const slider = el('input', {
+        type: 'range', min: 1, max: canHours, value: this.siteHours, class: 'site-slider',
+        oninput: (e) => { this.siteHours = +e.target.value; label.textContent = `${this.siteHours} h`; btn.textContent = `🔨 Trabalhar ${this.siteHours} h`; },
+      });
+      const doWork = (n) => this.run(() => {
+        const res = Si.work(site, n);
+        if (res.reason) this.toast(res.reason);
+      });
+      const btn = el('button', { class: 'btn', disabled: busy, text: `🔨 Trabalhar ${this.siteHours} h`, onclick: () => doWork(this.siteHours) });
+      if (left > 1) body.appendChild(el('div', { class: 'row' }, el('div', { class: 'info' }, el('div', { class: 'name' }, 'Quanto trabalhar agora: ', label), slider)));
+      body.appendChild(el('div', { class: 'row' }, btn,
+        left > 1 ? el('button', { class: 'btn', disabled: busy, text: `⏩ Até terminar (${left} h)`, onclick: () => doWork(left) }) : null));
+      foot.unshift(el('button', { class: 'btn danger', text: 'Cancelar obra', onclick: () => this.confirm('Cancelar esta obra? Você recupera 50% do material já gasto; o resto se perde.', () => { Si.cancel(site); this.refresh(true); }) }));
+      return { title: '🏗 ' + r.name.replace(' (obra)', '') + ' — obra', body, foot };
+    },
+
     openStation(x, y) { this.stationPos = { x, y }; this.open('station'); },
 
     /** Faixa do modo construção sobre o mundo. */
@@ -569,9 +630,12 @@
       if (!r) { el_.classList.add('hidden'); return; }
       el_.appendChild(el('b', { text: `🔨 CONSTRUINDO: ${r.name}` }));
       el_.appendChild(document.createTextNode(document.body.classList.contains('touch') ? ' — toque 1x para ver, 2x para posicionar (alcance 3 tiles). ✕ Cancelar sai. ' : ' — clique para posicionar (alcance 3 tiles). Esc ou clique direito para sair. '));
+      if (r.site) {
+        el_.appendChild(el('span', { class: 'c-warn', text: ` 🏗 OBRA de ${r.site.hours} h${Ilha.Sites.isPrefab(r) ? ' · terreno 5×5 (alcance 5)' : ''}: marcar não gasta nada. ` }));
+      }
       r.in.forEach((i) => {
         const have = Cr().ingHave(i);
-        el_.appendChild(el('span', { class: 'chip ' + (have >= i.qty ? 'have' : 'miss'), text: `${Cr().ingName(i)} ${have}/${i.qty}` }));
+        el_.appendChild(el('span', { class: 'chip ' + (have >= i.qty ? 'have' : (r.site ? 'part' : 'miss')), text: `${Cr().ingName(i)} ${have}/${i.qty}` }));
       });
     },
 
@@ -758,7 +822,7 @@
         if (!q.shelter) warn.push('Sem Abrigo de Folhas encostado: o sono será pior.');
         if (!q.fire && S().isNight()) warn.push('Sem fogueira acesa por perto: risco de Hipotermia à noite.');
         if (q.wet) warn.push('Dormir na chuva, sem abrigo, causa Dores Musculares e frio.');
-        if (s.calories < 600 || s.hydration < 25) warn.push('Fome ou sede intensas podem interromper o sono.');
+        if (s.calories < 600 || s.hydration < 25) warn.push('Fome/sede NÃO interrompem o sono: o corpo sofre dano a cada hora e você só acorda com HP muito baixo (≤ 20%).');
         warn.forEach((w) => out.appendChild(el('div', { class: 'c-warn small', text: '⚠ ' + w })));
       };
       slider.addEventListener('input', () => { rs.hours = +slider.value; label.textContent = `${rs.hours} h`; update(); });

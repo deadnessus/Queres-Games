@@ -53,13 +53,19 @@
       const Wd = Ilha.World;
       const p = D().player;
       if (!Wd.inBounds(x, y)) return { ok: false, msg: 'Fora do mapa.' };
-      if (Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) > REACH) return { ok: false, msg: `Fora de alcance (até ${REACH} tiles).` };
+      if (r.layer !== 'prefab' && Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) > REACH) return { ok: false, msg: `Fora de alcance (até ${REACH} tiles).` };
       const terr = Wd.terrainAt(x, y);
       const tdef = Config.TERRAIN[terr];
       const obj = Wd.objectAt(x, y);
       const layer = r.layer || 'object';
       const onPlayer = p.x === x && p.y === y;
 
+      if (layer === 'prefab') {
+        if (Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) > REACH + 2) return { ok: false, msg: `Fora de alcance (até ${REACH + 2} tiles do centro da obra).` };
+        return Ilha.Sites.canStart(r, x, y);
+      }
+      const reserved = Ilha.Sites && Ilha.Sites.siteAt(x, y);
+      if (reserved) return { ok: false, msg: 'Terreno reservado para uma obra.' };
       if (layer === 'object') {
         if (onPlayer) return { ok: false, msg: 'Você está neste tile.' };
         if (!tdef.walk || tdef.water) return { ok: false, msg: 'Não é possível construir na água.' };
@@ -68,7 +74,7 @@
         if (r.rule === 'river' && !N8.some(([dx, dy]) => Wd.terrainAt(x + dx, y + dy) === 'RIVER_WATER')) {
           return { ok: false, msg: "A Roda d'Água só pode ser construída ao lado do rio." };
         }
-        return { ok: true, msg: '' };
+        return r.site ? Ilha.Sites.canStart(r, x, y) : { ok: true, msg: '' };
       }
       if (layer === 'floor') {
         if (!tdef.walk || tdef.water) return { ok: false, msg: 'Não é possível pisar na água para colocar piso.' };
@@ -98,6 +104,15 @@
     build(r, x, y) {
       const chk = this.canPlace(r, x, y);
       if (!chk.ok) { Ilha.UI.toast(chk.msg); return false; }
+      if (r.site) {                       // obra: marca o canteiro (sem custo) e abre a janela de trabalho
+        const lvl = Ilha.Crafting.status(r, { x, y }, true);
+        if (!lvl.levelOk) { Ilha.UI.toast(lvl.reason); return false; }
+        const site = Ilha.Sites.start(r, x, y);
+        if (!site) return false;
+        this.setMode(null);
+        if (Ilha.UI && Ilha.UI.openSite) Ilha.UI.openSite(site);
+        return true;
+      }
       const st = Ilha.Crafting.status(r, { x, y });
       if (!st.ok) { Ilha.UI.toast(st.reason); return false; }
       const layer = r.layer || 'object';
@@ -120,6 +135,12 @@
       if (Math.max(Math.abs(x - p.x), Math.abs(y - p.y)) > REACH) { Ilha.UI.toast(`Fora de alcance (até ${REACH} tiles).`); return false; }
       const obj = Wd.objectAt(x, y);
       let kind = null; let id = null;
+      const site = Ilha.Sites.siteAt(x, y);
+      if (site) {
+        const sr = Ilha.Sites.recipeOf(site);
+        Ilha.UI.confirm(`Cancelar a obra [${sr.name}]? Você recupera 50% do material já gasto.`, () => { Ilha.Sites.cancel(site); });
+        return false;
+      }
       if (Wd.roofAt(x, y)) { kind = 'roof'; id = Wd.roofAt(x, y); }
       else if (obj && OBJ(obj) && OBJ(obj).structure && !['CAMPFIRE_UNLIT', 'CAMPFIRE_LIT'].includes(obj)) { kind = 'object'; id = obj; }
       else if (Wd.floorAt(x, y)) { kind = 'floor'; id = Wd.floorAt(x, y); }
@@ -246,6 +267,10 @@
         const wx = (this.isWallish(x - 1, y) ? 1 : 0) + (this.isWallish(x + 1, y) ? 1 : 0);
         const wy = (this.isWallish(x, y - 1) ? 1 : 0) + (this.isWallish(x, y + 1) ? 1 : 0);
         return `DOOR_${wx >= wy ? 'X' : 'Y'}_${this.isDoorOpen(x, y) ? 'OPEN' : 'CLOSED'}`;
+      }
+      if (name === 'SITE_WALL' || name === 'SITE_SMALL') {
+        const sd = Ilha.Sites.siteAt(x, y);
+        return `${name}_${sd ? Ilha.Sites.stage(sd) : 0}`;
       }
       if (name === 'KILN' || name === 'BLAST_FURNACE' || name === 'SAWMILL' || name === 'MILL') {
         const st = w.stations[key(x, y)];
