@@ -293,12 +293,12 @@
       return Math.max(0, Math.floor((Config.MAX_WEIGHT - this.weight() + 1e-6) / w));
     },
 
-    add(id, qty) {
+    add(id, qty, charge) {
       const n = Math.min(qty, this.room(id));
       if (n <= 0) return 0;
       const e = P().inventory.find((i) => i.id === id);
       if (e) e.qty += n; else P().inventory.push({ id, qty: n });
-      if (id === 'pot_water') { const x = P().inventory.find((i) => i.id === id); x.charge = (x.charge || 0) + 5 * n; }
+      if (id === 'pot_water') { const x = P().inventory.find((i) => i.id === id); x.charge = (x.charge || 0) + (charge != null ? charge : 5 * n); }
       return n;
     },
 
@@ -366,18 +366,8 @@
       return m;
     },
 
-    /** Descarta (joga fora) itens da mochila. Não gasta tempo. */
-    discard(id, qty) {
-      const e = P().inventory.find((i) => i.id === id);
-      if (!e || qty <= 0) return false;
-      const n = Math.min(qty, e.qty);
-      this.remove(id, n);
-      const left = P().inventory.find((i) => i.id === id);
-      if (left && id === 'pot_water') left.charge = Math.min(left.charge || 0, left.qty * 5);
-      S().log(`Você descartou ${n}x [${ITEMS[id].name}].`, 'hint');
-      S().touch();
-      return true;
-    },
+    /** Largar no chão (descartar): os itens ficam numa pilha visível no mapa. Não gasta tempo. */
+    discard(id, qty) { return Ilha.Player.dropItems(id, qty); },
 
     // ---------------- Consumo ----------------
     useItem(id) {

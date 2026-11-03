@@ -241,6 +241,25 @@
       }
     }
 
+    // Pilhas de itens largados no chão
+    const pileMarks = [];
+    Object.keys(d.world.drops).forEach((k) => {
+      const [dx_, dy_] = k.split(',').map(Number);
+      const c = proj(dx_, dy_);
+      if (c.x < -hw * 2 || c.x > W + hw * 2 || c.y < -hh * 2 || c.y > H + hh * 2 + 120 * S) return;
+      const total = d.world.drops[k].reduce((a, q) => a + q.qty, 0);
+      objs.push({ depth: dx_ + dy_ - 0.05, x: dx_, y: dy_, name: total >= 6 ? 'ITEM_PILE_L' : 'ITEM_PILE_S', cx: c.x, cy: c.y });
+      pileMarks.push(c);
+    });
+    // anel pulsante âmbar sob cada pilha (indica que há itens para pegar)
+    if (pileMarks.length) {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 350);
+      pileMarks.forEach((c) => {
+        ctx.fillStyle = `rgba(240,192,96,${0.10 + 0.08 * pulse})`; ctx.strokeStyle = `rgba(240,192,96,${0.45 + 0.3 * pulse})`; ctx.lineWidth = 2;
+        diamondPath(ctx, c.x, c.y, hw * 0.62, hh * 0.62); ctx.fill(); ctx.stroke();
+      });
+    }
+
     // Indicadores no chão: rota, tile à frente, hover
     const tileDiamond = (x, y, style, dash, inset) => {
       const c = proj(x, y);
