@@ -32,6 +32,7 @@
         stepCount: 0,
       },
       catalog: {},
+      achievements: {},
       world: Ilha.World.generate(Config.SEED),
       log: [],
       logSeq: 0,
@@ -134,6 +135,7 @@
       Ilha.Island.migrate(d);
       if (typeof d.rainedToday !== 'boolean') d.rainedToday = false;
       if (typeof d.monsoonToday !== 'boolean') d.monsoonToday = false;
+      d.achievements = d.achievements || {};
       d.catalog = d.catalog || {}; d.stats = d.stats || { daysSurvived: 0, tilesWalked: 0 };
       const p = d.player;
       p.condTimers = p.condTimers || {}; p.crafted = p.crafted || {}; p.conditions = p.conditions || [];
@@ -160,6 +162,14 @@
       return `${Config.pad2(t.hour)}:${Config.pad2(t.minute)}`;
     },
     stamp() { return `[Dia ${this.data.time.day} - ${this.timeString()}]`; },
+
+    /** Textos flutuantes sobre Cyrus (só visual, não vão para o save). kind: good | bad | xp */
+    floats: [],
+    float(text, kind) {
+      const f = this.floats;
+      f.push({ t0: performance.now(), text, kind: kind || 'good' });
+      if (f.length > 8) f.shift();
+    },
 
     log(text, cls) {
       const d = this.data;
@@ -257,7 +267,7 @@
       Ilha.Stations.hourly();
       Ilha.Player.hourlyBio();
       Ilha.Player.checkDeath();
-      if (!this.data.dead) this.save();
+      if (!this.data.dead) { if (Ilha.Achievements) Ilha.Achievements.check(); if (Ilha.Goals) Ilha.Goals.check(); this.save(); }
     },
 
     /** Às 00:00. */

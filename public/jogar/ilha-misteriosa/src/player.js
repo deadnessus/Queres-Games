@@ -91,6 +91,7 @@
       const gain = Math.round(n * mult);
       if (gain <= 0) return;
       p.xp += gain;
+      Ilha.State.float(`+${gain} XP`, 'xp');
       Ilha.State.log(`+${gain} XP Científico${reason ? ' (' + reason + ')' : ''}${mult > 1 ? ' — Mente Lúcida +50%' : ''}.`, 'xp');
       while (p.xp >= p.xpToNext && p.level < Config.LEVEL_CAP) {
         p.xp -= p.xpToNext;
@@ -98,6 +99,7 @@
         p.xpToNext = Config.xpToNext(p.level);
         p.era = Config.eraOfLevel(p.level);
         this.recalcMax();
+        if (Ilha.Audio) Ilha.Audio.play('levelup');
         Ilha.State.log(`Nível de Engenharia ${p.level}! Cyrus aprende e se fortalece (+2 HP máx.).${Config.eraOfLevel(p.level) !== Config.eraOfLevel(p.level - 1) ? ' NOVA ERA: ' + Config.ERAS[p.era - 1].name + '!' : ''}`, 'good');
         if (Ilha.UI && Ilha.UI.toast) Ilha.UI.toast('Nível de Engenharia ' + p.level + '!');
       }
@@ -202,6 +204,10 @@
       let minutes = (c.minutes || 0) * this.timeMult();
       if (c.walk && st.stamina <= 0) minutes *= 2; // exausto: passos lentos
 
+      if (!c.walk && ((c.stamina || 0) * this.staminaMult() >= 2 || (c.kcal || 0) >= 20)) {
+        const fs = Math.round((c.stamina || 0) * this.staminaMult()); const fk = Math.round(c.kcal || 0);
+        Ilha.State.float(`${fs ? '−' + fs + ' stamina' : ''}${fs && fk ? ' · ' : ''}${fk ? '−' + fk + ' kcal' : ''}`, 'bad');
+      }
       st.stamina = Math.max(0, st.stamina - (c.stamina || 0) * this.staminaMult());
       st.calories = Math.max(0, st.calories - (c.kcal || 0));
       if (c.hyd) st.hydration = clamp(st.hydration + c.hyd, 0, 100);
@@ -258,6 +264,7 @@
       p.x = nx; p.y = ny; p.stepCount++;
       D().stats.tilesWalked++;
       Ilha.Building.onStep(nx, ny);
+      if (Ilha.Audio) Ilha.Audio.play('step', terr.water ? 'water' : W.terrainAt(nx, ny) === 'SAND' ? 'sand' : 'grass');
       this.act({
         minutes: cost, walk: true, noCheck: true,
         kcal: B.WALK_KCAL_PER_MIN * cost,
@@ -576,6 +583,7 @@
       if (ent.qty <= 0) pile.splice(pile.indexOf(ent), 1);
       if (!pile.length) delete drops[k];
       if (got < want) Ilha.State.log('Sua mochila encheu: parte dos itens ficou no chão.', 'warn');
+      if (Ilha.Audio) Ilha.Audio.play('pickup');
       Ilha.State.log(`Você pega do chão: ${got}x [${C.name(id)}].`, 'good');
       this.advanceBy(1, { kcal: 0, stamina: 0 });
       Ilha.World.bump(); Ilha.State.touch();
@@ -586,6 +594,7 @@
       const st = ST();
       if (!this.act({ minutes: 2, kcal: 0, stamina: 0, noCheck: true })) return;
       st.hydration = clamp(st.hydration + 25, 0, 100);
+      if (Ilha.Audio) Ilha.Audio.play('drink');
       Ilha.State.log('Você bebe da corrente do rio. +25% Hidratação.');
       if (Math.random() < B.DYSENTERY_CHANCE) {
         this.addCondition('DYSENTERY', B.DYSENTERY_HOURS);
@@ -635,6 +644,7 @@
         if (C.room(firstDrop) <= 0) { say('Mochila cheia: libere peso antes de coletar.'); return; }
         const mult = def.tool ? C.toolMult(def.tool) : 1;
         if (!Player.act({ minutes: def.minutes * mult, kcal: def.kcal * mult, stamina: def.stamina, hygiene: def.hygiene, work: true })) return;
+        if (Ilha.Audio) Ilha.Audio.play(def.tool === 'axe' ? 'chop' : (def.tool === 'pickaxe' || def.drops[0].id === 'stone' || def.handler === 'mine') ? 'stone' : 'pick');
         const got = [];
         def.drops.forEach((dr) => {
           if (dr.chance && Math.random() > dr.chance) return;
@@ -746,6 +756,7 @@
         C.remove('wood_branch', 1);
         Ilha.World.setObject(x, y, Ilha.World.objectAt(x, y) === 'FIREPLACE_UNLIT' ? 'FIREPLACE_LIT' : 'CAMPFIRE_LIT');
         D().world.fires[key(x, y)] = 2;
+        if (Ilha.Audio) Ilha.Audio.play('fire');
         Ilha.State.log('Faíscas, fumaça… e a isca pega! A fogueira está acesa (~2h de combustível).', 'good');
         const p = PL();
         if (!p.crafted.first_fire) { p.crafted.first_fire = true; this.gainXP(20, 'primeiro fogo'); }
@@ -820,6 +831,10 @@
           }
           if (def.handler === 'station') {
             const stn = Ilha.Stations.get(x, y);
+            if (stn && stn.type === 'chest') {
+              const cap = Ilha.Stations.chestCapacity(x, y);
+              lines.push({ text: cap != null ? `Guardado: ${Ilha.Stations.chestWeight(stn).toFixed(1)}/${cap} kg` : 'Armazenamento ilimitado', cls: 'dim' });
+            }
             if (stn && stn.type !== 'chest') lines.push({ text: stn.active ? 'Em operação' : (stn.recipe ? 'Parado / aguardando insumos' : 'Sem receita selecionada'), cls: stn.active ? 'ok' : 'dim' });
           }
           if (def.handler === 'site') {
@@ -1159,6 +1174,7 @@
       else if (this.hasCond('SKIN_INFECTION')) cause = 'infecção generalizada';
       else if (this.hasCond('SCURVY')) cause = 'escorbuto';
       d.dead = { cause, day: d.time.day, time: Ilha.State.timeString() };
+      if (Ilha.Audio) Ilha.Audio.play('death');
       Ilha.State.log(`Cyrus Smith sucumbiu a ${cause}. Fim de jogo.`, 'bad');
       Ilha.State.clearSave();
       if (Ilha.State.onDeath) Ilha.State.onDeath();

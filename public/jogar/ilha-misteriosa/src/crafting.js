@@ -141,6 +141,8 @@
     { icon: 'campfire', minutes: 20, kcal: 40, stamina: 4, xp: 25, desc: 'Círculo de pedras com lenha. Depois de posicionada, acenda-a (Pedra + 1 Galhos como isca).' });
   struct('leaf_shelter', 'Abrigo de Folhas', 'LEAF_SHELTER', [{ id: 'wood_branch', qty: 12 }],
     { icon: 'shelter', minutes: 60, kcal: 100, stamina: 12, xp: 30, desc: 'Protege da chuva e do vento. Durma encostado a ele para sono melhor.' });
+  struct('crate_rustic', 'Caixote Rústico', 'CRATE_RUSTIC', [{ id: 'wood_branch', qty: 16 }],
+    { icon: 'shelter', minutes: 30, kcal: 40, stamina: 5, xp: 25, desc: 'Caixote de galhos trançados e cipós: guarda até 30 kg fora da mochila. Abra para guardar e retirar itens.' });
   struct('water_filter', 'Filtro de Água', 'WATER_FILTER', [{ id: 'sand', qty: 4 }, { id: 'charcoal', qty: 2 }, { id: 'wood_branch', qty: 3 }],
     { icon: 'filter', minutes: 30, kcal: 40, stamina: 4, xp: 35, desc: 'Camadas de areia e carvão purificam a água sem gastar lenha.' });
 
@@ -281,7 +283,7 @@
   };
 
   const RECIPE_ICON_OBJ = {
-    campfire: 'CAMPFIRE_LIT', leaf_shelter: 'LEAF_SHELTER', water_filter: 'WATER_FILTER',
+    campfire: 'CAMPFIRE_LIT', leaf_shelter: 'LEAF_SHELTER', crate_rustic: 'CRATE_RUSTIC', water_filter: 'WATER_FILTER',
     wall_wood: 'WALL_WOOD', door_wood: 'DOOR_X_CLOSED', wall_stone: 'WALL_STONE', wall_brick: 'WALL_BRICK', window_glass: 'WINDOW_GLASS',
     kiln: 'KILN', workbench: 'WORKBENCH', bed_rustic: 'BED_RUSTIC', chest: 'CHEST', blast_furnace: 'BLAST_FURNACE', fireplace: 'FIREPLACE_LIT',
     lab: 'LAB', water_wheel: 'WATER_WHEEL', sawmill: 'SAWMILL', mill: 'MILL', bed_comfort: 'BED_COMFORT', dynamo: 'DYNAMO',
@@ -322,6 +324,7 @@
       const e = P().inventory.find((i) => i.id === id);
       if (e) e.qty += n; else P().inventory.push({ id, qty: n });
       if (id === 'pot_water') { const x = P().inventory.find((i) => i.id === id); x.charge = (x.charge || 0) + (charge != null ? charge : 5 * n); }
+      if (S().float) S().float(`+${n} ${ITEMS[id].name}`, 'good');
       return n;
     },
 
@@ -400,6 +403,7 @@
       const st = P().stats;
       const Pl = Ilha.Player;
       const gains = [];
+      if (it.type === 'drink' && Ilha.Audio) Ilha.Audio.play('drink');
 
       if (u.special === 'pot_water') {
         const e = P().inventory.find((i) => i.id === 'pot_water');
@@ -522,6 +526,7 @@
       if (!Ilha.Player.canAfford({ stamina: r.stamina })) return false;
       r.in.forEach((i) => this.ingTake(i));
       doEffect();
+      if (Ilha.Audio) Ilha.Audio.play(r.kind === 'structure' ? 'build' : 'pick');
       const d = P();
       if (!d.crafted[r.id]) { d.crafted[r.id] = true; Ilha.Player.gainXP(r.xp, 'primeira vez: ' + r.name); }
       if (r.power) Ilha.Stations.usePower(r.power);
