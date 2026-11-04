@@ -12,7 +12,7 @@
     { id: 'wreck', text: 'Vasculhe os destroços do balão', hint: 'Clique nas lonas vermelhas e brancas: há comida, água e ferramentas.', done: () => !!D().catalog['Destroços do Balão'] },
     { id: 'fire', text: 'Construa uma Fogueira', hint: '[C] → Fogueira: 5 galhos + 3 pedras. Colha galhos nos arbustos e pedras nas rochas.', done: () => made('campfire') },
     { id: 'light', text: 'Acenda a Fogueira', hint: 'Clique nela e escolha Acender (1 pedra + 1 galho).', done: () => made('first_fire') },
-    { id: 'boil', text: 'Ferva Água do Rio', hint: 'Clique direito no rio para coletar água suja; ferva perto do fogo em [C].', done: () => made('boiled_water') },
+    { id: 'boil', text: 'Ferva Água do Rio', hint: 'Clique direito no rio para coletar água suja; ferva perto do fogo em [C].', done: () => made('boiled_water') || made('boiled_water_5') },
     { id: 'shelter', text: 'Construa um Abrigo de Folhas', hint: '[C] → Abrigo de Folhas (12 galhos). Durma encostado nele [R].', done: () => made('leaf_shelter') },
     { id: 'crate', text: 'Construa um Caixote Rústico', hint: '[C] → Caixote (16 galhos) para guardar itens fora da mochila.', done: () => made('crate_rustic') },
     { id: 'axe', text: 'Fabrique o Machado de Pedra', hint: '[C] → Machado de Pedra (2 pedras + 3 galhos).', done: () => made('stone_axe') },

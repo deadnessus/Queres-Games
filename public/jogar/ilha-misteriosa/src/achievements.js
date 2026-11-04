@@ -17,7 +17,7 @@
     { id: 'level5', name: 'Engenheiro da Era 2', desc: 'Alcance o nível 5.', done: () => D().player.level >= 5 },
     { id: 'blast', name: 'Fogo e Ferro', desc: 'Construa o Alto-Forno Catalão.', done: () => made('blast_furnace') },
     { id: 'well_rested', name: 'Noite Bem Dormida', desc: 'Fique Bem Descansado.', done: () => Ilha.Player.hasCond('WELL_RESTED') },
-    { id: 'ten_recipes', name: 'Mãos de Engenheiro', desc: 'Fabrique ou construa 10 coisas diferentes.', done: () => Object.keys(D().player.crafted).filter((k) => Ilha.Crafting.recipe(k)).length >= 10 },
+    { id: 'ten_recipes', name: 'Mãos de Engenheiro', desc: 'Fabrique ou construa 10 coisas diferentes.', done: () => Object.keys(D().player.crafted).filter((k) => { const rr = Ilha.Crafting.recipe(k); return rr && !rr.hidden; }).length >= 10 },
     { id: 'week', name: 'Uma Semana na Ilha', desc: 'Sobreviva 7 dias.', done: () => D().stats.daysSurvived >= 7 },
   ];
 

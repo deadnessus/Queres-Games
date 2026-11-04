@@ -624,8 +624,8 @@
       const C = Crafting();
       if (!C.hasTool('spear')) { say('Pescar exige uma Lança de Madeira equipada numa das mãos.'); return; }
       if (C.room('raw_fish') <= 0) { say('Mochila cheia.'); return; }
-      if (!this.act({ minutes: 45, kcal: 80, stamina: 10, hygiene: -1 })) return;
-      if (Math.random() < (river ? 0.55 : 0.45)) {
+      if (!this.act({ minutes: 25, kcal: 45, stamina: 6, hygiene: -1 })) return;
+      if (Math.random() < (river ? 0.65 : 0.55)) {
         const n = Math.random() < 0.15 ? 2 : 1;
         const got = C.add('raw_fish', n);
         Ilha.State.log(`Um arpão certeiro! Você pesca ${got}x Peixe Cru.`, 'good');
@@ -718,7 +718,7 @@
         const have = C.count('dirty_water');
         if (have < 1) { say('O Filtro de Água precisa de Água Suja do Rio no inventário. Colete-a no rio.', 'hint'); return; }
         const n = Math.min(have, 4);
-        if (!Player.act({ minutes: 10 * n, kcal: 5 * n, stamina: n })) return;
+        if (!Player.act({ minutes: 6 * n, kcal: 5 * n, stamina: n })) return;
         C.remove('dirty_water', n);
         C.add('clean_water', n);
         Ilha.State.log(`A água goteja pelas camadas de areia e carvão. Você obtém ${n}x Água Purificada.`, 'good');

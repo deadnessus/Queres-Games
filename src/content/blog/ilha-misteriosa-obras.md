@@ -24,3 +24,7 @@ Sim. Abra a criação (**C**), escolha a Casa de Madeira e marque o terreno. Com
 ## O que vem a seguir
 
 Esta é uma mudança grande, e vale ficar de olho no equilíbrio: se obras estiverem caras ou rápidas demais, vamos ajustar.
+
+## Atualização de 4 de novembro
+
+Algumas coisas deste post mudaram. A Casa de Madeira agora é **5×3 e leva 5 horas**, e os pisos, paredes e telhados avulsos saíram da lista de construção. Os detalhes estão em [A Ilha Misteriosa: tempos mais realistas e Casa de Madeira compacta](/blog/ilha-misteriosa-tempos-e-casa-compacta/).

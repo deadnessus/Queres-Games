@@ -19,27 +19,32 @@
   const D = () => Ilha.State.data;
   const W = () => Ilha.State.data.world;
   const REACH_WORK = 3;       // distância máxima (Chebyshev) até um tile da obra para trabalhar
-  const HALF = 2;             // pegada 5x5
 
   const Sites = {
-    HALF,
+
+    /** Meias-dimensões (hx, hy) da pegada de uma receita prefab (padrão 5x5 = 2,2). */
+    dims(r) { return { hx: r.prefab && r.prefab.hx != null ? r.prefab.hx : 2, hy: r.prefab && r.prefab.hy != null ? r.prefab.hy : 2 }; },
+    /** Meias-dimensões gravadas na obra (saves antigos guardavam só `half`). */
+    siteDims(s) { const h = s.half || 0; return { hx: s.hx != null ? s.hx : h, hy: s.hy != null ? s.hy : h }; },
+    sizeText(r) { const d = this.dims(r); return `${2 * d.hx + 1}×${2 * d.hy + 1}`; },
 
     recipeOf(site) { return Ilha.Crafting.recipe(site.rid); },
     isPrefab(r) { return !!(r && r.layer === 'prefab'); },
     all() { return (W().sites = W().sites || {}); },
 
     /** Tiles da obra de uma receita ancorada em (cx,cy): [{x,y,role}] */
-    layout(r, cx, cy) {
+    layout(r, cx, cy, hx, hy) {
       if (!this.isPrefab(r)) return [{ x: cx, y: cy, role: 'small' }];
+      if (hx == null || hy == null) { const d = this.dims(r); hx = d.hx; hy = d.hy; }
       const out = [];
-      for (let dy = -HALF; dy <= HALF; dy++) {
-        for (let dx = -HALF; dx <= HALF; dx++) {
-          const edge = Math.abs(dx) === HALF || Math.abs(dy) === HALF;
+      for (let dy = -hy; dy <= hy; dy++) {
+        for (let dx = -hx; dx <= hx; dx++) {
+          const edge = Math.abs(dx) === hx || Math.abs(dy) === hy;
           let role = 'floor';
           if (edge) {
             role = 'wall';
-            if (dx === 0 && dy === HALF) role = 'door';
-            else if (r.prefab.window && dx === HALF && dy === 0) role = 'window';
+            if (dx === 0 && dy === hy) role = 'door';
+            else if (r.prefab.window && dx === hx && dy === 0) role = 'window';
           }
           out.push({ x: cx + dx, y: cy + dy, role });
         }
@@ -48,14 +53,15 @@
     },
 
     /** Tiles que ficam "ocupados" pelo canteiro enquanto a obra existe (inclui a porta e o interior). */
-    footprint(site) { return this.layout(this.recipeOf(site), site.cx, site.cy); },
+    footprint(site) { const d = this.siteDims(site); return this.layout(this.recipeOf(site), site.cx, site.cy, d.hx, d.hy); },
 
     /** Obra que ocupa (x,y) — canteiro ou terreno reservado (interior/porta) — ou null. */
     siteAt(x, y) {
       const all = this.all();
       for (const k of Object.keys(all)) {
         const s = all[k];
-        if (Math.abs(x - s.cx) <= (s.half || 0) && Math.abs(y - s.cy) <= (s.half || 0)) return s;
+        const d = this.siteDims(s);
+        if (Math.abs(x - s.cx) <= d.hx && Math.abs(y - s.cy) <= d.hy) return s;
       }
       return null;
     },
@@ -97,7 +103,7 @@
         if (!td.walk || td.water) return { ok: false, msg: 'Não é possível construir na água.' };
         if (terr === 'TILLED_SOIL') return { ok: false, msg: 'Não construa sobre a terra arada.' };
         if (terr === 'IRRIGATION_CANAL') return { ok: false, msg: 'Há um canal de irrigação no terreno.' };
-        if (Wd.objectAt(t.x, t.y)) return { ok: false, msg: this.isPrefab(r) ? 'O terreno 5x5 precisa estar livre (há algo no caminho).' : 'O tile está ocupado.' };
+        if (Wd.objectAt(t.x, t.y)) return { ok: false, msg: this.isPrefab(r) ? `O terreno ${this.sizeText(r)} precisa estar livre (há algo no caminho).` : 'O tile está ocupado.' };
         if (Wd.floorAt(t.x, t.y) || Wd.roofAt(t.x, t.y)) return { ok: false, msg: 'Já há piso ou telhado neste terreno.' };
         if (Ilha.Player.dropsAt(t.x, t.y).length) return { ok: false, msg: 'Há itens largados no terreno da obra.' };
         if (this.siteAt(t.x, t.y)) return { ok: false, msg: 'Já existe uma obra aqui.' };
@@ -116,7 +122,8 @@
       if (!chk.ok) { Ilha.UI.toast(chk.msg); return null; }
       const lvl = D().player.level;
       if (lvl < (r.minLevel || 1)) { Ilha.UI.toast(`Requer Nível ${r.minLevel}`); return null; }
-      const site = { rid: r.id, cx: x, cy: y, hours: r.site.hours, done: 0, paid: r.in.map(() => 0), got: {}, half: this.isPrefab(r) ? HALF : 0 };
+      const dm = this.isPrefab(r) ? this.dims(r) : { hx: 0, hy: 0 };
+      const site = { rid: r.id, cx: x, cy: y, hours: r.site.hours, done: 0, paid: r.in.map(() => 0), got: {}, hx: dm.hx, hy: dm.hy };
       this.all()[key(x, y)] = site;
       this.layout(r, x, y).forEach((t) => {
         delete W().regen[key(t.x, t.y)];      // sem rebrota de vegetação dentro do canteiro
@@ -191,7 +198,8 @@
     /** Conclui: o canteiro some e a estrutura inteira surge de uma vez. */
     finish(site) {
       const r = this.recipeOf(site); const Wd = Ilha.World; const w = W();
-      const tiles = this.layout(r, site.cx, site.cy);
+      const sd = this.siteDims(site);
+      const tiles = this.layout(r, site.cx, site.cy, sd.hx, sd.hy);
       delete this.all()[key(site.cx, site.cy)];
       tiles.forEach((t) => { Wd.setObject(t.x, t.y, null); });
       if (this.isPrefab(r)) {
@@ -219,7 +227,8 @@
     /** Cancela a obra: devolve 50% do material já gasto (excedente vira pilha no chão). */
     cancel(site) {
       const r = this.recipeOf(site); const C = Ilha.Crafting; const Wd = Ilha.World;
-      const tiles = this.layout(r, site.cx, site.cy);
+      const sd = this.siteDims(site);
+      const tiles = this.layout(r, site.cx, site.cy, sd.hx, sd.hy);
       delete this.all()[key(site.cx, site.cy)];
       tiles.forEach((t) => { const o = Wd.objectAt(t.x, t.y); if (o === 'SITE_WALL' || o === 'SITE_SMALL') Wd.setObject(t.x, t.y, null); });
       const back = []; const ground = [];

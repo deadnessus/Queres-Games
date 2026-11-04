@@ -129,10 +129,14 @@
     { minutes: 20, kcal: 40, stamina: 4, xp: 15, desc: 'Arma e ferramenta de pesca. Permite arpoar peixes no rio e no mar raso.' });
   item('resin_torch', 'Tocha de Resina', { id: 'resin_torch', qty: 1 }, [{ id: 'wood_branch', qty: 2 }, { id: 'resin', qty: 1 }],
     { minutes: 10, kcal: 15, stamina: 2, xp: 10, desc: 'Luz portátil para a noite, na mão esquerda.' });
+  item('cooked_fish_4', 'Peixe Assado (4x)', { id: 'cooked_fish', qty: 4 }, [{ id: 'raw_fish', qty: 4 }],
+    { minutes: 25, kcal: 20, stamina: 2, xp: 4, fire: true, desc: 'Assa quatro peixes de uma vez na brasa.' });
   item('cooked_fish', 'Peixe Assado', { id: 'cooked_fish', qty: 1 }, [{ id: 'raw_fish', qty: 1 }],
     { minutes: 15, kcal: 10, stamina: 1, xp: 8, fire: true, desc: 'Elimina o risco de intoxicação e dobra a proteína.' });
   item('boiled_water', 'Água Fervida', { id: 'boiled_water', qty: 1 }, [{ id: 'dirty_water', qty: 1 }],
-    { minutes: 20, kcal: 5, stamina: 1, xp: 8, fire: true, desc: 'Ferver mata os germes da Água Suja do Rio.' });
+    { minutes: 12, kcal: 5, stamina: 1, xp: 8, fire: true, desc: 'Ferver mata os germes da Água Suja do Rio.' });
+  item('boiled_water_5', 'Água Fervida (5x)', { id: 'boiled_water', qty: 5 }, [{ id: 'dirty_water', qty: 5 }],
+    { minutes: 30, kcal: 10, stamina: 2, xp: 4, fire: true, desc: 'Ferve cinco porções de uma vez, no mesmo caldeirão: bem mais rápido que uma a uma.' });
   item('herb_tea', 'Chá de Ervas Digestivas', { id: 'herb_tea', qty: 1 }, [{ id: 'herb', qty: 1 }, { id: 'boiled_water', qty: 1 }],
     { minutes: 10, kcal: 5, stamina: 1, xp: 10, fire: true, desc: 'Cura Intoxicação Alimentar e alivia a Disenteria.' });
   item('charcoal', 'Carvão Vegetal', { id: 'charcoal', qty: 2 }, [{ id: 'log', qty: 1 }],
@@ -147,7 +151,7 @@
     { icon: 'filter', minutes: 30, kcal: 40, stamina: 4, xp: 35, desc: 'Camadas de areia e carvão purificam a água sem gastar lenha.' });
 
   // ---- Base de construção (níveis 2–3) ----
-  item('plank', 'Tábua (3x)', { id: 'plank', qty: 3 }, [{ id: 'log', qty: 1 }],
+  item('plank', 'Tábua (4x)', { id: 'plank', qty: 4 }, [{ id: 'log', qty: 1 }],
     { tool: 'axe', minutes: 40, kcal: 60, stamina: 6, xp: 12, minLevel: 2, desc: 'Serra uma tora em tábuas com o machado equipado.' });
   struct('floor_wood', 'Piso de Madeira', 'FLOOR_WOOD', [{ id: 'plank', qty: 2 }],
     { layer: 'floor', icon: 'floor', minutes: 10, kcal: 15, stamina: 2, xp: 8, minLevel: 2, desc: 'Piso de tábuas: base de uma casa (não bloqueia a passagem).' });
@@ -158,13 +162,13 @@
   struct('roof_thatch', 'Telhado de Palha', 'ROOF_THATCH', [{ id: 'wood_branch', qty: 6 }],
     { layer: 'roof', icon: 'roof', minutes: 15, kcal: 25, stamina: 3, xp: 10, minLevel: 3, desc: 'Cobre o cômodo. Precisa apoiar em parede ou em outro telhado.' });
 
-  // ---- Casas pré-fabricadas: obras de várias horas (5x5, interior 3x3) ----
+  // ---- Casas pré-fabricadas: obras de várias horas (madeira 5x3; alvenaria 5x5) ----
   const prefab = (id, name, inp, o) => R.push(Object.assign({ id, name, kind: 'structure', layer: 'prefab', place: 'HOUSE', in: inp }, o));
-  prefab('house_wood', 'Casa de Madeira (obra)', [{ id: 'plank', qty: 64 }, { id: 'wood_branch', qty: 120 }],
-    { icon: 'floor', minutes: 480, kcal: 880, stamina: 64, xp: 160, minLevel: 2,
-      site: { hours: 8, kcal: 110, stamina: 8 },
-      prefab: { wall: 'WALL_WOOD', door: 'DOOR_WOOD', window: null, floor: 'FLOOR_WOOD', roof: 'ROOF_THATCH' },
-      desc: 'Casa de 5x5 com piso, paredes, porta e telhado de palha, erguida de uma só vez. Dá para parar e continuar depois.' });
+  prefab('house_wood', 'Casa de Madeira (obra)', [{ id: 'plank', qty: 24 }, { id: 'wood_branch', qty: 40 }],
+    { icon: 'floor', minutes: 300, kcal: 500, stamina: 35, xp: 120, minLevel: 2,
+      site: { hours: 5, kcal: 100, stamina: 7 },
+      prefab: { hx: 2, hy: 1, wall: 'WALL_WOOD', door: 'DOOR_WOOD', window: null, floor: 'FLOOR_WOOD', roof: 'ROOF_THATCH' },
+      desc: 'Casa compacta de 5x3 (interior 3x1) com piso, paredes, porta e telhado de palha, erguida de uma só vez. Dá para parar e continuar depois.' });
 
   // ---- Era 2: Cerâmica, Metalurgia e Agricultura (4–7) ----
   struct('kiln', 'Forno de Olaria (Kiln)', 'KILN', [{ id: 'clay', qty: 12 }, { id: 'stone', qty: 6 }],
@@ -196,7 +200,7 @@
   prefab('house_masonry', 'Casa de Alvenaria (obra)', [{ id: 'refractory_brick', qty: 45 }, { id: 'stone', qty: 27 }, { id: 'roof_tile', qty: 25 }, { id: 'glass', qty: 2 }, { id: 'plank', qty: 6 }],
     { icon: 'floor', minutes: 720, kcal: 1500, stamina: 120, xp: 280, minLevel: 5,
       site: { hours: 12, kcal: 125, stamina: 10 },
-      prefab: { wall: 'WALL_BRICK', door: 'DOOR_WOOD', window: 'WINDOW_GLASS', floor: 'FLOOR_STONE', roof: 'ROOF_TILE' },
+      prefab: { hx: 2, hy: 2, wall: 'WALL_BRICK', door: 'DOOR_WOOD', window: 'WINDOW_GLASS', floor: 'FLOOR_STONE', roof: 'ROOF_TILE' },
       desc: 'Casa de 5x5 de tijolo, piso de pedra, porta, janela de vidro e telhas. Obra longa, divisível em sessões.' });
   item('iron_pickaxe', 'Picareta de Ferro', { id: 'iron_pickaxe', qty: 1 }, [{ id: 'iron_ingot', qty: 3 }, { id: 'plank', qty: 2 }],
     { station: 'workbench', minutes: 40, kcal: 50, stamina: 5, xp: 70, minLevel: 5, desc: 'Habilita minerar os veios de ferro e cobre!' });
@@ -275,6 +279,11 @@
     }
   });
 
+  // Peças avulsas de casa: saem da lista de construção (a casa é uma obra única), mas as receitas
+  // continuam existindo para demolir (devolve 50%), para objetos já construídos e para os testes.
+  ['floor_wood', 'wall_wood', 'door_wood', 'roof_thatch', 'floor_stone', 'wall_stone', 'floor_brick', 'wall_brick', 'window_glass', 'roof_tile']
+    .forEach((id) => { const r = R.find((q) => q.id === id); if (r) r.hidden = true; });
+
   // Desmontagem (Salvage)
   const SCRAP = {
     pocket_watch_broken: { out: [{ id: 'gear', qty: 2 }, { id: 'spring', qty: 1 }, { id: 'lens', qty: 1 }], minutes: 20, xp: 30 },
@@ -301,6 +310,8 @@
     ITEMS, RECIPES: R, SCRAP, TORCH_HOURS, RECIPE_ICON_OBJ, WATERS,
 
     item(id) { return ITEMS[id]; },
+    /** Receitas que aparecem para o jogador (sem as peças avulsas ocultas). */
+    visibleRecipes() { return R.filter((r) => !r.hidden); },
     name(id) { return ITEMS[id] ? ITEMS[id].name : id; },
 
     count(id) {

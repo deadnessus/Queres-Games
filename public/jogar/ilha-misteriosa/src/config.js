@@ -103,8 +103,8 @@
     OBJECTS: {
       TREE_HARDWOOD: {
         name: 'Árvore de Madeira de Lei', solid: true, verb: 'Cortar', handler: 'gather',
-        tool: 'axe', toolName: 'Machado de Pedra', minutes: 60, kcal: 150, stamina: 15, hygiene: -2,
-        drops: [{ id: 'log', min: 1, max: 2 }, { id: 'wood_branch', min: 1, max: 2 }, { id: 'resin', min: 1, max: 1, chance: 0.5 }],
+        tool: 'axe', toolName: 'Machado de Pedra', minutes: 40, kcal: 100, stamina: 10, hygiene: -2,
+        drops: [{ id: 'log', min: 2, max: 3 }, { id: 'wood_branch', min: 2, max: 3 }, { id: 'resin', min: 1, max: 1, chance: 0.5 }],
         depleted: 'STUMP', regen: 9, catalog: 'Madeira de Lei',
         blast: [{ id: 'log', min: 3, max: 5 }, { id: 'wood_branch', min: 2, max: 4 }],
       },
@@ -139,7 +139,7 @@
       },
       IRON_VEIN: {
         name: 'Veio de Pirita / Ferro', solid: true, verb: 'Minerar', handler: 'mine',
-        tool: 'pickaxe', toolName: 'Picareta de Ferro ou Aço (Era 2)', minutes: 90, kcal: 250, stamina: 25, hygiene: -6,
+        tool: 'pickaxe', toolName: 'Picareta de Ferro ou Aço (Era 2)', minutes: 75, kcal: 210, stamina: 21, hygiene: -6,
         drops: [{ id: 'iron_ore', min: 2, max: 3 }, { id: 'copper_ore', min: 1, max: 1, chance: 0.25 }, { id: 'sulfur', min: 1, max: 1, chance: 0.2 }],
         uses: 8, depleted: null, regen: 40, catalog: 'Minério de Ferro (Pirita)',
         blast: [{ id: 'iron_ore', min: 5, max: 7 }, { id: 'copper_ore', min: 1, max: 3 }, { id: 'sulfur', min: 1, max: 2 }],
