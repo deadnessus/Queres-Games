@@ -93,6 +93,17 @@
       return [...set];
     },
 
+    /** Peso (kg) guardado num baú/caixote. */
+    chestWeight(st) {
+      const C = Ilha.Crafting;
+      return Object.keys(st.items || {}).reduce((a, id) => a + ((C.ITEMS[id] && C.ITEMS[id].weight) || 0) * st.items[id], 0);
+    },
+    /** Capacidade em kg do baú em (x,y) (null = ilimitada). */
+    chestCapacity(x, y) {
+      const o = Ilha.World.objectAt(x, y); const d = o && Config.OBJECTS[o];
+      return d && d.capacity != null ? d.capacity : null;
+    },
+
     /** Move itens do inventário para a estação. */
     deposit(x, y, id, qty) {
       const st = this.get(x, y); const C = Ilha.Crafting;
@@ -100,7 +111,14 @@
       const n = Math.min(qty, C.count(id));
       if (n <= 0) return 0;
       if (st.type === 'chest') {
-        C.remove(id, n); st.items[id] = (st.items[id] || 0) + n; Ilha.State.touch(); return n;
+        const cap = this.chestCapacity(x, y);
+        let m = n;
+        if (cap != null) {
+          const w = (C.ITEMS[id] && C.ITEMS[id].weight) || 0;
+          if (w > 0) m = Math.min(n, Math.max(0, Math.floor((cap - this.chestWeight(st) + 1e-6) / w)));
+        }
+        if (m <= 0) { Ilha.UI.toast('O caixote está cheio (' + cap + ' kg).'); return 0; }
+        C.remove(id, m); st.items[id] = (st.items[id] || 0) + m; Ilha.State.touch(); return m;
       }
       if (NEEDS_FUEL[st.type] && FUEL[id] && !this.inputItems(st.type).includes(id)) {
         const room = Math.max(0, Math.floor((FUEL_CAP - st.fuel) / FUEL[id] + 1e-6));

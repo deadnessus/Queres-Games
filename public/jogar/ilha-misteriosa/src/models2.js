@@ -105,6 +105,17 @@
     m.box(-6, 6, 3, 4, 0, 8, (x, y, z) => ((x + 6) % 6 === 0 ? C.iron : jit(C.woodB, 0.05, x, y, z, 23)));
     return m;
   }
+  function crateRustic() {
+    const m = new Model();
+    const slat = (x, y, z) => jit((((z >> 1) & 1) ? C.woodA : C.woodL), 0.08, x, y, z, 41);
+    m.box(-6, 6, -5, 5, 0, 11, slat);
+    m.box(-6, 6, -5, 5, 10, 12, (x, y, z) => jit(C.woodB, 0.06, x, y, z, 42));          // ripas da tampa
+    [-6, 5].forEach((x) => m.box(x, x + 1, -5, 5, 0, 12, (xx, y, z) => jit(C.woodD, 0.07, xx, y, z, 43))); // cantoneiras
+    [-5, 4].forEach((y) => m.box(-6, 6, y, y + 1, 0, 12, (x, yy, z) => jit(C.woodD, 0.07, x, yy, z, 44)));
+    m.line(-6, -5, 6, 6, -5, 6, [214, 196, 142]); m.line(-6, 5, 6, 6, 5, 6, [214, 196, 142]);       // corda
+    m.ellipsoid(2, -6, 4, 1.2, 1.2, 1.2, [214, 196, 142]);
+    return m;
+  }
   function fireplace(lit, frame) {
     const m = new Model();
     const st = (x, y, z) => jit(mix(C.stoneD, C.stoneL, hash3(x >> 1, y >> 1, z >> 1, 31)), 0.07, x, y, z, 31);
@@ -429,6 +440,7 @@
   add('BED_RUSTIC', 1, () => bed(false));
   add('BED_COMFORT', 1, () => bed(true));
   add('CHEST', 1, () => chest());
+  add('CRATE_RUSTIC', 1, () => crateRustic());
   add('ITEM_PILE_S', 1, () => pile(false));
   add('ITEM_PILE_L', 1, () => pile(true));
   add('FIREPLACE_UNLIT', 1, () => fireplace(false, 0));

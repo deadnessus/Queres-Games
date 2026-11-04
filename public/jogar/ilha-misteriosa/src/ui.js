@@ -75,6 +75,8 @@
       switch (name) {
         case 'inventory': case 'craft': case 'map': case 'journal': case 'rest': this.toggle(name); break;
         case 'fullscreen': Ilha.Main.fullscreen(); break;
+        case 'mute': Ilha.Audio.toggleMute(); break;
+        case 'goal': this.toggleGoal(); break;
         case 'save':
           S().save(); this.toast('Jogo salvo.');
           break;
@@ -94,6 +96,10 @@
       if (!st.dirty && !force) return;
       st.dirty = false;
       const d = st.data; const p = d.player; const s = p.stats;
+      if (Ilha.Achievements) Ilha.Achievements.check();
+      if (Ilha.Goals) Ilha.Goals.check();
+      this.renderGoal();
+      if (Ilha.Audio) Ilha.Audio.setRain(!d.dead && !d.sleeping && Ilha.State.weather().wet);
 
       // Log
       const box = $('logBox');
@@ -150,6 +156,25 @@
       });
 
       if (this.modal && this.modal.live) this.rerender(true);
+    },
+
+    /** Painel "Próximo passo" (meta atual da trilha). */
+    goalCollapsed() { try { return localStorage.getItem('ilha_goal_collapsed') === '1'; } catch (e) { return false; } },
+    toggleGoal() {
+      try { localStorage.setItem('ilha_goal_collapsed', this.goalCollapsed() ? '0' : '1'); } catch (e) { /* sem storage */ }
+      this.renderGoal();
+    },
+    renderGoal() {
+      const box = $('goalBar'); if (!box) return;
+      const g = Ilha.Goals && Ilha.Goals.current();
+      if (!g || D().dead) { box.classList.add('hidden'); return; }
+      box.classList.remove('hidden');
+      box.innerHTML = '';
+      const col = this.goalCollapsed();
+      const tog = el('button', { class: 'goal-tog', 'aria-label': col ? 'Mostrar meta' : 'Recolher meta', title: col ? 'Mostrar' : 'Recolher', text: col ? '▸' : '▾', onclick: () => this.toggleGoal() });
+      if (!g.goal) { box.appendChild(el('span', { class: 'goal-txt' }, el('b', { text: '🎯 Todas as metas cumpridas!' }), ' A Ilha é sua.')); box.appendChild(tog); return; }
+      box.appendChild(el('span', { class: 'goal-txt' }, el('b', { text: `🎯 Próximo passo (${g.done + 1}/${g.total}): ` }), g.goal.text, col ? null : el('small', { text: g.goal.hint })));
+      box.appendChild(tog);
     },
 
     gauge(id, val, max, scaleMax, text) {
@@ -439,9 +464,13 @@
       const pw = d.power;
 
       if (type === 'chest') {
-        body.appendChild(el('h3', { text: 'Conteúdo do baú' }));
+        body.appendChild(el('h3', { text: 'Conteúdo do ' + (def.capacity != null ? 'caixote' : 'baú') }));
+        if (def.capacity != null) {
+          const wgt = St.chestWeight(stn);
+          body.appendChild(el('p', { class: 'small ' + (wgt >= def.capacity - 0.01 ? 'c-warn' : 'muted'), text: `Peso guardado: ${wgt.toFixed(1)}/${def.capacity} kg${wgt >= def.capacity - 0.01 ? ' — cheio!' : ''}` }));
+        }
         const items = Object.keys(stn.items);
-        if (!items.length) body.appendChild(el('p', { class: 'muted', text: 'O baú está vazio.' }));
+        if (!items.length) body.appendChild(el('p', { class: 'muted', text: 'Está vazio.' }));
         items.forEach((id) => body.appendChild(el('div', { class: 'row' }, iconImg(C.ITEMS[id].icon, 3),
           el('div', { class: 'info' }, el('div', { class: 'name', text: `${C.ITEMS[id].name} ×${stn.items[id]}` })),
           el('div', { class: 'acts' },
@@ -646,7 +675,7 @@
       const d = D(); const p = d.player; const s = p.stats;
       const body = el('div');
       const tabs = el('div', { class: 'tabs' });
-      [['diag', 'Diagnóstico Médico'], ['eng', 'Engenharia & Eras'], ['hist', 'Índice de Civilização'], ['tribes', 'Ilha & Tribos'], ['sys', 'Sistema / Save']].forEach(([id, label]) => {
+      [['diag', 'Diagnóstico Médico'], ['eng', 'Engenharia & Eras'], ['hist', 'Índice de Civilização'], ['tribes', 'Ilha & Tribos'], ['ach', 'Conquistas'], ['sys', 'Sistema / Save']].forEach(([id, label]) => {
         tabs.appendChild(el('button', { class: 'tab' + (this.journalTab === id ? ' active' : ''), text: label, onclick: () => { this.journalTab = id; this.rerender(); } }));
       });
       body.appendChild(tabs);
@@ -756,8 +785,18 @@
         });
       }
 
+      if (this.journalTab === 'ach') {
+        const A = Ilha.Achievements; const got = (d.achievements) || {};
+        body.appendChild(el('h3', { text: `Conquistas: ${A.count()}/${A.LIST.length}` }));
+        A.LIST.forEach((a) => {
+          const ok = !!got[a.id];
+          body.appendChild(el('div', { class: 'row', style: ok ? '' : 'opacity:.55' },
+            el('div', { class: 'info' }, el('div', { class: 'name', text: `${ok ? '🏆' : '🔒'} ${a.name}` }), el('div', { class: 'desc', text: a.desc + (ok ? ` · Dia ${got[a.id]}` : '') }))));
+        });
+      }
       if (this.journalTab === 'sys') {
         const S_ = Ilha.State;
+        body.appendChild(el('p', {}, el('button', { class: 'btn sm', text: Ilha.Audio.muted ? '🔇 Som desligado — ligar' : '🔊 Som ligado — desligar', onclick: () => { Ilha.Audio.toggleMute(); this.rerender(true); } })));
         body.appendChild(el('h3', { text: 'Exportar / Importar / Novo Jogo' }));
         body.appendChild(el('p', { class: 'small muted', text: 'O progresso fica salvo automaticamente no navegador. Exporte um arquivo .json para levar o jogo a outro computador ou fazer backup.' }));
         const ta = el('textarea', { class: 'savebox', rows: 4, placeholder: 'Cole aqui o JSON de um save para importar…' });
@@ -1012,17 +1051,42 @@
       });
     },
 
+    /** Texto de resumo da partida (para copiar e compartilhar). */
+    gameSummary() {
+      const d = D(); const p = d.player;
+      const recipes = Object.keys(p.crafted).filter((k) => Cr().recipe(k)).length;
+      const ach = Ilha.Achievements ? Ilha.Achievements.count() : 0;
+      return [
+        `A Ilha Misteriosa — Cyrus Smith sucumbiu a ${d.dead.cause} no dia ${d.dead.day}.`,
+        `Nível ${p.level} (Era ${p.era}) · ${d.stats.daysSurvived} dias sobrevividos · Civilização ${Math.round(d.score.totalAccumulatedScore)} pts`,
+        `${recipes} receitas dominadas · ${ach} conquistas`,
+      ].join('\n');
+    },
+
     showGameOver() {
-      const d = D();
+      const d = D(); const p = d.player;
+      const recipes = Object.keys(p.crafted).filter((k) => Cr().recipe(k)).length;
+      const ach = Ilha.Achievements ? Ilha.Achievements.count() : 0;
+      const stat = (label, val) => el('div', { class: 'diag' }, el('div', { class: 'top' }, el('b', { text: label }), el('span', { text: String(val) })));
       this.open('gameover', {
         live: false, closable: false,
         build: () => ({
           title: 'Fim da Jornada',
           body: el('div', {},
             el('p', { html: `Cyrus Smith sucumbiu a <b class="c-bad">${d.dead.cause}</b> no Dia ${d.dead.day}, às ${d.dead.time}.` }),
-            el('p', { html: `Dias sobrevividos: <b>${d.stats.daysSurvived}</b> · Pontuação de Civilização acumulada: <b>${Math.round(d.score.totalAccumulatedScore)}</b> · Nível de Engenharia: <b>${d.player.level}</b>` }),
+            el('div', { class: 'quote', text: `“Aqui descansa um engenheiro que sobreviveu ${d.stats.daysSurvived} dia${d.stats.daysSurvived === 1 ? '' : 's'} na Ilha Lincoln e chegou à Era ${p.era}.”` }),
+            el('div', { class: 'diag-grid' },
+              stat('Dias sobrevividos', d.stats.daysSurvived), stat('Nível de Engenharia', `${p.level} (Era ${p.era})`),
+              stat('Civilização acumulada', Math.round(d.score.totalAccumulatedScore) + ' pts'), stat('Receitas dominadas', `${recipes}/${Cr().RECIPES.length}`),
+              stat('Conquistas', `${ach}/${Ilha.Achievements ? Ilha.Achievements.LIST.length : 0}`), stat('Tiles percorridos', d.stats.tilesWalked)),
             el('div', { class: 'quote', text: '"A ciência é feita de erros, mas de erros bons de cometer, pois conduzem passo a passo à verdade." — Júlio Verne' })),
-          foot: [el('button', { class: 'btn', text: 'Recomeçar', onclick: () => { this.closeModal(); Ilha.Main.newGame(true); } })],
+          foot: [
+            el('button', { class: 'btn', text: '📋 Copiar resumo', onclick: () => {
+              const txt = this.gameSummary();
+              const fb = () => { try { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); this.toast('Resumo copiado.'); } catch (err) { this.toast(txt.split('\n')[0]); } };
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => this.toast('Resumo copiado.')).catch(fb); else fb();
+            } }),
+            el('button', { class: 'btn', text: 'Recomeçar', onclick: () => { this.closeModal(); Ilha.Main.newGame(true); } })],
         }),
       });
     },

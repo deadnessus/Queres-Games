@@ -259,6 +259,7 @@
   struct('FIREPLACE_LIT', 'Lareira de Pedra (acesa)', { handler: 'campfire', verb: 'Alimentar fogo', light: 4.5 });
   struct('BED_RUSTIC', 'Cama Rústica', { handler: 'bed', verb: 'Deitar', bed: 40 });
   struct('BED_COMFORT', 'Cama Confortável', { handler: 'bed', verb: 'Deitar', bed: 55 });
+  struct('CRATE_RUSTIC', 'Caixote Rústico', { handler: 'station', station: 'chest', verb: 'Abrir caixote', capacity: 30 });
   struct('CHEST', 'Baú de Armazenamento', { handler: 'station', station: 'chest', verb: 'Abrir baú' });
   struct('WORKBENCH', 'Bancada de Engenharia', { handler: 'station', station: 'workbench', verb: 'Usar bancada' });
   struct('KILN', 'Forno de Olaria (Kiln)', { handler: 'station', station: 'kiln', verb: 'Operar forno' });

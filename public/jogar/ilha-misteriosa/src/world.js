@@ -163,10 +163,10 @@
     // 4) Destroços do Balão (perto do spawn) e caixas de naufrágio
     const loot = {};
     const wreck = [
-      [30, 47, [{ id: 'compass_rusty', qty: 1 }, { id: 'wood_branch', qty: 2 }]],
-      [29, 50, [{ id: 'toolbox_rusty', qty: 1 }]],
-      [35, 47, [{ id: 'ration', qty: 1 }, { id: 'wood_branch', qty: 3 }]],
-      [34, 51, [{ id: 'pocket_watch_broken', qty: 1 }, { id: 'ration', qty: 1 }]],
+      [30, 47, [{ id: 'compass_rusty', qty: 1 }, { id: 'wood_branch', qty: 2 }, { id: 'ration', qty: 2 }, { id: 'clean_water', qty: 2 }]],
+      [29, 50, [{ id: 'toolbox_rusty', qty: 1 }, { id: 'ration', qty: 1 }, { id: 'clean_water', qty: 2 }]],
+      [35, 47, [{ id: 'ration', qty: 3 }, { id: 'wood_branch', qty: 3 }, { id: 'clean_water', qty: 2 }]],
+      [34, 51, [{ id: 'pocket_watch_broken', qty: 1 }, { id: 'ration', qty: 2 }, { id: 'clean_water', qty: 2 }]],
     ];
     wreck.forEach(([x, y, l]) => {
       terrain[y][x] = 'SAND'; objects[y][x] = 'BALLOON_WRECKAGE'; loot[key(x, y)] = l;

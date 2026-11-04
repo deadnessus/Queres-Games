@@ -174,6 +174,7 @@
           site.paid[i] = (site.paid[i] || 0) + need[i];
         });
         site.done++; res.worked++;
+        if (Ilha.Audio) Ilha.Audio.play('build');
         if (site.done >= site.hours) { this.finish(site); res.finished = true; break; }
         if (d.log.some((l) => l.id > seq && l.cls === 'bad')) { res.reason = 'Algo o interrompeu: veja o diário.'; break; }
       }

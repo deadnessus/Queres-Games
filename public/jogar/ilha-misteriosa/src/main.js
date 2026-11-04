@@ -202,6 +202,31 @@
     c.beginPath(); c.moveTo(cx, cy - hh); c.lineTo(cx + hw, cy); c.lineTo(cx, cy + hh); c.lineTo(cx - hw, cy); c.closePath();
   }
 
+  // Textos flutuantes sobre Cyrus (+3 Galhos, +20 XP, −5 stamina…)
+  const FLOAT_MS = 1400;
+  const FLOAT_COL = { good: '#b8f08a', bad: '#ff9a80', xp: '#ffd86a' };
+  function drawFloats(cx, topY, now) {
+    const list = Ilha.State.floats;
+    if (!list || !list.length) return;
+    const t = performance.now();
+    while (list.length && t - list[0].t0 > FLOAT_MS) list.shift();
+    const fs = Math.round(8 * S + 7);
+    ctx.save();
+    ctx.font = `bold ${fs}px 'Courier New', monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      const age = (t - f.t0) / FLOAT_MS;
+      const rise = Main.lowGfx ? 0 : age * 34 * S;
+      const row = list.length - 1 - i;
+      const y = topY - 6 * S - row * (fs + 3) - rise;
+      ctx.globalAlpha = Main.lowGfx ? 1 : Math.max(0, Math.min(1, 1.6 - age * 1.6));
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,6,2,.85)';
+      ctx.strokeText(f.text, cx, y); ctx.fillStyle = FLOAT_COL[f.kind] || '#fff'; ctx.fillText(f.text, cx, y);
+    }
+    ctx.restore();
+  }
+
   function render(now) {
     const St = Ilha.State; const d = St.data; const SE = Ilha.SpriteEngine;
     const W = canvas.width, H = canvas.height;
@@ -297,6 +322,7 @@
         const c = proj(view.x, view.y);
         const spr = SE.player(p.facing, pf);
         ctx.drawImage(spr.c, c.x - spr.ax * S, c.y - spr.ay * S, spr.w * S, spr.h * S);
+        drawFloats(c.x, c.y - spr.ay * S, now);
         continue;
       }
       let alpha = 1;
@@ -640,6 +666,7 @@
       const p = Ilha.State.data.player;
       view.x = p.x; view.y = p.y;
       Ilha.UI.init();
+      if (Ilha.Audio) Ilha.Audio.init();
       bindInput();
       if (!loaded) Ilha.UI.showIntro();
       requestAnimationFrame(frame);
