@@ -404,7 +404,7 @@
         return iconImg({ floor: 'plank', roof: 'roof_tile', canal: 'iron_shovel' }[r.icon] || 'stone', 3);
       };
       const group = (title, kind) => {
-        const list = C.RECIPES.filter((r) => r.kind === kind && C.eraOf(r) === era.id);
+        const list = C.visibleRecipes().filter((r) => r.kind === kind && C.eraOf(r) === era.id);
         if (!list.length) return;
         body.appendChild(el('h3', { text: title }));
         list.forEach((r) => {
@@ -430,7 +430,7 @@
               el('div', { class: 'desc', text: r.desc }),
               el('div', {}, chips, notes),
               r.site
-                ? el('div', { class: 'desc', text: `🏗 OBRA: ${r.site.hours} h de trabalho (${Ilha.Sites.isPrefab(r) ? 'terreno 5×5 · ' : ''}-${r.site.kcal} kcal e -${Math.round(r.site.stamina * P.staminaMult())} stamina por hora). Marcar não gasta nada: o material sai conforme você trabalha, e dá para parar e continuar depois.` })
+                ? el('div', { class: 'desc', text: `🏗 OBRA: ${r.site.hours} h de trabalho (${Ilha.Sites.isPrefab(r) ? 'terreno ' + Ilha.Sites.sizeText(r) + ' · ' : ''}-${r.site.kcal} kcal e -${Math.round(r.site.stamina * P.staminaMult())} stamina por hora). Marcar não gasta nada: o material sai conforme você trabalha, e dá para parar e continuar depois.` })
                 : el('div', { class: 'desc', text: `⏱ ${est.minutes} min · ⚡ -${est.kcal} kcal · stamina -${est.stamina}` })),
             el('div', { class: 'acts' }, el('button', {
               class: 'btn', disabled: !can || d.dead || d.sleeping, text: kind === 'item' ? 'Fabricar' : (r.site ? 'Marcar obra' : 'Construir'),
@@ -660,7 +660,7 @@
       el_.appendChild(el('b', { text: `🔨 CONSTRUINDO: ${r.name}` }));
       el_.appendChild(document.createTextNode(document.body.classList.contains('touch') ? ' — toque 1x para ver, 2x para posicionar (alcance 3 tiles). ✕ Cancelar sai. ' : ' — clique para posicionar (alcance 3 tiles). Esc ou clique direito para sair. '));
       if (r.site) {
-        el_.appendChild(el('span', { class: 'c-warn', text: ` 🏗 OBRA de ${r.site.hours} h${Ilha.Sites.isPrefab(r) ? ' · terreno 5×5 (alcance 5)' : ''}: marcar não gasta nada. ` }));
+        el_.appendChild(el('span', { class: 'c-warn', text: ` 🏗 OBRA de ${r.site.hours} h${Ilha.Sites.isPrefab(r) ? ' · terreno ' + Ilha.Sites.sizeText(r) + ' (alcance 5)' : ''}: marcar não gasta nada. ` }));
       }
       r.in.forEach((i) => {
         const have = Cr().ingHave(i);
@@ -735,7 +735,7 @@
         const firstLevel = { 1: 1, 2: 4, 3: 8, 4: 12 };
         Config.ERAS.forEach((era) => {
           const unlocked = p.level >= firstLevel[era.id];
-          const rs = Cr().RECIPES.filter((r) => Cr().eraOf(r) === era.id);
+          const rs = Cr().visibleRecipes().filter((r) => Cr().eraOf(r) === era.id);
           const chipsU = rs.map((r) => el('span', { class: 'chip ' + (p.crafted[r.id] ? 'have' : (p.level >= r.minLevel ? '' : 'miss')), title: p.level >= r.minLevel ? 'Nível ' + r.minLevel : '🔒 Nível ' + r.minLevel, text: (p.level >= r.minLevel ? '' : '🔒 ') + r.name }));
           cards.appendChild(el('div', { class: 'card ' + (era.id === p.era ? 'current' : unlocked ? '' : 'locked') },
             el('div', { html: `<b>Era ${era.id} — ${era.name}</b> <span class="small muted">(Níveis ${era.levels})</span>` }),
@@ -745,9 +745,9 @@
             el('div', { class: 'small' }, chipsU)));
         });
         body.appendChild(cards);
-        const known = Object.keys(p.crafted).filter((k) => Cr().recipe(k)).length;
+        const known = Object.keys(p.crafted).filter((k) => { const rr = Cr().recipe(k); return rr && !rr.hidden; }).length;
         body.appendChild(el('h3', { text: 'Catálogo' }));
-        body.appendChild(el('p', { class: 'small', text: `Receitas fabricadas: ${known}/${Cr().RECIPES.length} · Recursos catalogados: ${Object.keys(d.catalog).length}` }));
+        body.appendChild(el('p', { class: 'small', text: `Receitas fabricadas: ${known}/${Cr().visibleRecipes().length} · Recursos catalogados: ${Object.keys(d.catalog).length}` }));
         const names = Object.keys(d.catalog);
         if (names.length) body.appendChild(el('div', {}, names.map((n) => el('span', { class: 'chip have', text: n }))));
       }
@@ -1054,7 +1054,7 @@
     /** Texto de resumo da partida (para copiar e compartilhar). */
     gameSummary() {
       const d = D(); const p = d.player;
-      const recipes = Object.keys(p.crafted).filter((k) => Cr().recipe(k)).length;
+      const recipes = Object.keys(p.crafted).filter((k) => { const rr = Cr().recipe(k); return rr && !rr.hidden; }).length;
       const ach = Ilha.Achievements ? Ilha.Achievements.count() : 0;
       return [
         `A Ilha Misteriosa — Cyrus Smith sucumbiu a ${d.dead.cause} no dia ${d.dead.day}.`,
@@ -1065,7 +1065,7 @@
 
     showGameOver() {
       const d = D(); const p = d.player;
-      const recipes = Object.keys(p.crafted).filter((k) => Cr().recipe(k)).length;
+      const recipes = Object.keys(p.crafted).filter((k) => { const rr = Cr().recipe(k); return rr && !rr.hidden; }).length;
       const ach = Ilha.Achievements ? Ilha.Achievements.count() : 0;
       const stat = (label, val) => el('div', { class: 'diag' }, el('div', { class: 'top' }, el('b', { text: label }), el('span', { text: String(val) })));
       this.open('gameover', {
@@ -1077,7 +1077,7 @@
             el('div', { class: 'quote', text: `“Aqui descansa um engenheiro que sobreviveu ${d.stats.daysSurvived} dia${d.stats.daysSurvived === 1 ? '' : 's'} na Ilha Lincoln e chegou à Era ${p.era}.”` }),
             el('div', { class: 'diag-grid' },
               stat('Dias sobrevividos', d.stats.daysSurvived), stat('Nível de Engenharia', `${p.level} (Era ${p.era})`),
-              stat('Civilização acumulada', Math.round(d.score.totalAccumulatedScore) + ' pts'), stat('Receitas dominadas', `${recipes}/${Cr().RECIPES.length}`),
+              stat('Civilização acumulada', Math.round(d.score.totalAccumulatedScore) + ' pts'), stat('Receitas dominadas', `${recipes}/${Cr().visibleRecipes().length}`),
               stat('Conquistas', `${ach}/${Ilha.Achievements ? Ilha.Achievements.LIST.length : 0}`), stat('Tiles percorridos', d.stats.tilesWalked)),
             el('div', { class: 'quote', text: '"A ciência é feita de erros, mas de erros bons de cometer, pois conduzem passo a passo à verdade." — Júlio Verne' })),
           foot: [
