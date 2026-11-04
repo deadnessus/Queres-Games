@@ -28,6 +28,14 @@ url: /jogar/nome-do-jogo/
 ---
 ```
 
+Para colocar links ao lado do botão Jogar (por exemplo, um manual em PDF), guarde o arquivo em `public/manuais/<nome-do-jogo>/` e acrescente ao arquivo do jogo:
+
+```
+links:
+  - rotulo: Manual (PDF)
+    url: /manuais/nome-do-jogo/Manual.pdf
+```
+
 Para destacar o jogo na home, adicione `destaque: true` (só um jogo por vez).
 
 ## Como escrever um post no blog

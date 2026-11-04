@@ -7,4 +7,9 @@ ordem: 5
 capa: /capas/ilha-misteriosa.webp
 cores: ['#2b1a0e', '#d4a017']
 url: /jogar/ilha-misteriosa/
+links:
+  - rotulo: Manual (PDF)
+    url: /manuais/ilha-misteriosa/Manual-A-Ilha-Misteriosa.pdf
+  - rotulo: Guia rápido (PDF)
+    url: /manuais/ilha-misteriosa/Guia-Rapido-A-Ilha-Misteriosa.pdf
 ---

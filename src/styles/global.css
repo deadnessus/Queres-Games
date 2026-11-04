@@ -95,7 +95,9 @@ h2.titulo-secao { font-size: 22px; color: var(--amarelo); margin-bottom: 12px; }
 .autores { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; color: var(--ciano); text-transform: uppercase; }
 .autores i { width: 14px; height: 14px; display: block; }
 .autores i + i { margin-left: -4px; }
-.card-jogar { margin-top: auto; font-weight: 800; color: var(--amarelo); padding: 10px 0; }
+.card-acoes { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0 24px; }
+.card-jogar { font-weight: 800; color: var(--amarelo); padding: 10px 0; }
+.card-link { font-weight: 800; font-size: 15px; color: var(--ciano); padding: 10px 0; text-decoration: underline; text-underline-offset: 3px; }
 
 /* Devs */
 .devs { display: flex; flex-wrap: wrap; gap: 32px; }
