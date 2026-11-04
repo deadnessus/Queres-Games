@@ -20,4 +20,4 @@ Sim. Abra o jogo, olhe o painel **Próximo passo** e siga a trilha. Para ver as 
 
 ## O que vem a seguir
 
-Falta ver quais metas e conquistas empolgam mais. Também escrevemos um manual do jogador, com um guia rápido de duas páginas. Ainda não decidimos se ele vai ficar aqui no site.
+Falta ver quais metas e conquistas empolgam mais. Também escrevemos um manual do jogador, com um guia rápido de duas páginas. Os dois já estão aqui no site, ao lado do botão de jogar.

@@ -16,6 +16,8 @@ const jogos = defineCollection({
     cores: z.tuple([z.string(), z.string()]).default(['#3b2f8f', '#ff8a5b']),
     // onde o jogo abre
     url: z.string(),
+    // links extras ao lado do botão Jogar (ex.: manual em PDF)
+    links: z.array(z.object({ rotulo: z.string(), url: z.string() })).default([]),
   }),
 });
 
