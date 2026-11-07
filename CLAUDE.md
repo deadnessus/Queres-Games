@@ -20,6 +20,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | Posts do blog (diário) | `src/content/blog/<slug-do-post>.md` |
 | Devs (nome, cor, frase) | `src/data/devs.ts` (frases vazias = não aparecem) |
 | Páginas | `src/pages/` (home, `/jogos/`, `/blog/`, `/sobre/`, 404) |
+| Funções no servidor (Cloudflare Pages Functions) | `functions/` — hoje só `functions/api/visitas.js` (contador de visitas do rodapé, banco D1 com binding `DB`) |
 | Servidor online do Ascendia Penaltys (Cloudflare Worker, rota `queres.games/online/*`) | `worker/` (não é publicado pelo Pages; é um deploy separado com `wrangler`) |
 
 ## Jogos publicados
@@ -48,3 +49,4 @@ Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 - O `index.html` original do Brasileirão FIFA não tem `<meta charset="utf-8">`; a cópia do site foi corrigida (primeira linha). Ao recopiar, mantenha a correção.
 - Repositório de origem do Collatz Rocket não está registrado.
 - Frases dos devs em `src/data/devs.ts` ainda vazias.
+- Contador de visitas: o código está no ar, mas só aparece depois que o banco D1 for criado no Cloudflare e ligado em `wrangler.jsonc` (`d1_databases`, binding `DB`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
