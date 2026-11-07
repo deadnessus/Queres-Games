@@ -29,6 +29,7 @@ const jogavel = d.status === 'jogavel';
       {d.autores.map((a) => <i style={`background:${devs[a].cor}`}></i>)}
       <span>Por {creditos(d.autores)}</span>
     </div>
+    <span class="contagem" data-contagem={jogo.id} hidden>Jogado <b></b> vezes</span>
     <div class="card-acoes">
       <a href={d.url} class="card-jogar" aria-label={`Jogar ${d.titulo}`}>Jogar →</a>
       {d.links.map((l) => <a href={l.url} class="card-link" target="_blank" rel="noopener">{l.rotulo}</a>)}
