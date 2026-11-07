@@ -132,6 +132,8 @@ h2.titulo-secao { font-size: 22px; color: var(--amarelo); margin-bottom: 12px; }
 /* Rodapé */
 .rodape { border-top: 3px solid var(--painel-2); padding: 32px 48px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; color: var(--texto-fraco); font-size: 15px; }
 .rodape .logo { font-size: 12px; }
+.contador { font-family: var(--pixel); font-size: 11px; color: var(--ciano); line-height: 1.6; }
+.contador b { font-weight: 400; color: var(--amarelo); }
 
 /* Cabeçalho de página interna */
 .pagina-titulo { padding: 64px 0 40px; }

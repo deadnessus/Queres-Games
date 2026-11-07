@@ -52,6 +52,23 @@ const ativo = (base: string) => (caminho === base || caminho.startsWith(base) ? 
     <footer class="rodape">
       <a href="/" class="logo">queres<span>.</span>games</a>
       <span>Feito por Joaquim e Bento Quéres.</span>
+      <span class="contador" id="contador" hidden>Visitas: <b id="contador-numero"></b></span>
     </footer>
+    <script is:inline>
+      (function () {
+        // Conta 1 visita por sessão do navegador; nas outras páginas só lê o total.
+        var jaContou = false;
+        try { jaContou = sessionStorage.getItem('qg-visita') === '1'; } catch (e) {}
+        fetch('/api/visitas', { method: jaContou ? 'GET' : 'POST' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d || typeof d.visitas !== 'number') return;
+            try { sessionStorage.setItem('qg-visita', '1'); } catch (e) {}
+            document.getElementById('contador-numero').textContent = d.visitas.toLocaleString('pt-BR');
+            document.getElementById('contador').hidden = false;
+          })
+          .catch(function () {});
+      })();
+    </script>
   </body>
 </html>
