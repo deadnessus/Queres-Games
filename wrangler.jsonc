@@ -1,5 +1,12 @@
 {
   "name": "queres-games",
   "compatibility_date": "2026-11-01",
-  "pages_build_output_dir": "./dist"
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "queres-games",
+      "database_id": "c820ac18-262f-4815-9f28-4a63ea712a91"
+    }
+  ]
 }
