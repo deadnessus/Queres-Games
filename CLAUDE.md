@@ -49,4 +49,5 @@ Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 - O `index.html` original do Brasileirão FIFA não tem `<meta charset="utf-8">`; a cópia do site foi corrigida (primeira linha). Ao recopiar, mantenha a correção.
 - Repositório de origem do Collatz Rocket não está registrado.
 - Frases dos devs em `src/data/devs.ts` ainda vazias.
+- Ilustração do Jojô em `public/devs/jojo.webp`: publicada com autorização do pai (ele confirmou no chat). Não trocar nem publicar outras fotos ou ilustrações de crianças sem nova autorização.
 - Contador de visitas: banco D1 `queres-games` (binding `DB`, ID no `wrangler.jsonc`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.

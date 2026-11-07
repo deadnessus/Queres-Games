@@ -1,12 +1,13 @@
 export type DevId = 'jojo' | 'bento';
 
-export const devs: Record<DevId, { nome: string; nomeReal: string; inicial: string; cor: string; bio: string }> = {
+export const devs: Record<DevId, { nome: string; nomeReal: string; inicial: string; cor: string; bio: string; foto?: string }> = {
   jojo: {
     nome: 'Jojô',
     nomeReal: 'Joaquim',
     inicial: 'J',
     cor: 'var(--rosa)',
     bio: '', // escreva aqui uma frase sobre o Jojô
+    foto: '/devs/jojo.webp', // ilustração autorizada pelo pai
   },
   bento: {
     nome: 'Bento',

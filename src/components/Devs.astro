@@ -4,7 +4,11 @@ import { devs } from '../data/devs';
 <div class="devs">
   {Object.values(devs).map((d) => (
     <div class="dev">
-      <div class="dev-letra" style={`background:${d.cor}`}>{d.inicial}</div>
+      {d.foto ? (
+        <img class="dev-foto" src={d.foto} alt={`Ilustração de ${d.nomeReal}`} width="600" height="600" loading="lazy" />
+      ) : (
+        <div class="dev-letra" style={`background:${d.cor}`}>{d.inicial}</div>
+      )}
       <div>
         <h3>{d.nomeReal}</h3>
         {d.bio && <p>{d.bio}</p>}
