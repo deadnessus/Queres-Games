@@ -103,6 +103,7 @@ h2.titulo-secao { font-size: 22px; color: var(--amarelo); margin-bottom: 12px; }
 .devs { display: flex; flex-wrap: wrap; gap: 32px; }
 .dev { flex: 1 1 400px; min-width: 0; display: flex; gap: 24px; align-items: flex-start; background: var(--fundo); border: 3px solid var(--borda-suave); padding: 24px; }
 .dev-letra { flex: none; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; color: var(--fundo); font-family: var(--pixel); font-size: 36px; }
+.dev-foto { flex: none; width: 96px; height: 96px; object-fit: cover; border: 3px solid #ffffff; }
 .dev h3 { font-size: 16px; line-height: 1.5; color: #ffffff; margin-bottom: 6px; }
 .dev p { margin: 0; color: var(--texto-suave); }
 
