@@ -1,7 +1,7 @@
 ---
 titulo: Brasileirão FIFA
 descricao: Organize o campeonato de FIFA da galera. O app monta as rodadas e a classificação se atualiza com os placares.
-status: em-desenvolvimento
+status: jogavel
 autores: [jojo, bento]
 ordem: 3
 capa: /capas/brasileirao-fifa.webp

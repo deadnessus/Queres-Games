@@ -1,7 +1,7 @@
 ---
 titulo: Jopuzzle
 descricao: Puzzle para celular. Encaixe as peças na silhueta antes que o tempo acabe.
-status: em-desenvolvimento
+status: jogavel
 autores: [jojo]
 ordem: 2
 capa: /capas/jopuzzle.webp
