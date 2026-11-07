@@ -22,6 +22,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | Páginas | `src/pages/` (home, `/jogos/`, `/blog/`, `/sobre/`, 404) |
 | Funções no servidor (Cloudflare Pages Functions) | `functions/api/visitas.js` (contador de visitas do rodapé), `functions/api/jogos.js` e `functions/api/jogos/[slug].js` (quantas vezes cada jogo foi aberto). Banco D1, binding `DB` |
 | Contador por jogo (automático) | `npm run build` roda `scripts/pos-build.mjs` depois do Astro: acrescenta `/contar-jogo.js` (`public/contar-jogo.js`) em `dist/jogar/<slug>/index.html` e grava `dist/jogos.json` com os jogos válidos. **Não edite os arquivos dos jogos em `public/jogar/` para isso**; jogo novo em `public/jogar/<slug>/` já entra sozinho. O card mostra "Jogado N vezes" |
+| Ilha Selvagem (jogo 3D, com Three.js guardado no site, sem sites externos) | `public/jogar/ilha-selvagem/` é **gerado**: não edite à mão. Para atualizar: `node scripts/atualizar-ilha-selvagem.mjs <pasta ilha/ do jojo-game-2>` (roda o `tools/build-solo.mjs` do jogo, troca o unpkg por `vendor/three/` e copia só os arquivos do Three.js usados). O guia rápido (PDF) vem de `fontes/manuais/ilha-selvagem/guia-rapido.html` |
 | Servidor online do Ascendia Penaltys (Cloudflare Worker, rota `queres.games/online/*`) | `worker/` (não é publicado pelo Pages; é um deploy separado com `wrangler`) |
 
 ## Jogos publicados
@@ -34,6 +35,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | `collatz-rocket` | Collatz Rocket | Jojô e Bento | não registrado (build Vite colocado direto aqui) | — |
 | `ilha-misteriosa` | A Ilha Misteriosa | Jojô e Bento | `deadnessus/queres-games---mystery-island` | `master` |
 | `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` |
+| `ilha-selvagem` | Ilha Selvagem (só a versão **solo**) | Jojô | `deadnessus/jojo-game-2`, pasta `ilha/` | `claude/3d-building-game-animals-b49gqr` |
 
 Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 
@@ -50,5 +52,6 @@ Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 - O `index.html` original do Brasileirão FIFA não tem `<meta charset="utf-8">`; a cópia do site foi corrigida (primeira linha). Ao recopiar, mantenha a correção.
 - Repositório de origem do Collatz Rocket não está registrado.
 - Frases dos devs em `src/data/devs.ts` ainda vazias.
+- Ilha Selvagem: só a versão solo está no site (mundo salvo no `localStorage` do navegador). A versão online (servidor Node + WebSocket, da pasta `ilha/`) não está publicada. O guia rápido em PDF foi escrito a partir do `ilha/MANUAL.md` do jogo e adaptado ao solo; se o jogo mudar muito, regenere (`fontes/manuais/ilha-selvagem/`, PDF via Playwright `page.pdf`).
 - Ilustração do Jojô em `public/devs/jojo.webp`: publicada com autorização do pai (ele confirmou no chat). Não trocar nem publicar outras fotos ou ilustrações de crianças sem nova autorização.
 - Contadores (visitas e por jogo): banco D1 `queres-games` (binding `DB`, ID no `wrangler.jsonc`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.

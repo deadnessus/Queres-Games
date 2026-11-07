@@ -20,6 +20,7 @@ Leia antes o `CLAUDE.md` da raiz do repositório `queres-games` (mapa do site, t
 - Copie **só o que o jogo usa** para `public/jogar/<slug>/`: `index.html`, CSS, JS, assets, `manifest.json`, ícones. Para a Ilha Misteriosa: `index.html style.css manifest.json icon.svg src/`.
 - **Não copie**: `README.md`, `tools/`, `__pycache__/`, `.git`, pastas de teste, arquivos soltos fora do lugar (ex.: houve um `undefined/disc.png` por engano), nem `manual/` (PDFs vão em `public/manuais/`, passo 3).
 - Ao atualizar, apague a pasta de código antiga antes de copiar (ex.: `rm -rf public/jogar/<slug>/src`) para não sobrar arquivo removido no original.
+- **Ilha Selvagem não é cópia simples**: use `node scripts/atualizar-ilha-selvagem.mjs <ilha/>` (ver CLAUDE.md). Jogos 3D que importam bibliotecas de CDN devem ter a biblioteca guardada no próprio site (`vendor/`), sem sites externos.
 - Não é preciso acrescentar contador no jogo: o `npm run build` injeta sozinho (`scripts/pos-build.mjs`). Cada pasta em `public/jogar/<slug>/` precisa ter `index.html`.
 - Confira caminhos: precisam ser **relativos** (`src/x.js`, `./assets/...`), porque o jogo roda em `/jogar/<slug>/`.
 - Confira `<meta charset="utf-8">` no começo do `index.html`; sem ele os acentos quebram ("BrasileirÃ£o"). O Brasileirão FIFA precisa dessa linha acrescentada.
