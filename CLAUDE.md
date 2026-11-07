@@ -49,4 +49,4 @@ Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 - O `index.html` original do Brasileirão FIFA não tem `<meta charset="utf-8">`; a cópia do site foi corrigida (primeira linha). Ao recopiar, mantenha a correção.
 - Repositório de origem do Collatz Rocket não está registrado.
 - Frases dos devs em `src/data/devs.ts` ainda vazias.
-- Contador de visitas: o código está no ar, mas só aparece depois que o banco D1 for criado no Cloudflare e ligado em `wrangler.jsonc` (`d1_databases`, binding `DB`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
+- Contador de visitas: banco D1 `queres-games` (binding `DB`, ID no `wrangler.jsonc`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
