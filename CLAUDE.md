@@ -20,6 +20,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | Posts do blog (diário) | `src/content/blog/<slug-do-post>.md` |
 | Devs (nome, cor, frase) | `src/data/devs.ts` (frases vazias = não aparecem) |
 | Páginas | `src/pages/` (home, `/jogos/`, `/blog/`, `/sobre/`, 404) |
+| Servidor online do Ascendia Penaltys (Cloudflare Worker, rota `queres.games/online/*`) | `worker/` (não é publicado pelo Pages; é um deploy separado com `wrangler`) |
 
 ## Jogos publicados
 
@@ -30,6 +31,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | `brasileirao-fifa` | Brasileirão FIFA | Jojô e Bento | `deadnessus/Jojo-game-FIFA-Brasileir-o` | `main` |
 | `collatz-rocket` | Collatz Rocket | Jojô e Bento | não registrado (build Vite colocado direto aqui) | — |
 | `ilha-misteriosa` | A Ilha Misteriosa | Jojô e Bento | `deadnessus/queres-games---mystery-island` | `master` |
+| `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` |
 
 Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 
