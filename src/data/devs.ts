@@ -15,6 +15,7 @@ export const devs: Record<DevId, { nome: string; nomeReal: string; inicial: stri
     inicial: 'B',
     cor: 'var(--ciano)',
     bio: '', // escreva aqui uma frase sobre o Bento
+    foto: '/devs/bento.webp', // controle de videogame com o nome do Bento
   },
 };
 
