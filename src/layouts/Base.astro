@@ -70,5 +70,21 @@ const ativo = (base: string) => (caminho === base || caminho.startsWith(base) ? 
           .catch(function () {});
       })();
     </script>
+    <script is:inline>
+      (function () {
+        // Mostra "Jogado N vezes" nos cards de jogo.
+        var itens = document.querySelectorAll('[data-contagem]');
+        if (!itens.length) return;
+        fetch('/api/jogos').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+          if (!d) return;
+          itens.forEach(function (el) {
+            var n = d[el.getAttribute('data-contagem')] || 0;
+            el.querySelector('b').textContent = n.toLocaleString('pt-BR');
+            el.querySelector('b').nextSibling.textContent = n === 1 ? ' vez' : ' vezes';
+            el.hidden = false;
+          });
+        }).catch(function () {});
+      })();
+    </script>
   </body>
 </html>

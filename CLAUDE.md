@@ -20,7 +20,8 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | Posts do blog (diário) | `src/content/blog/<slug-do-post>.md` |
 | Devs (nome, cor, frase) | `src/data/devs.ts` (frases vazias = não aparecem) |
 | Páginas | `src/pages/` (home, `/jogos/`, `/blog/`, `/sobre/`, 404) |
-| Funções no servidor (Cloudflare Pages Functions) | `functions/` — hoje só `functions/api/visitas.js` (contador de visitas do rodapé, banco D1 com binding `DB`) |
+| Funções no servidor (Cloudflare Pages Functions) | `functions/api/visitas.js` (contador de visitas do rodapé), `functions/api/jogos.js` e `functions/api/jogos/[slug].js` (quantas vezes cada jogo foi aberto). Banco D1, binding `DB` |
+| Contador por jogo (automático) | `npm run build` roda `scripts/pos-build.mjs` depois do Astro: acrescenta `/contar-jogo.js` (`public/contar-jogo.js`) em `dist/jogar/<slug>/index.html` e grava `dist/jogos.json` com os jogos válidos. **Não edite os arquivos dos jogos em `public/jogar/` para isso**; jogo novo em `public/jogar/<slug>/` já entra sozinho. O card mostra "Jogado N vezes" |
 | Servidor online do Ascendia Penaltys (Cloudflare Worker, rota `queres.games/online/*`) | `worker/` (não é publicado pelo Pages; é um deploy separado com `wrangler`) |
 
 ## Jogos publicados
@@ -50,4 +51,4 @@ Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 - Repositório de origem do Collatz Rocket não está registrado.
 - Frases dos devs em `src/data/devs.ts` ainda vazias.
 - Ilustração do Jojô em `public/devs/jojo.webp`: publicada com autorização do pai (ele confirmou no chat). Não trocar nem publicar outras fotos ou ilustrações de crianças sem nova autorização.
-- Contador de visitas: banco D1 `queres-games` (binding `DB`, ID no `wrangler.jsonc`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
+- Contadores (visitas e por jogo): banco D1 `queres-games` (binding `DB`, ID no `wrangler.jsonc`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
