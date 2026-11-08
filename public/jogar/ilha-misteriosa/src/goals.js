@@ -17,6 +17,7 @@
     { id: 'crate', text: 'Construa um Caixote Rústico', hint: '[C] → Caixote (16 galhos) para guardar itens fora da mochila.', done: () => made('crate_rustic') },
     { id: 'axe', text: 'Fabrique o Machado de Pedra', hint: '[C] → Machado de Pedra (2 pedras + 3 galhos).', done: () => made('stone_axe') },
     { id: 'spear', text: 'Fabrique a Lança de Madeira', hint: '[C] → Lança (4 galhos + 1 pedra). Serve para pescar.', done: () => made('wood_spear') },
+    { id: 'routine', text: 'Use uma Rotina', hint: 'Abra Rotinas [T], escolha quantos peixes, águas ou raízes e execute: Cyrus faz o ciclo inteiro.', done: () => made('first_routine') },
     { id: 'house', text: 'Erga a Casa de Madeira', hint: 'Nível 2. Serre tábuas com o machado e marque a obra em [C]: ela pode ser feita em etapas.', done: () => made('house_wood') },
     { id: 'expedition', text: 'Faça sua primeira expedição', hint: 'Abra o Mapa [M] e explore um setor vizinho (leve comida e água).', done: () => D().map.explored >= 1 },
     { id: 'kiln', text: 'Construa o Forno de Olaria', hint: 'Nível 4 (Era 2): argila e pedra. Ele faz tijolo, telha e vidro.', done: () => made('kiln') },
