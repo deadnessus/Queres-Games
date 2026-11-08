@@ -34,7 +34,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | `brasileirao-fifa` | Brasileirão FIFA | Jojô e Bento | `deadnessus/Jojo-game-FIFA-Brasileir-o` | `main` |
 | `collatz-rocket` | Collatz Rocket | Jojô e Bento | não registrado (build Vite colocado direto aqui) | — |
 | `ilha-misteriosa` | A Ilha Misteriosa | Jojô e Bento | `deadnessus/queres-games---mystery-island` | `master` |
-| `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` (cópia igual ao original, mais um bloco de CSS para telas baixas no fim de `css/style.css`) |
+| `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` (cópia do original com 3 diferenças: pasta `js/` renomeada para `app/` e `css/style.css` para `css/jogo-v2.css` (para furar cache de navegador), etiqueta "versão 2" no fim do `index.html`, e um bloco de CSS para telas baixas no fim do CSS. Ao recopiar, repita isso) |
 | `turbo-jojo` | Turbo Jojo | Jojô | `deadnessus/Jojo-1` | `claude/fervent-goldberg-xz80zn` |
 | `ilha-selvagem` | Ilha Selvagem (só a versão **solo**) | Jojô | `deadnessus/jojo-game-2`, pasta `ilha/` | `claude/3d-building-game-animals-b49gqr` |
 
