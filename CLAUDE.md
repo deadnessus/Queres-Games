@@ -23,7 +23,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | Funções no servidor (Cloudflare Pages Functions) | `functions/api/visitas.js` (contador de visitas do rodapé), `functions/api/jogos.js` e `functions/api/jogos/[slug].js` (quantas vezes cada jogo foi aberto). Banco D1, binding `DB` |
 | Contador por jogo (automático) | `npm run build` roda `scripts/pos-build.mjs` depois do Astro: acrescenta `/contar-jogo.js` (`public/contar-jogo.js`) em `dist/jogar/<slug>/index.html` e grava `dist/jogos.json` com os jogos válidos. **Não edite os arquivos dos jogos em `public/jogar/` para isso**; jogo novo em `public/jogar/<slug>/` já entra sozinho. O card mostra "Jogado N vezes" |
 | Ilha Selvagem (jogo 3D, com Three.js guardado no site, sem sites externos) | `public/jogar/ilha-selvagem/` é **gerado**: não edite à mão. Para atualizar: `node scripts/atualizar-ilha-selvagem.mjs <pasta ilha/ do jojo-game-2>` (roda o `tools/build-solo.mjs` do jogo, troca o unpkg por `vendor/three/` e copia só os arquivos do Three.js usados). O guia rápido (PDF) vem de `fontes/manuais/ilha-selvagem/guia-rapido.html` |
-| Servidor online do Ascendia Penaltys (Cloudflare Worker, rota `queres.games/online/*`) | `worker/` (não é publicado pelo Pages; é um deploy separado com `wrangler`) |
+| Servidor online do Ascendia Penaltys (Cloudflare Worker, rota `queres.games/online/*`) | `worker/` (não é publicado pelo Pages; é um deploy separado com `wrangler`). **Hoje a página do jogo não usa esse servidor**: desde 2026-11-08 ela é a cópia do jogo original, que conecta por PeerJS (biblioteca guardada em `vendor/`) ou pelo modo sem servidor (troca de dois códigos). A versão antiga da página, que falava com o Worker, está no histórico do Git (commit anterior a esta atualização) |
 
 ## Jogos publicados
 
@@ -34,7 +34,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | `brasileirao-fifa` | Brasileirão FIFA | Jojô e Bento | `deadnessus/Jojo-game-FIFA-Brasileir-o` | `main` |
 | `collatz-rocket` | Collatz Rocket | Jojô e Bento | não registrado (build Vite colocado direto aqui) | — |
 | `ilha-misteriosa` | A Ilha Misteriosa | Jojô e Bento | `deadnessus/queres-games---mystery-island` | `master` |
-| `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` |
+| `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` (cópia igual ao original, mais um bloco de CSS para telas baixas no fim de `css/style.css`) |
 | `turbo-jojo` | Turbo Jojo | Jojô | `deadnessus/Jojo-1` | `claude/fervent-goldberg-xz80zn` |
 | `ilha-selvagem` | Ilha Selvagem (só a versão **solo**) | Jojô | `deadnessus/jojo-game-2`, pasta `ilha/` | `claude/3d-building-game-animals-b49gqr` |
 
