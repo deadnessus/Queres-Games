@@ -165,7 +165,9 @@
 
     /** Textos flutuantes sobre Cyrus (só visual, não vão para o save). kind: good | bad | xp */
     floats: [],
+    floatMute: false,
     float(text, kind) {
+      if (this.floatMute) return;
       const f = this.floats;
       f.push({ t0: performance.now(), text, kind: kind || 'good' });
       if (f.length > 8) f.shift();

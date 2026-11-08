@@ -424,3 +424,11 @@ body.touch #muteBtn { top: 54px; width: 40px; height: 40px; font-size: 20px; }
   #muteBtn { top: 6px; right: 56px; }
   body.touch #muteBtn { top: 6px; right: 54px; width: 36px; height: 36px; }
 }
+
+/* ---------- Rotinas ---------- */
+.routine { border: 1px solid #b89a52; background: rgba(255, 250, 230, .45); padding: 8px 12px 10px; margin: 0 0 10px; }
+.routine h3 { margin: 0 0 4px; }
+.routine-opts { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 4px 0; }
+.routine-opts .opt { font-size: 13px; }
+.routine-sum { margin: 4px 0 6px; line-height: 1.5; }
+.routine .acts { justify-content: flex-start; }

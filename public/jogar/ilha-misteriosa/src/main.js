@@ -470,9 +470,9 @@
     }
     if (St.data.dead) return;
 
-    const modalKeys = { i: 'inventory', c: 'craft', m: 'map', j: 'journal', r: 'rest' };
+    const modalKeys = { i: 'inventory', c: 'craft', m: 'map', j: 'journal', r: 'rest', t: 'routines' };
     if (modalKeys[k]) {
-      if (UI.modal && !['inventory', 'craft', 'map', 'journal', 'rest'].includes(UI.modal.name)) return;
+      if (UI.modal && !['inventory', 'craft', 'map', 'journal', 'rest', 'routines'].includes(UI.modal.name)) return;
       UI.toggle(modalKeys[k]);
       e.preventDefault();
       return;

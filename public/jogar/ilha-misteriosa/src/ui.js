@@ -40,6 +40,7 @@
   const objImg = (name) => el('img', { class: 'px', src: Sp().spriteURL(name, 3), alt: '' });
 
   const fmt = (n) => Math.round(n);
+  const fmtMinutes = (m) => { m = Math.round(m); const h = Math.floor(m / 60); return h ? `${h} h ${String(m % 60).padStart(2, '0')} min` : `${m} min`; };
   const hoursText = (h) => (h >= 24 ? `${Math.floor(h / 24)}d ${Math.round(h % 24)}h` : `${Math.round(h)}h`);
 
   const UI = {
@@ -73,7 +74,7 @@
     action(name) {
       if (D().dead) return;
       switch (name) {
-        case 'inventory': case 'craft': case 'map': case 'journal': case 'rest': this.toggle(name); break;
+        case 'inventory': case 'craft': case 'map': case 'journal': case 'rest': case 'routines': this.toggle(name); break;
         case 'fullscreen': Ilha.Main.fullscreen(); break;
         case 'mute': Ilha.Audio.toggleMute(); break;
         case 'goal': this.toggleGoal(); break;
@@ -246,6 +247,7 @@
         trade: () => this.buildTrade(),
         pickup: () => this.buildPickup(),
         site: () => this.buildSite(),
+        routines: () => this.buildRoutines(),
       };
       if (name === 'craft' && !this.craftTab) this.craftTab = D().player.era;
       const build = (opts && opts.build) || builders[name];
@@ -638,6 +640,72 @@
         left > 1 ? el('button', { class: 'btn', disabled: busy, text: `⏩ Até terminar (${left} h)`, onclick: () => doWork(left) }) : null));
       foot.unshift(el('button', { class: 'btn danger', text: 'Cancelar obra', onclick: () => this.confirm('Cancelar esta obra? Você recupera 50% do material já gasto; o resto se perde.', () => { Si.cancel(site); this.refresh(true); }) }));
       return { title: '🏗 ' + r.name.replace(' (obra)', '') + ' — obra', body, foot };
+    },
+
+
+    // ------------------------------------------------------------
+    // [T] Rotinas — pescar, buscar água e raízes com um botão
+    // ------------------------------------------------------------
+    buildRoutines() {
+      const d = D(); const R = Ilha.Routines; const C = Cr();
+      const body = el('div');
+      const busy = d.dead || d.sleeping;
+      body.appendChild(el('p', { class: 'small', text: 'Depois da primeira vez à mão, a atividade vira rotina: escolha quantos e Cyrus faz o ciclo inteiro (ir, coletar, voltar, fogueira, preparar, comer, guardar) e volta ao ponto de partida. O resultado é garantido: as falhas já entram na média de tempo e calorias.' }));
+      const rs = this.routineState = this.routineState || {};
+      const sign = (v) => (v >= 0 ? '+' : '−') + Math.abs(Math.round(v));
+      const kfmt = (v) => `${sign(v)} kcal`;
+      ['fish', 'water', 'roots'].forEach((id) => {
+        const def = R.DEFS[id];
+        const card = el('div', { class: 'routine' });
+        card.appendChild(el('h3', { text: `${def.icon} ${def.name}` }));
+        if (!R.unlocked(id)) {
+          card.appendChild(el('p', { class: 'small muted', text: '🔒 ' + def.hint }));
+          body.appendChild(card); return;
+        }
+        const st = rs[id] = Object.assign(R.defaults(id), rs[id] || {});
+        const pl = R.plan(id, st.n, st);
+        if (pl.maxN > 0 && st.n > pl.maxN) st.n = pl.maxN;
+        // quantidade
+        const label = el('b', { text: `${pl.n} ${def.unit}` });
+        const slider = el('input', {
+          type: 'range', class: 'site-slider', min: 1, max: Math.max(1, pl.maxN), value: Math.min(pl.n, Math.max(1, pl.maxN)), disabled: pl.maxN < 1 || busy,
+          oninput: (e) => { label.textContent = `${e.target.value} ${def.unit}`; },
+          onchange: (e) => { st.n = +e.target.value; this.rerender(true); },
+        });
+        card.appendChild(el('div', { class: 'row' }, el('div', { class: 'info' }, el('div', { class: 'name' }, 'Quantos? ', label, el('small', { class: 'muted', text: pl.maxN ? `  (máx. ${pl.maxN} agora)` : '' })), slider)));
+        // opções
+        const opt = (field, text, enabled, why) => {
+          const cb = el('input', { type: 'checkbox', disabled: !enabled || busy, onchange: (e) => { st[field] = e.target.checked; this.rerender(true); } });
+          cb.checked = !!st[field] && enabled;
+          return el('label', { class: 'opt', title: enabled ? '' : why }, cb, ' ' + text + (enabled ? '' : ' — ' + why));
+        };
+        const opts = el('div', { class: 'routine-opts' });
+        const hasFire = !!pl.fire; const hasStore = !!pl.store;
+        if (id === 'fish') { opts.appendChild(opt('cook', 'Assar na fogueira', hasFire, 'sem fogueira por perto')); opts.appendChild(opt('eat', 'Comer até saciar', hasFire && st.cook, 'precisa assar')); }
+        if (id === 'water') opts.appendChild(opt('boil', 'Ferver na fogueira', hasFire, 'sem fogueira por perto'));
+        if (id === 'roots') opts.appendChild(opt('eat', 'Comer até saciar', true, ''));
+        opts.appendChild(opt('store', 'Guardar no caixote/baú mais próximo', hasStore, 'sem armazém por perto'));
+        card.appendChild(opts);
+        // resumo líquido
+        const sum = el('div', { class: 'routine-sum' });
+        const line = (txt, cls) => sum.appendChild(el('div', { class: 'small ' + (cls || ''), html: txt }));
+        line(`⏱ <b>${fmtMinutes(pl.minutes)}</b> no total · 🥾 ${fmtMinutes(pl.walkMin)} de caminhada`);
+        line(`⚡ Gasto em ação: <b>${kfmt(-pl.kcalSpent)}</b> · 🛌 Basal no período: <b>${kfmt(-pl.kcalBasal)}</b>`);
+        if (pl.kcalGained > 0) line(`🍖 Comendo ${pl.eatN}: <b>${kfmt(pl.kcalGained)}</b>`);
+        line(`<b>Saldo líquido de energia: <span class="${pl.net >= 0 ? 'c-ok' : 'c-bad'}">${kfmt(pl.net)}</span></b>${pl.foodKcal ? ` · 📦 comida produzida: ${Math.round(pl.foodKcal)} kcal (retorno ${pl.retorno.toFixed(1).replace('.', ',')}×)` : ''}`);
+        line(`Stamina: ${sign(-pl.stamina)} · Hidratação ≈ ${sign(-pl.hydLoss)}% · ${pl.hygiene < -0.5 ? 'Higiene ' + sign(pl.hygiene) : ''}`.replace(/ · $/, ''), 'muted');
+        const items = Object.keys(pl.items).map((k) => `${pl.items[k]}× ${C.name(k)}`).join(', ');
+        if (items) line('Obtém: ' + items + (pl.stored ? ` · guarda ${pl.stored.qty}` : ''), 'muted');
+        pl.notes.forEach((n_) => line('ℹ ' + n_, 'c-warn'));
+        pl.blockers.forEach((b_) => line('⚠ ' + b_, 'c-bad'));
+        card.appendChild(sum);
+        card.appendChild(el('div', { class: 'acts' }, el('button', {
+          class: 'btn', disabled: !pl.ok || busy, text: `${def.icon} Executar (${fmtMinutes(pl.minutes)})`,
+          onclick: () => this.run(() => { const r = R.run(id, pl.n, st); this.toast(r.ok ? 'Rotina concluída.' : r.msg); }),
+        })));
+        body.appendChild(card);
+      });
+      return { title: '🔁 Rotinas', body, foot: [el('button', { class: 'btn', text: 'Fechar [T]', onclick: () => this.closeModal() })] };
     },
 
     openStation(x, y) { this.stationPos = { x, y }; this.open('station'); },

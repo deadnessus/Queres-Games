@@ -204,7 +204,7 @@
       let minutes = (c.minutes || 0) * this.timeMult();
       if (c.walk && st.stamina <= 0) minutes *= 2; // exausto: passos lentos
 
-      if (!c.walk && ((c.stamina || 0) * this.staminaMult() >= 2 || (c.kcal || 0) >= 20)) {
+      if (!c.walk && !c.quiet && ((c.stamina || 0) * this.staminaMult() >= 2 || (c.kcal || 0) >= 20)) {
         const fs = Math.round((c.stamina || 0) * this.staminaMult()); const fk = Math.round(c.kcal || 0);
         Ilha.State.float(`${fs ? '−' + fs + ' stamina' : ''}${fs && fk ? ' · ' : ''}${fk ? '−' + fk + ' kcal' : ''}`, 'bad');
       }
@@ -492,6 +492,7 @@
       if (Math.random() < 0.55) {
         const n = 1 + Math.floor(Math.random() * 2);
         const got = Crafting().add('root', n);
+        if (got > 0 && !PL().crafted.first_roots) { PL().crafted.first_roots = true; Ilha.State.log('Você sabe onde cavar: a rotina “Buscar raízes” está liberada em [T].', 'xp'); }
         Ilha.State.log(`Você cava o solo e encontra ${got}x Raízes Comestíveis.`, 'good');
         this.catalogOnce('Raízes Comestíveis');
         Ilha.Farming.seedDrop('root');
@@ -608,6 +609,7 @@
       if (room <= 0) { say('Mochila cheia.'); return; }
       if (!this.act({ minutes: 5, kcal: 3, stamina: 0, noCheck: true })) return;
       const got = C.add('dirty_water', Math.min(n, room));
+      if (got > 0 && !PL().crafted.first_water) { PL().crafted.first_water = true; Ilha.State.log('Você aprendeu o caminho do rio: a rotina “Buscar água” está liberada em [T].', 'xp'); }
       Ilha.State.log(`Você coleta ${got}x Água Suja do Rio. Ferva ou filtre antes de beber.`, 'good');
     },
 
@@ -628,6 +630,7 @@
       if (Math.random() < (river ? 0.65 : 0.55)) {
         const n = Math.random() < 0.15 ? 2 : 1;
         const got = C.add('raw_fish', n);
+        if (got > 0 && !PL().crafted.first_fish) { PL().crafted.first_fish = true; Ilha.State.log('Você pegou o jeito da pesca: a rotina “Pescar” está liberada em [T].', 'xp'); }
         Ilha.State.log(`Um arpão certeiro! Você pesca ${got}x Peixe Cru.`, 'good');
         this.catalogOnce('Peixes');
       } else {
@@ -746,6 +749,16 @@
       Ilha.State.log(parts.length ? `Você vasculhou [${def.name}]. Encontrou: ${parts.join(', ')}.` : `[${def.name}] não tinha mais nada de útil.`, parts.length ? 'good' : 'warn');
     },
 
+    /** Acende de fato a fogueira/lareira em (x,y): objeto aceso, ~2 h de combustível, som, log e XP de primeiro fogo. */
+    igniteFire(x, y) {
+      Ilha.World.setObject(x, y, Ilha.World.objectAt(x, y) === 'FIREPLACE_UNLIT' ? 'FIREPLACE_LIT' : 'CAMPFIRE_LIT');
+      D().world.fires[key(x, y)] = 2;
+      if (Ilha.Audio) Ilha.Audio.play('fire');
+      Ilha.State.log('Faíscas, fumaça… e a isca pega! A fogueira está acesa (~2h de combustível).', 'good');
+      const p = PL();
+      if (!p.crafted.first_fire) { p.crafted.first_fire = true; this.gainXP(20, 'primeiro fogo'); }
+    },
+
     lightFire(x, y) {
       const C = Crafting();
       if (C.count('stone') < 1 || C.count('wood_branch') < 1) { say('Para acender você precisa de 1 Pedra (sílex) e 1 Galhos como isca.'); return; }
@@ -754,12 +767,7 @@
       const chance = rainy ? 0.4 : 0.85;
       if (Math.random() < chance) {
         C.remove('wood_branch', 1);
-        Ilha.World.setObject(x, y, Ilha.World.objectAt(x, y) === 'FIREPLACE_UNLIT' ? 'FIREPLACE_LIT' : 'CAMPFIRE_LIT');
-        D().world.fires[key(x, y)] = 2;
-        if (Ilha.Audio) Ilha.Audio.play('fire');
-        Ilha.State.log('Faíscas, fumaça… e a isca pega! A fogueira está acesa (~2h de combustível).', 'good');
-        const p = PL();
-        if (!p.crafted.first_fire) { p.crafted.first_fire = true; this.gainXP(20, 'primeiro fogo'); }
+        this.igniteFire(x, y);
       } else {
         Ilha.State.log(rainy ? 'A umidade apaga as faíscas. Tente de novo, ou abrigue-se.' : 'As faíscas não pegam na isca. Tente novamente.', 'warn');
       }
