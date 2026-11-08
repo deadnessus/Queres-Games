@@ -3,7 +3,7 @@ import { TEAMS, ALL_PLAYERS, ALL_KEEPERS, KICKS, CELEBRATIONS, AI_LEVELS, SKIN_T
 import { makeFigure, setPose, disposeFigure, idlePose, standHips, keeperReady, keeperDive, keeperCheer, sadPose, hipsPose, refPose, kickAnim, CEL, CEL_DUR, clamp, lerp, ease } from './figure.js';
 import { buildStadium } from './stadium.js';
 import { Sound } from './audio.js';
-import { Net } from './net.js';
+import { Net, ensurePeer } from './net.js';
 import { SPOT, kickOf, resolveShot, aiShot, aiDive, makeDive } from './logic.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -133,7 +133,7 @@ function showScreen(id) {
   else { menuCamMode = 'main'; if (show) { dropFig(show.fig); show = null; } }
   if (id === 'team') renderTeamSelect();
   if (id === 'builder') { renderBuilder(); renderSavedTeams(); }
-  if (id === 'online') { $('#online-team').textContent = buildTeam(sel.a).name; onlineStep('choose'); }
+  if (id === 'online') { $('#online-team').textContent = buildTeam(sel.a).name; onlineStep('choose'); ensurePeer().catch(() => {}); }
   menuCam();
   if (id === 'main' || id === 'player') camCut();
 }
@@ -299,48 +299,108 @@ function onlineStep(n) {
   setOnlineStatus('');
 }
 function onlineHelp(what, e) {
-  const t = (e && (e.type || e.message)) || 'unknown';
-  if (t === 'no-room') return '⚠ Room not found. Check the code, and ask your friend to keep their screen open.';
-  if (t === 'full') return '⚠ This room already has two players.';
-  return `⚠ Could not ${what} (${t}). The online server may not be available yet, or your connection dropped. Try again in a moment.`;
+  const t = e && (e.type || e.message) || 'unknown';
+  const embedded = location.protocol === 'file:' || location.hostname.endsWith('claude.ai') || location.hostname.endsWith('claudeusercontent.com');
+  const retry = ' <button class="btn small" id="btn-online-retry">Try again</button>';
+  let tip;
+  if (location.protocol === 'file:') tip = 'The game was opened as a file. Run it from a web address (GitHub Pages or a local server) on both devices.';
+  else if (t === 'library') tip = 'The online module could not be loaded. Reload the page and try again.';
+  else if (t === 'browser-incompatible') tip = 'This browser does not support peer-to-peer play (WebRTC). Use an up-to-date Chrome, Edge, Firefox or Safari.';
+  else if (t === 'peer-unavailable') tip = 'No room with that code was found. Check the code and make sure your friend still has the room screen open.';
+  else if (embedded) tip = 'Online play does not work inside the claude.ai preview. Open the game from its own web address (GitHub Pages or a local server) on both devices.';
+  else if (['network', 'server-error', 'socket-error', 'socket-closed', 'timeout', 'disconnected'].includes(t)) tip = 'The matchmaking server could not be reached (it may be busy, or blocked by this network / an ad-blocker / a VPN). Wait a few seconds and try again, or switch network (e.g. Wi-Fi ↔ mobile data).';
+  else tip = 'Check your connection and try again.';
+  return `⚠ Could not ${what} <small>(${t})</small>.<br>${tip}${retry}<br><b>Still not working?</b> Open “Can't connect? Play without a server” just above and swap codes with your friend.`;
+}
+function netStatus(base) {
+  return (kind, n, total) => {
+    if (kind === 'retry') setOnlineStatus(`${base} (attempt ${n} of ${total})…`);
+    else if (kind === 'reconnecting' && !(net && net.connected)) setOnlineStatus('Connection to the matchmaking server dropped, reconnecting…');
+    else if (kind === 'online' && !(net && net.connected) && /^[A-Z0-9]{5}$/.test($('#host-code').textContent) && !$('#on-host').classList.contains('hidden')) setOnlineStatus('Waiting for your friend to enter the code…');
+  };
 }
 const mark = (ids, active) => ids.forEach((id, i) => { const el = $('#' + id); el.className = i < active ? 'done' : i === active ? 'on' : ''; });
 $('#online-back').onclick = () => { if (net) { net.close(); net = null; } if (!$('#on-choose').classList.contains('hidden')) showScreen('main'); else onlineStep('choose'); };
 $('#btn-join-step').onclick = () => { sound.init(); onlineStep('join'); mark(['j1', 'j2', 'j3'], -1); $('#join-code').focus(); };
 $('#btn-copy').onclick = async () => { const c = $('#host-code').textContent; try { await navigator.clipboard.writeText(c); setOnlineStatus('Code copied!'); } catch { setOnlineStatus('Select the code and copy it.'); } };
-$('#btn-host').onclick = async () => {
+async function hostConnected(me) {
+  mark(['h1', 'h2', 'h3'], 2); setOnlineStatus('Friend connected! Starting…'); sendHello();
+  const h = await me.take('hello');
+  if (net !== me) return;
+  const mine = buildTeam(sel.a); mine.celPref = { sel: sel.cel, sig: sel.sig };
+  const theirs = h.team; theirs.celPref = h.pref;
+  me.send({ t: 'start', shots: opts.shots });
+  startMatch({ teams: [mine, theirs], mode: 'online', mySide: 0, shots: opts.shots });
+}
+async function guestConnected(me) {
+  mark(['j1', 'j2', 'j3'], 1); sendHello(); setOnlineStatus('Connected! Waiting for the host to start…');
+  const h = await me.take('hello'); const s = await me.take('start');
+  if (net !== me) return;
+  mark(['j1', 'j2', 'j3'], 2);
+  const mine = buildTeam(sel.a); mine.celPref = { sel: sel.cel, sig: sel.sig };
+  const theirs = h.team; theirs.celPref = h.pref;
+  startMatch({ teams: [theirs, mine], mode: 'online', mySide: 1, shots: s.shots });
+}
+// ---- serverless mode (swap codes by hand)
+const copyText = async (t, ok) => { try { await navigator.clipboard.writeText(t); setOnlineStatus(ok); } catch { setOnlineStatus('Select the code and copy it by hand.'); } };
+const manualErr = (e) => setOnlineStatus(e && e.type === 'bad-code' ? '⚠ That code is not valid. Paste the whole code, exactly as it was sent.' : `⚠ ${e && e.message || e}`);
+$('#mh-make').onclick = async () => {
+  try {
+    sound.init(); if (net) net.close(); const me = net = new Net(); me.onclose = onlineDown;
+    setOnlineStatus('Making your code…'); $('#mh-offer').value = await me.hostManual();
+    me.onconnect = () => hostConnected(me);
+    setOnlineStatus('Send the code to your friend, then paste their reply below.');
+  } catch (e) { manualErr(e); }
+};
+$('#mh-copy').onclick = () => copyText($('#mh-offer').value, 'Code copied! Send it to your friend.');
+$('#mh-go').onclick = async () => {
+  try { if (!net || !net._pc) return setOnlineStatus('Press “Make my code” first.'); setOnlineStatus('Connecting…'); await net.hostAccept($('#mh-answer').value); }
+  catch (e) { manualErr(e); }
+};
+$('#mj-make').onclick = async () => {
+  try {
+    sound.init(); if (net) net.close(); const me = net = new Net(); me.onclose = onlineDown;
+    setOnlineStatus('Making your reply…'); $('#mj-answer').value = await me.joinManual($('#mj-offer').value);
+    me.onconnect = () => guestConnected(me);
+    setOnlineStatus('Send the reply back to the host. The game starts by itself.');
+  } catch (e) { if (net) { net.close(); net = null; } manualErr(e); }
+};
+$('#mj-copy').onclick = () => copyText($('#mj-answer').value, 'Reply copied! Send it to the host.');
+
+async function hostRoom() {
   sound.init(); onlineStep('host'); $('#host-code').textContent = '·····'; mark(['h1', 'h2', 'h3'], 0);
-  if (net) net.close(); net = new Net(); net.onclose = onlineDown;
-  if (!net.available) return setOnlineStatus('⚠ This browser does not support online play.');
+  if (net) net.close(); const me = net = new Net(); net.onclose = onlineDown; net.onstatus = netStatus('Creating your room');
   setOnlineStatus('Creating your room…');
   try {
-    const code = await net.host();
+    const code = await me.host();
+    if (net !== me) return;
     $('#host-code').textContent = code; mark(['h1', 'h2', 'h3'], 1);
     setOnlineStatus('Waiting for your friend to enter the code…');
-    net.onconnect = async () => {
-      mark(['h1', 'h2', 'h3'], 2); setOnlineStatus('Friend connected! Starting…'); sendHello();
-      const h = await net.take('hello');
-      const mine = buildTeam(sel.a); mine.celPref = { sel: sel.cel, sig: sel.sig };
-      const theirs = h.team; theirs.celPref = h.pref;
-      net.send({ t: 'start', shots: opts.shots });
-      startMatch({ teams: [mine, theirs], mode: 'online', mySide: 0, shots: opts.shots });
-    };
-  } catch (e) { setOnlineStatus(onlineHelp('create a room', e)); }
-};
-$('#btn-join').onclick = async () => {
+    me.onconnect = () => hostConnected(me);
+  } catch (e) {
+    if (net !== me) return;
+    mark(['h1', 'h2', 'h3'], -1); setOnlineStatus(onlineHelp('create a room', e)); $('#host-manual').open = true;
+    const b = $('#btn-online-retry'); if (b) b.onclick = hostRoom;
+  }
+}
+$('#btn-host').onclick = hostRoom;
+async function joinRoom() {
   sound.init();
-  const code = $('#join-code').value.trim(); if (code.length < 4) return setOnlineStatus('Enter the code from your friend.');
-  if (net) net.close(); net = new Net(); net.onclose = onlineDown;
-  if (!net.available) return setOnlineStatus('⚠ This browser does not support online play.');
+  const code = $('#join-code').value.trim(); if (code.length < 5) return setOnlineStatus('Enter the 5-letter code from your friend.');
+  if (net) net.close(); const me = net = new Net(); net.onclose = onlineDown; net.onstatus = netStatus('Looking for the room');
   mark(['j1', 'j2', 'j3'], 0); setOnlineStatus('Looking for the room…');
   try {
-    await net.join(code); mark(['j1', 'j2', 'j3'], 1); sendHello(); setOnlineStatus('Connected! Waiting for the host to start…');
-    const h = await net.take('hello'); const s = await net.take('start'); mark(['j1', 'j2', 'j3'], 2);
-    const mine = buildTeam(sel.a); mine.celPref = { sel: sel.cel, sig: sel.sig };
-    const theirs = h.team; theirs.celPref = h.pref;
-    startMatch({ teams: [theirs, mine], mode: 'online', mySide: 1, shots: s.shots });
-  } catch (e) { mark(['j1', 'j2', 'j3'], -1); setOnlineStatus(onlineHelp('join', e)); }
-};
+    await me.join(code);
+    if (net !== me) return;
+    await guestConnected(me);
+  } catch (e) {
+    if (net !== me) return;
+    mark(['j1', 'j2', 'j3'], -1); setOnlineStatus(onlineHelp('join', e)); $('#join-manual').open = true;
+    const b = $('#btn-online-retry'); if (b) b.onclick = joinRoom;
+  }
+}
+$('#btn-join').onclick = joinRoom;
+$('#join-code').onkeydown = (e) => { if (e.key === 'Enter') joinRoom(); };
 $('#join-code').oninput = (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
 
 // ---------------------------------------------------------------- HUD helpers
@@ -526,13 +586,13 @@ async function takeKick(side, round) {
 
   // ----- get the shot
   let shot;
-  if (kCtl === 'human') { setHint(''); shot = await getHumanShot(); if (m.mode === 'online') net.send({ t: 'shot', shot, kickerIdx: m.taken[side] % KT.players.length }); }
+  if (kCtl === 'human') { setHint(''); shot = await getHumanShot(); if (m.mode === 'online') net.send({ t: 'shot', shot }); }
   else if (kCtl === 'ai') {
     if (keeperRole) { input.mode = 'keeper'; hud.zones.style.display = 'grid'; placeZones(); refreshZones(); }
     await sleep(2.6); shot = aiShot(kicker, opts.ai);
   } else {
     if (keeperRole) { input.mode = 'keeper'; hud.zones.style.display = 'grid'; placeZones(); refreshZones(); }
-    setHint('Waiting for the opponent to shoot…'); const ss = await net.take('shotstart'); shot = { type: ss.type, ax: 0, ay: 1.2, power: 0.8, seed: 0 }; // aim stays hidden until the result
+    setHint('Waiting for the opponent to shoot…'); shot = (await net.take('shot')).shot;
   }
   if (keeperRole) { input.mode = 'keeper'; hud.zones.style.display = 'grid'; placeZones(); refreshZones(); }
   setHint(keeperRole ? hud.hint.innerHTML : '');
@@ -550,19 +610,16 @@ async function takeKick(side, round) {
   await sleep(K.runup);
 
   // ----- contact
-  let serverOutcome = null;
-  if (m.mode === 'online') {
-    if (gCtl === 'human') { const s = input.sel; const d0 = s ? { col: s.col, row: s.row, shift: input.shift } : { col: 0, row: 1, shift: false }; net.send({ t: 'dive', ...d0 }); dive = makeDive(d0.col, d0.row, d0.shift, HUMAN_START); play(gf, (tc) => keeperDive(dive, tc), T); }
-    const r = await net.take('result');      // the server reveals both choices at the same moment
-    shot = r.shot; serverOutcome = r.outcome; dive = makeDive(r.dive.col, r.dive.row, r.dive.shift, HUMAN_START);
-    if (gCtl !== 'human') play(gf, (tc) => keeperDive(dive, tc), T);
-  } else if (gCtl === 'human') {
+  if (gCtl === 'human') {
     const s = input.sel; dive = s ? makeDive(s.col, s.row, input.shift, HUMAN_START) : makeDive(0, 1, false, 0.05);
+    if (m.mode === 'online') net.send({ t: 'dive', col: dive.col, row: dive.row, shift: dive.shift });
+    play(gf, (tc) => keeperDive(dive, tc), T);
+  } else if (gCtl === 'remote') {
+    const d = await net.take('dive'); dive = makeDive(d.col, d.row, d.shift, HUMAN_START);
     play(gf, (tc) => keeperDive(dive, tc), T);
   }
   input.mode = null; hud.zones.style.display = 'none'; setHint('');
   const res = resolveShot(shot, dive, kicker, gk);
-  if (serverOutcome) res.outcome = serverOutcome;
   if (DEBUG.force) res.outcome = DEBUG.force;
   launch(res, shot);
   setFollowCam(keeperRole, res);
