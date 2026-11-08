@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0F2A19">
+  <meta name="description" content="Jogo de drible para celular: leia o defensor, drible com os dois polegares e faça o gol.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ginga">
+  <title>Ginga</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icones/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icones/icone-180.png">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="jogo" aria-label="Campo de jogo"></canvas>
+
+  <header id="hud" hidden>
+    <button id="btn-ajuda" class="hud-ajuda" type="button" aria-label="Como driblar (pausa o jogo)">?</button>
+    <div class="hud-centro">
+      <span id="hud-rotulo">ADVERSÁRIOS</span>
+      <div id="hud-bolinhas" aria-hidden="true"></div>
+    </div>
+    <span id="hud-pontos" aria-live="polite">0</span>
+  </header>
+
+  <div id="tutorial-ui" hidden>
+    <button id="btn-pular" class="btn btn-linha btn-pequeno" type="button">Pular tutorial</button>
+  </div>
+
+  <section id="menu" class="tela tela-menu" aria-label="Menu">
+    <div class="menu-topo">
+      <h1 class="logo">GINGA</h1>
+      <p class="sub">DRIBLE ATÉ O GOL</p>
+    </div>
+    <div class="menu-botoes">
+      <button class="btn btn-dif" type="button" data-dif="facil"><span>Fácil</span><small></small></button>
+      <button class="btn btn-dif" type="button" data-dif="medio"><span>Médio</span><small></small></button>
+      <button class="btn btn-dif" type="button" data-dif="dificil"><span>Difícil</span><small></small></button>
+    </div>
+    <div class="menu-sec">
+      <button id="btn-como" class="btn btn-linha" type="button">Como driblar</button>
+      <button id="btn-treino" class="btn btn-linha" type="button">Treino</button>
+    </div>
+    <p id="recorde" class="recorde"></p>
+  </section>
+
+  <section id="consulta" class="tela tela-consulta" hidden aria-labelledby="consulta-titulo">
+    <p id="consulta-pausa" class="pausa" hidden>JOGO PAUSADO</p>
+    <h2 id="consulta-titulo" class="titulo-consulta">COMO DRIBLAR</h2>
+    <div class="abas" role="tablist" aria-label="Assuntos">
+      <button role="tab" type="button" id="aba-dribles" aria-controls="painel-dribles" aria-selected="true">Dribles</button>
+      <button role="tab" type="button" id="aba-defensor" aria-controls="painel-defensor" aria-selected="false" tabindex="-1">Defensor</button>
+      <button role="tab" type="button" id="aba-goleiro" aria-controls="painel-goleiro" aria-selected="false" tabindex="-1">Goleiro</button>
+    </div>
+
+    <div id="painel-dribles" class="painel" role="tabpanel" aria-labelledby="aba-dribles">
+      <p class="intro">Toque só na metade de baixo da tela: um lado para cada polegar. Toque quando o anel branco entrar na faixa verde; no meio da faixa é perfeito.</p>
+      <article class="cartao">
+        <svg class="gesto" viewBox="0 0 48 34" aria-hidden="true"><rect x="2" y="2" width="20" height="30" rx="4"/><rect x="26" y="2" width="20" height="30" rx="4"/><circle cx="36" cy="17" r="4.5" class="ponto"/></svg>
+        <div>
+          <h3>Lateral <span class="chip">85%</span></h3>
+          <p>Toque num lado: a bola sai por ele.</p>
+          <p><b>Vence:</b> <em>fechando o outro lado</em></p>
+          <p class="evite">Evite: fechando o seu lado</p>
+        </div>
+      </article>
+      <article class="cartao">
+        <svg class="gesto" viewBox="0 0 48 34" aria-hidden="true"><rect x="2" y="2" width="20" height="30" rx="4"/><rect x="26" y="2" width="20" height="30" rx="4"/><circle cx="12" cy="17" r="4.5" class="ponto"/><circle cx="36" cy="17" r="4.5" class="ponto"/></svg>
+        <div>
+          <h3>Caneta <span class="chip">85%</span></h3>
+          <p>Os dois lados juntos, e solte logo.</p>
+          <p><b>Vence:</b> <em>bote de pernas abertas</em></p>
+          <p class="evite">Evite: contido, carrinho</p>
+        </div>
+      </article>
+      <article class="cartao">
+        <svg class="gesto" viewBox="0 0 48 34" aria-hidden="true"><rect x="2" y="2" width="20" height="30" rx="4"/><rect x="26" y="2" width="20" height="30" rx="4"/><circle cx="12" cy="17" r="4.5" class="ponto"/><circle cx="36" cy="17" r="4.5" class="ponto"/><circle cx="12" cy="17" r="8" class="aro"/><circle cx="36" cy="17" r="8" class="aro"/></svg>
+        <div>
+          <h3>Chapéu <span class="chip">90%</span></h3>
+          <p>Os dois lados juntos, segurando um instante.</p>
+          <p><b>Vence:</b> <em>carrinho</em></p>
+          <p class="evite">Evite: fechando um lado</p>
+        </div>
+      </article>
+      <article class="cartao">
+        <svg class="gesto" viewBox="0 0 48 34" aria-hidden="true"><rect x="2" y="2" width="20" height="30" rx="4"/><rect x="26" y="2" width="20" height="30" rx="4"/><text x="12" y="22" class="num">1</text><text x="36" y="22" class="num">2</text></svg>
+        <div>
+          <h3>Elástico <span class="chip">85%</span></h3>
+          <p>Um lado e logo o outro: sai pelo segundo.</p>
+          <p><b>Vence:</b> <em>contido</em></p>
+          <p class="evite">Evite: carrinho, bote</p>
+        </div>
+      </article>
+    </div>
+
+    <div id="painel-defensor" class="painel" role="tabpanel" aria-labelledby="aba-defensor" hidden>
+      <p class="intro">Quando o adversário chega perto, ele mostra o que vai fazer. Leia e responda. No Médio e no Difícil ele às vezes finge e troca no começo da faixa verde: quem espera o verde não cai.</p>
+      <article class="cartao">
+        <svg class="postura" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="12" fill="#2E8A4B"/><rect y="40" width="120" height="40" fill="#33974F"/><ellipse cx="60" cy="48" rx="10" ry="6.5" fill="none" stroke="#FFFFFF" stroke-opacity=".6" stroke-dasharray="3 3"/><g transform="translate(40 48)"><ellipse rx="10" ry="6.5" fill="#D7263D" stroke="#0D2416" stroke-width="1.2"/><circle r="4.3" fill="#3B2A20"/></g><path d="M66 26 H34 M40 21 L33 26 L40 31" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="88" r="3.2" fill="#FFFFFF" stroke="#0D2416"/><g transform="translate(60 100)"><ellipse rx="9" ry="6" fill="#FFD23F" stroke="#0D2416" stroke-width="1.2"/><circle r="3.8" fill="#3B2A20"/></g></svg>
+        <div><h3>Fechando a esquerda</h3><p>Dá um passo para o seu lado esquerdo.</p><p><b>Responda com:</b> <em>drible pela direita</em></p></div>
+      </article>
+      <article class="cartao">
+        <svg class="postura" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="12" fill="#2E8A4B"/><rect y="40" width="120" height="40" fill="#33974F"/><ellipse cx="60" cy="48" rx="10" ry="6.5" fill="none" stroke="#FFFFFF" stroke-opacity=".6" stroke-dasharray="3 3"/><g transform="translate(80 48)"><ellipse rx="10" ry="6.5" fill="#D7263D" stroke="#0D2416" stroke-width="1.2"/><circle r="4.3" fill="#3B2A20"/></g><path d="M54 26 H86 M80 21 L87 26 L80 31" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="88" r="3.2" fill="#FFFFFF" stroke="#0D2416"/><g transform="translate(60 100)"><ellipse rx="9" ry="6" fill="#FFD23F" stroke="#0D2416" stroke-width="1.2"/><circle r="3.8" fill="#3B2A20"/></g></svg>
+        <div><h3>Fechando a direita</h3><p>Dá um passo para o seu lado direito.</p><p><b>Responda com:</b> <em>drible pela esquerda</em></p></div>
+      </article>
+      <article class="cartao">
+        <svg class="postura" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="12" fill="#2E8A4B"/><rect y="40" width="120" height="40" fill="#33974F"/><path d="M46 16 V30 M60 12 V28 M74 16 V30" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/><ellipse cx="47" cy="60" rx="4.5" ry="3.2" fill="#D7263D" stroke="#0D2416"/><ellipse cx="73" cy="60" rx="4.5" ry="3.2" fill="#D7263D" stroke="#0D2416"/><g transform="translate(60 48)"><ellipse rx="10" ry="6.5" fill="#D7263D" stroke="#0D2416" stroke-width="1.2"/><circle r="4.3" fill="#3B2A20"/></g><circle cx="60" cy="88" r="3.2" fill="#FFFFFF" stroke="#0D2416"/><g transform="translate(60 100)"><ellipse rx="9" ry="6" fill="#FFD23F" stroke="#0D2416" stroke-width="1.2"/><circle r="3.8" fill="#3B2A20"/></g></svg>
+        <div><h3>Bote de pernas abertas</h3><p>Vem rápido, com a base larga.</p><p><b>Responda com:</b> <em>caneta</em></p></div>
+      </article>
+      <article class="cartao">
+        <svg class="postura" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="12" fill="#2E8A4B"/><rect y="40" width="120" height="40" fill="#33974F"/><ellipse cx="60" cy="60" rx="10" ry="6.5" fill="none" stroke="#FFFFFF" stroke-opacity=".6" stroke-dasharray="3 3"/><g transform="translate(60 44)"><ellipse rx="10" ry="6.5" fill="#D7263D" stroke="#0D2416" stroke-width="1.2"/><circle r="4.3" fill="#3B2A20"/></g><path d="M60 32 V16 M55 21 L60 15 L65 21" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="60" cy="88" r="3.2" fill="#FFFFFF" stroke="#0D2416"/><g transform="translate(60 100)"><ellipse rx="9" ry="6" fill="#FFD23F" stroke="#0D2416" stroke-width="1.2"/><circle r="3.8" fill="#3B2A20"/></g></svg>
+        <div><h3>Contido</h3><p>Recua devagar, esperando você.</p><p><b>Responda com:</b> <em>elástico</em></p></div>
+      </article>
+      <article class="cartao">
+        <svg class="postura" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="12" fill="#2E8A4B"/><rect y="40" width="120" height="40" fill="#33974F"/><path d="M30 22 L40 38 M40 16 L50 32" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/><path d="M62 62 L70 76" stroke="#D7263D" stroke-width="5" stroke-linecap="round"/><g transform="translate(55 52) rotate(-58)"><ellipse rx="14" ry="6" fill="#D7263D" stroke="#0D2416" stroke-width="1.2"/></g><circle cx="49" cy="43" r="4.3" fill="#3B2A20"/><circle cx="60" cy="88" r="3.2" fill="#FFFFFF" stroke="#0D2416"/><g transform="translate(60 100)"><ellipse rx="9" ry="6" fill="#FFD23F" stroke="#0D2416" stroke-width="1.2"/><circle r="3.8" fill="#3B2A20"/></g></svg>
+        <div><h3>Carrinho</h3><p>Se joga no chão em direção à bola.</p><p><b>Responda com:</b> <em>chapéu</em></p></div>
+      </article>
+    </div>
+
+    <div id="painel-goleiro" class="painel" role="tabpanel" aria-labelledby="aba-goleiro" hidden>
+      <article class="cartao cartao-texto">
+        <div>
+          <h3>Chutar: barra de um toque</h3>
+          <p>Ao entrar na área, uma barra aparece no topo. O marcador vai e volta de fora a fora. Toque em qualquer lugar da tela para chutar onde ele está.</p>
+          <p>Ponta vermelha é fora, faixa amarela é trave. A zona do goleiro, no meio, cresce enquanto ele sai do gol: quanto mais longe dela, maior a chance. Perto da trave é gol no canto, que vale mais.</p>
+        </div>
+      </article>
+      <article class="cartao cartao-texto">
+        <div>
+          <h3>Driblar: depois que a barra some</h3>
+          <p>Se você não chutar a tempo, a barra some e o goleiro dá o bote. Use os mesmos dribles. Passou por ele, você entra com bola e tudo: gol de placa.</p>
+          <p><b>Se joga rasteiro nos pés:</b> <em>chapéu</em></p>
+          <p><b>Sai em pé, braços abertos:</b> <em>drible para um lado</em></p>
+        </div>
+      </article>
+    </div>
+
+    <div class="consulta-botoes">
+      <button id="btn-continuar" class="btn btn-principal" type="button">Voltar</button>
+      <button id="btn-sair" class="btn-texto" type="button" hidden>Sair para o menu</button>
+    </div>
+  </section>
+
+  <section id="resultado" class="tela tela-resultado" hidden aria-live="assertive">
+    <h2 id="res-titulo" class="res-titulo">GOL!</h2>
+    <p id="res-sub" class="res-sub"></p>
+    <div id="res-estrelas" class="res-estrelas" role="img"></div>
+    <div class="res-painel">
+      <dl id="res-lista" class="res-lista"></dl>
+      <div class="res-total"><span>TOTAL DA FASE</span><strong id="res-total">0</strong></div>
+    </div>
+    <p id="res-nota" class="res-nota"></p>
+    <div class="res-botoes">
+      <button id="res-principal" class="btn btn-principal" type="button">Próxima fase</button>
+      <button id="res-menu" class="btn btn-linha" type="button">Menu</button>
+    </div>
+  </section>
+
+  <div id="girar" class="tela tela-girar" hidden>
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="20" y="6" width="24" height="44" rx="5" fill="none" stroke="#FFD23F" stroke-width="3"/><path d="M50 40 a20 20 0 0 1 -14 18" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/><path d="M33 53 l3 5 5 -3" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <p>Gire o celular para jogar em pé.</p>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
