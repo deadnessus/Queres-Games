@@ -61,7 +61,7 @@ Uma conta é um **apelido** ("Lobo Azul", sempre bicho + qualidade, 30 x 10 = 30
 - **Segurança**: 5 códigos errados bloqueiam o apelido por 30 min (só vale para entrar em outro aparelho; quem já está logado não é afetado). `POST` só aceita JSON vindo do próprio site. No máximo 120 contas novas por hora. Apelidos só da lista gerada: nunca texto livre.
 - **Tabelas D1** (criadas sozinhas, como nos contadores): `contas`, `sessoes`, `jp_tentativas`.
 - **Sem o banco** as rotas respondem 503 e o JoPuzzle esconde o botão do desafio.
-- **Desafio do dia do JoPuzzle**: 6 peças diferentes, 600 s, **uma tentativa por conta por dia** (o relógio é do servidor e não para; o dia troca à meia-noite de Brasília). O servidor confere a solução; o tempo mais rápido vence. A lista dos 400 desafios está neste repositório público: quem procurar vê os desafios dos próximos dias (a solução não está lá, só as peças). Para esconder, seria preciso um segredo no Cloudflare.
+- **Desafio do dia do JoPuzzle**: 5 peças diferentes, 600 s, **uma tentativa por conta por dia** (o relógio é do servidor e não para; o dia troca à meia-noite de Brasília). O servidor confere a solução; o tempo mais rápido vence. A lista dos 400 desafios está neste repositório público: quem procurar vê os desafios dos próximos dias (a solução não está lá, só as peças). Para esconder, seria preciso um segredo no Cloudflare.
 - **Teste local** (precisa de Node 22.23.4+ para o Astro): `npm run build` e `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
 
 ## Pendências conhecidas

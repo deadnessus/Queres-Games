@@ -160,9 +160,9 @@ svg { display: block; }
   background: rgba(255, 255, 255, .03); border: 1px dashed rgba(255, 255, 255, .12);
   touch-action: none;
 }
-/* 6 peças: duas fileiras de 3 */
-.tray[data-n="6"] { flex-wrap: wrap; justify-content: flex-start; }
-.tray[data-n="6"] .slot { flex: 0 0 calc((100% - 16px) / 3); aspect-ratio: auto; height: 76px; }
+/* 5 peças: fileira de 3 e fileira de 2 centralizada */
+.tray[data-n="5"] { flex-wrap: wrap; justify-content: center; }
+.tray[data-n="5"] .slot { flex: 0 0 calc((100% - 16px) / 3); aspect-ratio: auto; height: 76px; }
 .slot.sel { border: 1px solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .07); }
 
 .legend { display: flex; justify-content: center; gap: 28px; color: rgba(255, 255, 255, .5); }
