@@ -109,7 +109,7 @@ async function abrirDiario() {
 
   if (d.estado === 'novo') {
     mostrar(...topo,
-      h('p', { class: 'pn-sub' }, '6 peças, todas diferentes. Você tem 10 minutos e uma única tentativa por dia. Depois que começar, o relógio não para.'),
+      h('p', { class: 'pn-sub' }, '5 peças, todas diferentes. Você tem 10 minutos e uma única tentativa por dia. Depois que começar, o relógio não para.'),
       h('div', { class: 'pn-linha' }, botao('Jogar', comecar, { tipo: 'principal' })),
       rodape);
   } else if (d.estado === 'jogando' && d.restanteMs > 0) {
