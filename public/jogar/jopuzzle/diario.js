@@ -76,6 +76,7 @@ function mostrar(...nos) {
 function fechar() {
   if (E.emDiario()) E.sairDoDiario();
   else E.voltar();
+  atualizarEntradas();
 }
 
 const carregando = (texto = 'Carregando...') => mostrar(h('p', { class: 'pn-sub' }, texto));
@@ -286,19 +287,48 @@ async function abrirRanking(dia) {
   );
 }
 
+/* ---------- entradas na tela inicial (texto do desafio + prévia do ranking) ---------- */
+const statusEl = $('desafio-status');
+const top3El = $('top3');
+
+function textoDoDesafio(r) {
+  if (r.status === 401) return 'Entre para jogar o desafio do dia.';
+  if (r.status !== 200) return '';
+  const d = r.dados;
+  if (d.estado === 'novo') return 'Desafio de hoje: ainda não jogado.';
+  if (d.estado === 'jogando') return d.restanteMs > 0 ? `Desafio em andamento: faltam ${tempoCurto(d.restanteMs)}.` : 'Desafio de hoje: o tempo acabou.';
+  if (d.estado === 'concluido') return `Desafio de hoje: ${tempoLongo(d.tempoMs)} · ${d.posicao}º de ${d.total}.`;
+  return 'Desafio de hoje: o tempo acabou.';
+}
+
+function desenharTop3(r) {
+  const itens = r.status === 200 ? r.dados.top.slice(0, 3) : [];
+  top3El.replaceChildren(...(itens.length
+    ? itens.map((x) => h('li', {}, h('span', {}, `${x.posicao}º ${x.apelido}`), h('span', { class: 'tempo' }, tempoLongo(x.tempoMs))))
+    : [h('li', {}, h('span', {}, 'Ninguém terminou o desafio ainda.'))]));
+}
+
+async function atualizarEntradas() {
+  const [dia, rank] = await Promise.all([api('/api/jopuzzle/desafio'), api('/api/jopuzzle/ranking')]);
+  statusEl.textContent = textoDoDesafio(dia);
+  desenharTop3(rank);
+}
+
 /* ---------- início ---------- */
 const abrirOuEntrar = () => {
   if (E.emDiario()) return;
   if (eu) abrirDiario(); else abrirLogin();
 };
 botaoDia.addEventListener('click', abrirOuEntrar);
-$('btn-diario2').addEventListener('click', abrirOuEntrar);
+$('btn-desafio').addEventListener('click', abrirOuEntrar);
+$('btn-ranking').addEventListener('click', () => abrirRanking());
 
 (async () => {
   const r = await api('/api/conta/me');
   if (r.status !== 200 || typeof r.dados.logado !== 'boolean') return; // sem servidor: o jogo segue normal
   botaoDia.hidden = false;
-  $('btn-diario2').hidden = false;
+  $('entradas').hidden = false;
+  atualizarEntradas();
   if (r.dados.logado) {
     eu = { apelido: r.dados.apelido };
     abrirDiario(); // quem já está logada vê o desafio assim que abre o jogo
