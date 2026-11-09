@@ -123,6 +123,10 @@ button:focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; }
 }
 .sub { margin: 8px 0 0; font-weight: 600; font-size: 14px; letter-spacing: 0.25em; }
 .menu-botoes { display: grid; gap: 10px; }
+.menu-modo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.2); }
+.menu-modo button { min-height: 40px; border: 0; border-radius: 999px; background: transparent; font-weight: 700; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
+.menu-modo button[aria-pressed="true"] { background: var(--amarelo); color: var(--contorno); }
+.modo-desc { margin: -6px 0 0; text-align: center; font-size: 14px; line-height: 1.35; color: var(--texto-suave); min-height: 2.7em; }
 .btn-dif {
   justify-content: space-between;
   background: var(--texto);
@@ -210,7 +214,7 @@ button:focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; }
 }
 .pausa { margin: 0; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.24em; color: var(--amarelo); }
 .titulo-consulta { margin: 0; text-align: center; font-family: var(--f-titulo); font-weight: 800; font-size: 32px; letter-spacing: 0.04em; }
-.abas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.abas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .abas [role="tab"] {
   min-height: 38px;
   border-radius: 999px;

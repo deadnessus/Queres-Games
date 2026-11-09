@@ -983,8 +983,8 @@ export function criarRender(canvas) {
       if (d.aceita()) anel(X0, Yc, d);
       alvo = { X: X0 + jogo.alvoDX, Y: Yc, pe: Yc + PE };
       // desarme: ele avança até a bola, estica a perna e depois recolhe com a bola dominada
-      let bloqueio = null;
-      if (jogo.estado === 'DESARME' && jogo.anim) {
+      let bloqueio = d.bloqueio || null;
+      if (!bloqueio && jogo.estado === 'DESARME' && jogo.anim) {
         const a = jogo.anim;
         const lado = Math.sign(jogo.jogDX - jogo.baseDXAlvo()) || 1;
         let u;
@@ -1001,7 +1001,7 @@ export function criarRender(canvas) {
       if (d.posturaVisivel && !d.resultado && jogo.params.dicas) {
         rotulos.push(() => {
           balao(R.NOME_POSTURA[d.posturaVisivel], alvo.X, Yc - 96);
-          dica(R.melhorDrible(CONFIG.matrizDefensor, d.posturaMostrada), alvo.X, Yc);
+          if (!d.livre) dica(R.melhorDrible(CONFIG.matrizDefensor, d.posturaMostrada), alvo.X, Yc);
         });
       }
     }
@@ -1031,8 +1031,10 @@ export function criarRender(canvas) {
     });
 
     // bola: física própria (rola, quica, passa entre as pernas, bate na rede)
-    const eventosBola = bola.atualizar(dt, jogo, { vP: jogo.velocidadeDoEstado(), jogX: jogo.jogDX });
-    const b = bola.estado;
+    // no modo Livre a bola é do próprio jogo (o defensor precisa saber onde ela está)
+    const bolaDoJogo = jogo.modo === 'livre' && jogo.bola;
+    const eventosBola = bolaDoJogo ? jogo.eventosBola.splice(0) : bola.atualizar(dt, jogo, { vP: jogo.velocidadeDoEstado(), jogX: jogo.jogDX });
+    const b = (bolaDoJogo ? jogo.bola : bola).estado;
     const bx = cx + b.x;
     const by = py - b.f;
     cena.push({ y: by + 0.01, f: () => desenharBola(ctx, tex.bola, bx, by, { escala: 1 + b.z / 150, rot: b.giro, alto: b.z }) });

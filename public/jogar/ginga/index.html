@@ -38,6 +38,11 @@
       <h1 class="logo">GINGA</h1>
       <p class="sub">DRIBLE ATÉ O GOL</p>
     </div>
+    <div class="menu-modo" role="group" aria-label="Modo de jogo">
+      <button type="button" data-modo="classico" aria-pressed="true">Clássico</button>
+      <button type="button" data-modo="livre" aria-pressed="false">Livre</button>
+    </div>
+    <p id="modo-desc" class="modo-desc"></p>
     <div class="menu-botoes">
       <button class="btn btn-dif" type="button" data-dif="facil"><span>Fácil</span><small></small></button>
       <button class="btn btn-dif" type="button" data-dif="medio"><span>Médio</span><small></small></button>
@@ -57,6 +62,7 @@
       <button role="tab" type="button" id="aba-dribles" aria-controls="painel-dribles" aria-selected="true">Dribles</button>
       <button role="tab" type="button" id="aba-defensor" aria-controls="painel-defensor" aria-selected="false" tabindex="-1">Defensor</button>
       <button role="tab" type="button" id="aba-goleiro" aria-controls="painel-goleiro" aria-selected="false" tabindex="-1">Goleiro</button>
+      <button role="tab" type="button" id="aba-livre" aria-controls="painel-livre" aria-selected="false" tabindex="-1">Livre</button>
     </div>
 
     <div id="painel-dribles" class="painel" role="tabpanel" aria-labelledby="aba-dribles">
@@ -139,6 +145,27 @@
           <p><b>Sai em pé, braços abertos:</b> <em>drible para um lado</em></p>
         </div>
       </article>
+    </div>
+
+    <div id="painel-livre" class="painel" role="tabpanel" aria-labelledby="aba-livre" hidden>
+      <p class="intro">No modo Livre você conduz o jogador o tempo todo, com os dois polegares, na tela inteira.</p>
+      <article class="cartao cartao-texto"><div>
+        <h3>Andar e correr</h3>
+        <p><b>Segure um lado</b> da tela: o jogador anda para esse lado.</p>
+        <p><b>Suba o dedo apertado</b> para correr mais; <b>desça</b> para frear. Sem dedo, ele trota.</p>
+      </div></article>
+      <article class="cartao cartao-texto"><div>
+        <h3>Dribles</h3>
+        <p><b>Toque rápido num lado:</b> corte, a bola vai para esse lado.</p>
+        <p><b>Corte e logo outro para o lado oposto:</b> <em>elástico</em>, ele compra a finta.</p>
+        <p><b>Os dois juntos e solta:</b> <em>caneta</em>, passa quando ele abre as pernas no bote.</p>
+        <p><b>Os dois juntos e segura:</b> <em>chapéu</em>, passa por cima quando ele vem no bote.</p>
+      </div></article>
+      <article class="cartao cartao-texto"><div>
+        <h3>O defensor</h3>
+        <p>Ele tenta ficar na frente da bola e acompanha quem corre para o lado. Perto da bola, <b>arma o bote</b>: planta os pés e abre as pernas. Logo depois se joga, e se a perna dele alcança a bola, ele a toma.</p>
+        <p><b>A hora do drible é quando ele arma o bote.</b> Corte para longe dele: já comprometido, ele não volta a tempo. Cedo demais, ele se ajeita; tarde demais, ele chega na bola.</p>
+      </div></article>
     </div>
 
     <div class="consulta-botoes">
