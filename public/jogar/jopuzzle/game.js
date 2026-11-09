@@ -15,7 +15,7 @@ const DRAG_THRESHOLD = 6;               // px de movimento até começar a arras
 // Os puzzles vêm de puzzles.js (gerado por tools/generate_puzzles.py).
 // Cada puzzle é a solução desenhada em letras: uma letra por peça, '.' é vazio.
 // "stars": segundos gastos para ganhar 3 e 2 estrelas (mais que isso = 1 estrela).
-const PUZZLES = window.PUZZLES;       // { easy: [3 peças], hard: [4 peças], super: [6 peças] }
+const PUZZLES = window.PUZZLES;       // { easy: [3 peças], hard: [4 peças], super: [5 peças] }
 
 /* ---------- formas ---------- */
 const norm = (cells) => {
