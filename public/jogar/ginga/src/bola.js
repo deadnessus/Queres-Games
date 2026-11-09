@@ -30,13 +30,14 @@ export function criarBola() {
     giro: 0,
     dono: 'jogador', // 'jogador' | 'alvo' (desarmada) | 'presa' (nas luvas) | 'livre' (chutada)
     espera: 0, // tempo sem toque automático de condução
+    solta: false, // chutada num drible (caneta, chapéu...): não acompanha o pé até o próximo toque
     balistico: 0, // tempo de voo calculado do chute (sem atrito)
     agenda: [],
     ult: { anim: null, tackle: false, chute: null, pts: null, dono: null },
   };
 
   function reiniciar(jogX) {
-    Object.assign(b, { x: jogX, f: CAMPO.bolaAFrente, z: 0, vx: 0, vf: 0, vz: 0, dono: 'jogador', espera: 0, balistico: 0, agenda: [] });
+    Object.assign(b, { x: jogX, f: CAMPO.bolaAFrente, z: 0, vx: 0, vf: 0, vz: 0, dono: 'jogador', espera: 0, balistico: 0, agenda: [], solta: false });
   }
 
   function alvoDoDuelo(jogo) {
@@ -60,10 +61,19 @@ export function criarBola() {
     b.agenda = [];
     b.balistico = 0;
     b.dono = 'jogador';
-    const destLado = lado * (a.sucesso ? mv.ladoDist + mv.bolaAdiante : mv.falhaDist + 10);
+    b.solta = true;
+    // x0/dist: o modo Livre toca a partir de onde o jogador está, com distância própria
+    const destLado = (a.x0 ?? 0) + lado * (a.dist ?? (a.sucesso ? mv.ladoDist + mv.bolaAdiante : mv.falhaDist + 10));
     switch (a.drible) {
       case 'DIREITA':
       case 'ESQUERDA':
+        if (a.livre) {
+          // modo Livre: a bola vai colada no pé para o lado; o toque só a empurra para a frente
+          b.solta = false;
+          b.vf = vP + 45;
+          b.espera = 0.3;
+          return true;
+        }
         tocar(destLado, 70, vP);
         b.espera = 0.6;
         return true;
@@ -158,8 +168,9 @@ export function criarBola() {
   }
 
   // Avança a física. `vP`: velocidade do jogador (un/s); `jogX`: posição lateral dele.
+  // `seguirX` (modo Livre): a bola conduzida acompanha o pé do jogador para os lados.
   // Retorna eventos para efeitos visuais: 'toque', 'conducao', 'quique', 'rede', 'trave', 'defesa', 'chute'.
-  function atualizar(dt, jogo, { vP, jogX }) {
+  function atualizar(dt, jogo, { vP, jogX, seguirX }) {
     const ev = [];
     if (jogo.pts !== b.ult.pts) {
       reiniciar(jogX);
@@ -218,6 +229,7 @@ export function criarBola() {
       tocar(jogX, vP * 0.5 + 15, vP);
       b.vx *= 1.1;
       b.espera = 0.25;
+      b.solta = false;
       ev.push('conducao');
     }
 
@@ -246,6 +258,10 @@ export function criarBola() {
     }
     b.x += b.vx * dt;
     b.f += (b.vf - vP) * dt;
+    if (seguirX !== undefined && b.dono === 'jogador' && !b.solta && b.z < 1) {
+      b.vx = 0;
+      b.x += (seguirX - b.x) * (1 - Math.exp(-dt * 14));
+    }
 
     // laterais do campo
     if (Math.abs(b.x) > 150) {
