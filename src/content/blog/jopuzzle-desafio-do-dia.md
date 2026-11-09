@@ -16,7 +16,7 @@ O **Jopuzzle** agora tem um **desafio do dia**: um puzzle novo todo dia, igual p
 
 ## Dá para fazer agora?
 
-Sim. Abra o Jopuzzle e toque no botão com o desenho de calendário. Se não aparecer, recarregue a página sem cache ou abra numa aba anônima.
+Sim. Abra o Jopuzzle. Na tela inicial, toque em **Desafio do dia** para jogar ou ver o seu resultado, e em **Ranking** para ver quem foi mais rápido. Se não aparecer, recarregue a página sem cache ou abra numa aba anônima.
 
 ## O que vem a seguir
 

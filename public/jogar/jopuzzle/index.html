@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2026.11.08.1">
+<link rel="stylesheet" href="style.css?v=2026.11.09.1">
 </head>
 <body>
 <main id="app">
@@ -81,9 +81,12 @@
     <button id="btn-play" class="big-btn" aria-label="Jogar">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
     </button>
-    <button id="btn-diario2" class="icon-btn gold diario2" aria-label="Desafio do dia" hidden>
-      <svg class="line" viewBox="0 0 22 22" aria-hidden="true"><rect x="3" y="4.5" width="16" height="14.5" rx="3"/><path d="M3 9.5h16M7.5 2.5v4M14.5 2.5v4"/><circle class="dot" cx="11" cy="14" r="1.8"/></svg>
-    </button>
+    <div id="entradas" class="entradas" hidden>
+      <button id="btn-desafio" class="entrada gold" type="button">Desafio do dia</button>
+      <button id="btn-ranking" class="entrada" type="button">Ranking</button>
+      <p id="desafio-status" class="status" aria-live="polite"></p>
+      <ol id="top3" class="top3" aria-label="Melhores de hoje"></ol>
+    </div>
     <button id="btn-skip2" class="icon-btn warn skip2" aria-label="Desistir e ir para o próximo puzzle">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M6 5l9 7-9 7z"/><path d="M19 5v14"/></svg>
     </button>
@@ -105,8 +108,8 @@
   </div>
 </div>
 
-<script src="puzzles.js?v=2026.11.08.1"></script>
-<script src="game.js?v=2026.11.08.1"></script>
-<script src="diario.js?v=2026.11.08.1"></script>
+<script src="puzzles.js?v=2026.11.09.1"></script>
+<script src="game.js?v=2026.11.09.1"></script>
+<script src="diario.js?v=2026.11.09.1"></script>
 </body>
 </html>
