@@ -6,7 +6,8 @@ const VERSION = (() => {
   try { return new URL(document.currentScript.src).searchParams.get('v'); } catch (e) { return null; }
 })() || window.JOPUZZLE_VERSION || 'dev';
 
-const TIME_LIMIT = 45;                  // segundos por puzzle
+const TIME_LIMIT = 45;                  // segundos por puzzle nos modos normais
+const DAILY_LIMIT = 600;                // segundos no desafio do dia
 const COLORS = ['#FF4DA6', '#38E1FF', '#FFD93D', '#8CFF6B', '#FF9F43', '#B58CFF'];
 const MAX_CELL = 56;                    // tamanho máximo da célula no tabuleiro (px)
 const DRAG_THRESHOLD = 6;               // px de movimento até começar a arrastar
@@ -34,7 +35,8 @@ const S = {
   mode: 'easy', levels: { easy: 0, hard: 0, super: 0 }, level: 0, puzzle: null, cols: 0, rows: 0,
   target: new Set(), pieces: [], selected: null, drag: null,
   cell: MAX_CELL, slotW: 70,
-  status: 'ready', remaining: TIME_LIMIT, lastTick: 0, timerId: 0,
+  status: 'ready', remaining: TIME_LIMIT, limit: TIME_LIMIT, lastTick: 0, timerId: 0,
+  daily: null, // { dia, endAt } enquanto o desafio do dia está em andamento
 };
 window.__jopuzzle = S; // facilita testes
 S.debugSetCells = (i, cells) => { const p = S.pieces[i]; p.cells = cells; buildCells(p); placeInTray(p); };
@@ -53,23 +55,12 @@ const key = (x, y) => x + ',' + y;
 const vibrate = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* sem vibração */ } };
 
 /* ---------- carregar puzzle ---------- */
-function loadLevel(index) {
-  const list = PUZZLES[S.mode];
-  S.level = (index + list.length) % list.length;
-  S.levels[S.mode] = S.level;
-  S.puzzle = list[S.level];
-  const layout = S.puzzle.layout;
-  S.rows = layout.length;
-  S.cols = layout[0].length;
-  S.target = new Set();
-  const groups = {};
-  layout.forEach((row, y) => {
-    [...row].forEach((ch, x) => {
-      if (ch === '.') return;
-      S.target.add(key(x, y));
-      (groups[ch] = groups[ch] || []).push([x, y]);
-    });
-  });
+// Monta a tela a partir de { rows, cols, alvo: [[x, y]], pecas: [{ id, cells }] }.
+// `aleatorio`: gira/espelha as peças ao acaso (modos normais). No desafio do dia elas já vêm sorteadas pelo servidor.
+function montar({ rows, cols, alvo, pecas, aleatorio, rotulo, limite }) {
+  S.rows = rows;
+  S.cols = cols;
+  S.target = new Set(alvo.map(([x, y]) => key(x, y)));
 
   el.boardPieces.innerHTML = '';
   el.tray.innerHTML = '';
@@ -77,10 +68,12 @@ function loadLevel(index) {
   if (S.drag) clearTimeout(S.drag.timer);
   S.drag = null;
 
-  S.pieces = Object.keys(groups).sort().map((ch, i) => {
-    let cells = norm(groups[ch]);
-    for (let r = Math.floor(Math.random() * 4); r > 0; r--) cells = rotate(cells);
-    if (Math.random() < 0.5) cells = mirror(cells);
+  S.pieces = pecas.map((def, i) => {
+    let cells = norm(def.cells);
+    if (aleatorio) {
+      for (let r = Math.floor(Math.random() * 4); r > 0; r--) cells = rotate(cells);
+      if (Math.random() < 0.5) cells = mirror(cells);
+    }
 
     const slot = document.createElement('div');
     slot.className = 'slot';
@@ -89,7 +82,7 @@ function loadLevel(index) {
     const node = document.createElement('div');
     node.className = 'piece';
     node.style.setProperty('--col', COLORS[i % COLORS.length]);
-    const p = { id: ch, color: COLORS[i % COLORS.length], cells, el: node, slot, state: 'tray', ax: 0, ay: 0 };
+    const p = { id: def.id, color: COLORS[i % COLORS.length], cells, el: node, slot, state: 'tray', ax: 0, ay: 0 };
     slot.addEventListener('pointerdown', (e) => { if (p.state === 'tray') onDown(e, p); });
     node.addEventListener('pointerdown', (e) => { if (p.state === 'board') onDown(e, p); });
     return p;
@@ -104,19 +97,71 @@ function loadLevel(index) {
     S.holeEls[k] = h;
   });
 
-  el.level.textContent = String(S.level + 1).padStart(2, '0');
-  ['easy', 'hard', 'super'].forEach((m) => {
-    $('mode-' + m).classList.toggle('on', S.mode === m);
-    $('mode-' + m).setAttribute('aria-pressed', S.mode === m);
+  el.level.textContent = rotulo;
+  ['easy', 'hard', 'super', 'daily'].forEach((m) => {
+    const b = $('mode-' + m);
+    b.classList.toggle('on', S.mode === m);
+    b.setAttribute('aria-pressed', S.mode === m);
   });
+  el.app.classList.toggle('daily', S.mode === 'daily');
   el.tray.dataset.n = S.pieces.length;
   S.selected = null;
-  S.remaining = TIME_LIMIT;
+  S.limit = limite;
+  S.remaining = limite;
   S.status = 'ready';
   layoutAll();
   select(S.pieces[0]);
   updateHud();
+}
+
+function loadLevel(index) {
+  const list = PUZZLES[S.mode];
+  S.level = (index + list.length) % list.length;
+  S.levels[S.mode] = S.level;
+  S.puzzle = list[S.level];
+  S.daily = null;
+  const layout = S.puzzle.layout;
+  const groups = {};
+  const alvo = [];
+  layout.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      alvo.push([x, y]);
+      (groups[ch] = groups[ch] || []).push([x, y]);
+    });
+  });
+  montar({
+    rows: layout.length,
+    cols: layout[0].length,
+    alvo,
+    pecas: Object.keys(groups).sort().map((ch) => ({ id: ch, cells: groups[ch] })),
+    aleatorio: true,
+    rotulo: String(S.level + 1).padStart(2, '0'),
+    limite: TIME_LIMIT,
+  });
   showOverlay('start');
+}
+
+// Desafio do dia: o tabuleiro vem do servidor e o relógio já começou lá (restanteMs).
+function startDaily(tabuleiro, restanteMs, dia) {
+  stopClock();
+  S.mode = 'daily';
+  S.puzzle = { stars: [0, 0] };
+  montar({
+    rows: tabuleiro.rows,
+    cols: tabuleiro.cols,
+    alvo: tabuleiro.alvo,
+    pecas: tabuleiro.pecas,
+    aleatorio: false,
+    rotulo: dia.slice(8, 10),
+    limite: DAILY_LIMIT,
+  });
+  S.daily = { dia, endAt: Date.now() + restanteMs };
+  S.remaining = restanteMs / 1000;
+  el.overlay.hidden = true;
+  S.status = 'playing';
+  updateHud();
+  startClock();
 }
 
 /* ---------- layout ---------- */
@@ -314,7 +359,7 @@ document.addEventListener('touchend', (e) => {
   if (now - lastTouchEnd.t < 350 && e.target === lastTouchEnd.target) e.preventDefault();
   lastTouchEnd = { t: now, target: e.target };
 }, { passive: false });
-document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => { if (!e.target.closest || !e.target.closest('.rola')) e.preventDefault(); }, { passive: false });
 document.addEventListener('dblclick', (e) => e.preventDefault());
 ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
 
@@ -374,23 +419,33 @@ function starsFor(elapsed) {
   return elapsed <= s3 ? 3 : elapsed <= s2 ? 2 : 1;
 }
 
+const fmtTempo = (s) => {
+  const t = Math.max(0, Math.ceil(s));
+  return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+};
+
 function updateHud() {
-  const elapsed = TIME_LIMIT - S.remaining;
-  el.time.textContent = String(Math.max(0, Math.ceil(S.remaining)));
+  el.time.textContent = S.mode === 'daily' ? fmtTempo(S.remaining) : String(Math.max(0, Math.ceil(S.remaining)));
   el.time.classList.toggle('low', S.remaining <= 10);
-  el.bar.style.width = Math.max(0, (S.remaining / TIME_LIMIT) * 100) + '%';
+  el.bar.style.width = Math.max(0, (S.remaining / S.limit) * 100) + '%';
+  if (S.mode === 'daily') return;
+  const elapsed = S.limit - S.remaining;
   const [s3, s2] = S.puzzle.stars;
-  el.tick3.style.left = ((TIME_LIMIT - s3) / TIME_LIMIT) * 100 + '%';
-  el.tick2.style.left = ((TIME_LIMIT - s2) / TIME_LIMIT) * 100 + '%';
+  el.tick3.style.left = ((S.limit - s3) / S.limit) * 100 + '%';
+  el.tick2.style.left = ((S.limit - s2) / S.limit) * 100 + '%';
   const n = starsFor(elapsed);
   el.stars.forEach((s, i) => s.classList.toggle('on', i < n));
 }
 
 function tick() {
   if (S.status !== 'playing') return;
-  const now = performance.now();
-  S.remaining -= (now - S.lastTick) / 1000;
-  S.lastTick = now;
+  if (S.daily) {
+    S.remaining = (S.daily.endAt - Date.now()) / 1000; // o servidor confere o tempo de verdade
+  } else {
+    const now = performance.now();
+    S.remaining -= (now - S.lastTick) / 1000;
+    S.lastTick = now;
+  }
   if (S.remaining <= 0) { S.remaining = 0; updateHud(); lose(); return; }
   updateHud();
 }
@@ -405,10 +460,19 @@ function stopClock() { clearInterval(S.timerId); }
 
 function checkWin() {
   if (!S.pieces.every((p) => p.state === 'board')) return;
-  S.status = 'won';
   stopClock();
-  const elapsed = Math.round(TIME_LIMIT - S.remaining);
-  const n = starsFor(TIME_LIMIT - S.remaining);
+  if (S.daily) {
+    // quem confere e guarda o tempo é o servidor (diario.js)
+    S.status = 'sending';
+    S.pieces.forEach((p) => p.el.classList.add('win'));
+    vibrate([30, 40, 60]);
+    const colocacoes = S.pieces.map((p) => ({ id: p.id, cels: p.cells.map(([x, y]) => [p.ax + x, p.ay + y]) }));
+    if (Engine.aoConcluir) Engine.aoConcluir(colocacoes);
+    return;
+  }
+  S.status = 'won';
+  const elapsed = Math.round(S.limit - S.remaining);
+  const n = starsFor(S.limit - S.remaining);
   S.pieces.forEach((p) => p.el.classList.add('win'));
   vibrate([30, 40, 60]);
   setTimeout(() => {
@@ -421,9 +485,10 @@ function checkWin() {
 function lose() {
   S.status = 'lost';
   stopClock();
-  if (S.drag) { const d = S.drag; S.drag = null; showGhost(d.p, null); if (d.active) placeInTray(d.p); }
+  if (S.drag) { const d = S.drag; clearTimeout(d.timer); S.drag = null; showGhost(d.p, null); if (d.active) placeInTray(d.p); }
+  if (S.daily) { if (Engine.aoEsgotar) Engine.aoEsgotar(); return; }
   el.endStars.forEach((s) => s.classList.remove('on'));
-  el.endTime.textContent = String(TIME_LIMIT);
+  el.endTime.textContent = String(S.limit);
   vibrate([60, 40, 60]);
   showOverlay('lose');
 }
@@ -443,7 +508,7 @@ function play() {
 }
 
 function pause() {
-  if (S.status !== 'playing') return;
+  if (S.status !== 'playing' || S.daily) return;
   if (S.drag) endDrag(null, true);
   S.status = 'paused';
   stopClock();
@@ -451,11 +516,12 @@ function pause() {
 }
 
 function setMode(mode) {
-  if (mode === S.mode) return;
+  if (mode === S.mode || S.daily) return;
   stopClock();
   if (S.drag) clearTimeout(S.drag.timer);
   S.drag = null;
   S.mode = mode;
+  S.lastMode = mode;
   loadLevel(S.levels[mode]);
 }
 $('mode-easy').addEventListener('click', () => setMode('easy'));
@@ -464,7 +530,7 @@ $('mode-super').addEventListener('click', () => setMode('super'));
 
 // Desistir: abandona o puzzle atual e começa o próximo já valendo.
 function giveUp() {
-  if (S.status !== 'playing' && S.status !== 'paused') return;
+  if (S.daily || (S.status !== 'playing' && S.status !== 'paused')) return;
   stopClock();
   if (S.drag) clearTimeout(S.drag.timer);
   S.drag = null;
@@ -482,11 +548,43 @@ $('btn-next').addEventListener('click', () => {
   loadLevel(S.level + 1);
   play();
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); }); // no desafio do dia pause() não faz nada
 window.addEventListener('resize', () => { if (S.puzzle) layoutAll(); });
+
+/* ---------- ponte com o desafio do dia (diario.js) ---------- */
+const Engine = window.JoPuzzleEngine = {
+  aoConcluir: null,   // (colocacoes) => void: todas as peças encaixadas no desafio do dia
+  aoEsgotar: null,    // () => void: o tempo do desafio do dia acabou
+  iniciarDiario: startDaily,
+  // sai do desafio e volta ao modo normal em que a pessoa estava
+  sairDoDiario() {
+    stopClock();
+    S.daily = null;
+    if (S.mode === 'daily') S.mode = S.lastMode || 'easy';
+    loadLevel(S.levels[S.mode]);
+  },
+  // volta a jogar depois de um erro ao enviar (o relógio do servidor seguiu correndo)
+  retomar() {
+    if (!S.daily || S.status !== 'sending') return;
+    S.status = 'playing';
+    S.pieces.forEach((p) => p.el.classList.remove('win'));
+    el.overlay.hidden = true;
+    startClock();
+  },
+  // mostra de novo a tela de fundo que combina com o estado do jogo
+  voltar() {
+    if (S.status === 'ready') showOverlay('start');
+    else if (S.status === 'paused') showOverlay('pause');
+    else el.overlay.hidden = true;
+  },
+  mostrar: (kind) => showOverlay(kind),
+  esconder: () => { el.overlay.hidden = true; },
+  emDiario: () => !!S.daily,
+};
 
 // #12 abre a fase 12 do modo fácil; #d12 do difícil; #s12 do super difícil (útil para testar)
 const m = /^#([ds]?)(\d+)$/.exec(location.hash);
 if (m && m[1]) S.mode = m[1] === 'd' ? 'hard' : 'super';
+S.lastMode = S.mode;
 loadLevel(m && +m[2] > 0 ? +m[2] - 1 : 0);
 })();
