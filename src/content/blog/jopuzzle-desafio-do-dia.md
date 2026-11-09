@@ -12,7 +12,7 @@ O **Jopuzzle** agora tem um **desafio do dia**: um puzzle novo todo dia, igual p
 - **Ranking:** mostra quem terminou o desafio de hoje, do mais rápido ao mais lento.
 - **Conta sem dados pessoais:** para jogar o desafio você escolhe um **apelido** (como "Lobo Azul") e recebe um **código de 3 letras ou números**. Não pedimos nome, e-mail nem senha. Com o apelido e o código você entra em outro aparelho.
 - **Fica logado:** quem já entrou vê o desafio logo que abre o jogo.
-- **Para os outros jogos:** a conta vale em todo o site. Se outro jogo usar o ranking, o mesmo apelido já funciona.
+- **A conta fica no site:** ela é guardada no site, e não só dentro deste jogo.
 
 ## Dá para fazer agora?
 
