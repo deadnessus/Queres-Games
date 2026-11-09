@@ -303,3 +303,6 @@ svg { display: block; }
 .top3 { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 17px; }
 .top3 li { display: flex; justify-content: space-between; gap: 8px; color: rgba(255, 255, 255, .8); }
 .top3 li .tempo { color: var(--cyan); font-variant-numeric: tabular-nums; }
+
+/* cores da janela de conta (conta.js) combinando com o visual do jogo */
+:root { --qgc-acento: var(--cyan); --qgc-destaque: var(--yellow); --qgc-rosa: var(--pink); --qgc-fundo: #10153a; }

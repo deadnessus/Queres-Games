@@ -5,7 +5,7 @@
 'use strict';
 
 const E = window.JoPuzzleEngine;
-if (!E) return;
+if (!E || !window.QGConta) return;
 
 const $ = (id) => document.getElementById(id);
 const painel = $('painel');
@@ -162,88 +162,16 @@ E.aoConcluir = async function enviar(colocacoes) {
 E.aoEsgotar = () => abrirDiario();
 
 /* ---------- conta ---------- */
-function abrirLogin(aba = 'criar') {
-  const abas = h('div', { class: 'pn-abas' },
-    h('button', { class: 'pn-aba' + (aba === 'criar' ? ' on' : ''), type: 'button', onclick: () => abrirLogin('criar') }, 'Criar conta'),
-    h('button', { class: 'pn-aba' + (aba === 'entrar' ? ' on' : ''), type: 'button', onclick: () => abrirLogin('entrar') }, 'Já tenho conta'));
-  const voltar = h('div', { class: 'pn-linha' }, botao('Voltar ao jogo', fechar, { tipo: 'suave', icone: 'voltar' }));
-  if (aba === 'criar') return abaCriar(abas, voltar);
-  return abaEntrar(abas, voltar);
-}
-
-async function abaCriar(abas, voltar, aviso = '') {
-  const erro = h('p', { class: 'pn-erro' }, aviso);
-  mostrar(h('h2', { class: 'pn-titulo' }, 'Escolha seu apelido'), abas, h('p', { class: 'pn-sub' }, 'Carregando apelidos...'), voltar);
-  const r = await api('/api/conta/sugestoes');
-  if (r.status !== 200) return semConexao(() => abaCriar(abas, voltar));
-  const chips = h('div', { class: 'pn-chips' }, r.dados.apelidos.map((nome) => h('button', {
-    class: 'pn-chip', type: 'button', onclick: () => criar(nome, abas, voltar),
-  }, nome)));
-  mostrar(
-    h('h2', { class: 'pn-titulo' }, 'Escolha seu apelido'),
-    abas,
-    h('p', { class: 'pn-sub' }, 'Toque em um apelido. Você recebe um código de 3 letras ou números para entrar de novo depois.'),
-    h('div', { class: 'pn-linha' }, botao('Outros apelidos', () => abaCriar(abas, voltar), { icone: 'trocar' })),
-    erro, chips,
-    voltar,
-  );
-}
-
-async function criar(apelido, abas, voltar) {
-  carregando('Criando sua conta...');
-  const r = await api('/api/conta/criar', { metodo: 'POST', corpo: { apelido } });
-  if (r.status === 201) {
-    eu = { apelido: r.dados.apelido };
-    return mostrarCodigo(r.dados.apelido, r.dados.codigo, true);
-  }
-  const aviso = r.status === 409 ? 'Esse apelido acabou de ser escolhido. Escolha outro.'
-    : r.status === 429 ? 'Muitas contas novas agora. Tente daqui a pouco.'
-    : 'Não consegui criar a conta. Tente de novo.';
-  if (r.status === 0) return semConexao(() => abaCriar(abas, voltar));
-  abaCriar(abas, voltar, aviso);
-}
-
-function mostrarCodigo(apelido, codigo, novo) {
-  mostrar(
-    h('h2', { class: 'pn-titulo' }, novo ? 'Conta criada!' : 'Seu código'),
-    h('p', { class: 'pn-sub' }, 'Você é ', h('span', { class: 'pn-apelido' }, apelido)),
-    h('div', { class: 'pn-codigo' }, codigo),
-    h('p', { class: 'pn-sub' }, 'Anote este código. Com o apelido e o código você entra em qualquer aparelho.'),
-    h('div', { class: 'pn-linha' }, botao(novo ? 'Continuar' : 'Voltar', novo ? abrirDiario : abrirPerfil, { tipo: 'principal' })),
-  );
-}
-
-async function abaEntrar(abas, voltar, aviso = '') {
-  mostrar(h('h2', { class: 'pn-titulo' }, 'Entrar'), abas, h('p', { class: 'pn-sub' }, 'Carregando...'), voltar);
-  const r = await api('/api/conta/apelidos');
-  if (r.status !== 200) return semConexao(() => abaEntrar(abas, voltar));
-  if (!r.dados.apelidos.length) {
-    return mostrar(h('h2', { class: 'pn-titulo' }, 'Entrar'), abas, h('p', { class: 'pn-sub' }, 'Ainda não existe nenhuma conta. Crie a primeira!'), voltar);
-  }
-  const seletor = h('select', { id: 'f-apelido', name: 'apelido' }, r.dados.apelidos.map((a) => h('option', { value: a }, a)));
-  const campo = h('input', { id: 'f-codigo', name: 'codigo', maxlength: '3', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', inputmode: 'text', 'aria-label': 'Código de 3 caracteres' });
-  const erro = h('p', { class: 'pn-erro' }, aviso);
-  const entrar = botao('Entrar', async () => {
-    erro.textContent = '';
-    if (campo.value.trim().length !== 3) { erro.textContent = 'O código tem 3 letras ou números.'; return; }
-    const res = await api('/api/conta/entrar', { metodo: 'POST', corpo: { apelido: seletor.value, codigo: campo.value } });
-    if (res.status === 200) { eu = { apelido: res.dados.apelido }; return abrirDiario(); }
-    if (res.status === 429) {
-      const min = Math.max(1, Math.ceil((res.dados.segundos || 1800) / 60));
-      erro.textContent = `Muitas tentativas. Espere ${min} min e tente de novo.`;
-    } else if (res.status === 401) {
-      erro.textContent = res.dados.restantes ? `Apelido ou código incorreto. Mais ${res.dados.restantes} tentativas.` : 'Apelido ou código incorreto.';
-    } else erro.textContent = 'Não consegui entrar. Confira a internet.';
-  }, { tipo: 'principal' });
-  campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') entrar.click(); });
-  mostrar(
-    h('h2', { class: 'pn-titulo' }, 'Entrar'), abas,
-    h('div', { class: 'pn-campo' }, h('label', { for: 'f-apelido' }, 'Seu apelido'), seletor),
-    h('div', { class: 'pn-campo' }, h('label', { for: 'f-codigo' }, 'Seu código (3 letras ou números)'), campo),
-    erro,
-    h('div', { class: 'pn-linha' }, entrar),
-    voltar,
-  );
+// O fluxo de criar conta / entrar é o mesmo de todos os jogos do queres.games (conta.js).
+function abrirLogin(aba) {
+  QGConta.montar(painel, {
+    aba,
+    rotuloFechar: 'Voltar ao jogo',
+    aoConcluir: (r) => { eu = { apelido: r.apelido }; abrirDiario(); },
+    aoFechar: fechar,
+  });
+  painel.scrollTop = 0;
+  E.mostrar('painel');
 }
 
 async function abrirPerfil() {

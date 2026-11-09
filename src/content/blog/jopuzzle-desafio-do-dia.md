@@ -10,7 +10,8 @@ O **Jopuzzle** agora tem um **desafio do dia**: um puzzle novo todo dia, igual p
 
 - **Desafio do dia:** são 5 peças, todas diferentes, e você tem **10 minutos** para encaixar tudo. Só dá para jogar **uma vez por dia**, e o relógio não para se você sair da página.
 - **Ranking:** mostra quem terminou o desafio de hoje, do mais rápido ao mais lento.
-- **Conta sem dados pessoais:** para jogar o desafio você escolhe um **apelido** (como "Lobo Azul") e recebe um **código de 3 letras ou números**. Não pedimos nome, e-mail nem senha. Com o apelido e o código você entra em outro aparelho.
+- **Conta sem dados pessoais:** para jogar o desafio você escolhe um **apelido** (como "Lobo Azul"), **confirma** a escolha e recebe um **código de 3 letras ou números**. Não pedimos nome, e-mail nem senha.
+- **Entrar em outro aparelho:** você gira **três rodas** (animal, qualidade e número) até achar o seu apelido e digita o código.
 - **Fica logado:** quem já entrou vê o desafio logo que abre o jogo.
 - **A conta fica no site:** ela é guardada no site, e não só dentro deste jogo.
 
