@@ -31,6 +31,9 @@ export function criarUI(cb) {
     botao.querySelector('small').textContent = `${CONFIG.dificuldades[dif].adversarios} adversários`;
     botao.addEventListener('click', () => cb.aoEscolherDificuldade(dif));
   }
+  for (const botao of menu.querySelectorAll('[data-modo]')) {
+    botao.addEventListener('click', () => cb.aoTrocarModo(botao.dataset.modo));
+  }
   $('btn-como').addEventListener('click', () => cb.aoComoDriblarMenu());
   $('btn-treino').addEventListener('click', () => cb.aoTreino());
 
@@ -77,7 +80,13 @@ export function criarUI(cb) {
     consulta.hidden = true;
   }
 
-  function mostrarMenu({ dificuldade, nome, recorde }) {
+  function mostrarMenu({ dificuldade, nome, recorde, modo = 'classico' }) {
+    for (const botao of menu.querySelectorAll('[data-modo]')) {
+      botao.setAttribute('aria-pressed', String(botao.dataset.modo === modo));
+    }
+    $('modo-desc').textContent = modo === 'livre'
+      ? 'Você controla o jogador o tempo todo: segure um lado para andar, suba o dedo para correr.'
+      : 'Leia o defensor e toque na hora certa.';
     for (const botao of menu.querySelectorAll('[data-dif]')) {
       botao.classList.toggle('ultima', botao.dataset.dif === dificuldade);
     }

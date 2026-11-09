@@ -20,4 +20,5 @@ export const CHAVES = {
   recorde: (dif) => `ginga.recorde.${dif}`,
   ultimaDificuldade: 'ginga.ultimaDificuldade',
   tutorialVisto: 'ginga.tutorialVisto',
+  modo: 'ginga.modo',
 };

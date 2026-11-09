@@ -2,7 +2,7 @@
 import { CONFIG } from './config.js';
 import { criarRng } from './rng.js';
 import { criarReconhecedor } from './gestures.js';
-import { Jogo } from './jogo.js';
+import { JogoLivre } from './livre.js';
 import { criarRender } from './render.js';
 import { ligarEntrada } from './input.js';
 import { criarUI } from './ui.js';
@@ -19,11 +19,16 @@ const render = criarRender(canvas);
 const telaDeToque = window.matchMedia('(pointer: coarse)').matches;
 
 let pausado = false;
+let modoMenu = ler(CHAVES.modo, 'classico') === 'livre' ? 'livre' : 'classico';
 let girar = false;
 let alturaHud = 0;
 
 const ui = criarUI({
   aoEscolherDificuldade(dif) {
+    if (modoMenu === 'livre') {
+      comecar(dif, 'livre');
+      return;
+    }
     if (!ler(CHAVES.tutorialVisto, false)) {
       ui.esconderMenu();
       ui.mostrarHud();
@@ -36,6 +41,11 @@ const ui = criarUI({
     comecar(dif, 'normal');
   },
   aoTreino: () => comecar('facil', 'treino'),
+  aoTrocarModo(m) {
+    modoMenu = m;
+    gravar(CHAVES.modo, m);
+    ui.mostrarMenu(infoRecorde());
+  },
   aoComoDriblarMenu: () => ui.abrirConsulta('menu'),
   aoAjuda: () => alternarAjuda(),
   aoContinuar: () => fecharPausa(),
@@ -53,7 +63,7 @@ const ui = criarUI({
   aoPularTutorial: () => jogo.pularTutorial(),
 });
 
-const jogo = new Jogo({
+const jogo = new JogoLivre({
   rng: criarRng(semente),
   eventos: {
     resetGestos: () => rec.reset(),
@@ -82,7 +92,7 @@ function medirHud() {
 }
 
 function comecar(dif, modo) {
-  if (modo === 'normal') gravar(CHAVES.ultimaDificuldade, dif);
+  if (modo === 'normal' || modo === 'livre') gravar(CHAVES.ultimaDificuldade, dif);
   ui.esconderMenu();
   ui.esconderResultado();
   ui.esconderTutorial();
@@ -96,7 +106,11 @@ function comecar(dif, modo) {
 function infoRecorde() {
   const dificuldade = ler(CHAVES.ultimaDificuldade, 'facil');
   const dif = CONFIG.dificuldades[dificuldade] ? dificuldade : 'facil';
-  return { dificuldade: dif, nome: CONFIG.dificuldades[dif].nome, recorde: ler(CHAVES.recorde(dif), 0) };
+  return { dificuldade: dif, nome: CONFIG.dificuldades[dif].nome, recorde: ler(chaveRecorde(modoMenu, dif), 0), modo: modoMenu };
+}
+
+function chaveRecorde(modo, dif) {
+  return modo === 'livre' ? CHAVES.recorde(`livre.${dif}`) : CHAVES.recorde(dif);
 }
 
 function irParaMenu() {
@@ -136,8 +150,8 @@ function fecharPausa() {
 
 function aoResultado(res) {
   let novoRecorde = false;
-  if (res.concluida && jogo.modo === 'normal') {
-    const chave = CHAVES.recorde(res.dificuldade);
+  if (res.concluida && (jogo.modo === 'normal' || jogo.modo === 'livre')) {
+    const chave = chaveRecorde(jogo.modo === 'livre' ? 'livre' : 'classico', res.dificuldade);
     if (res.total > ler(chave, 0)) {
       gravar(chave, res.total);
       novoRecorde = true;
