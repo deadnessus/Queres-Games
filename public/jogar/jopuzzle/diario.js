@@ -45,13 +45,15 @@ function h(tag, attrs = {}, ...filhos) {
 const ICONES = {
   rank: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7"/></svg>',
   pessoa: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
+  prox: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   voltar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
   trocar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>',
 };
-const botao = (rotulo, onclick, { icone, tipo = '', desligado = false } = {}) => {
+const botao = (rotulo, onclick, { icone, tipo = '', desligado = false, depois = false } = {}) => {
   const b = h('button', { class: 'pn-btn ' + tipo, type: 'button', onclick, disabled: desligado });
-  if (icone) b.insertAdjacentHTML('beforeend', ICONES[icone]);
+  if (icone && !depois) b.insertAdjacentHTML('beforeend', ICONES[icone]);
   b.append(rotulo);
+  if (icone && depois) b.insertAdjacentHTML('beforeend', ICONES[icone]);
   return b;
 };
 
@@ -103,7 +105,7 @@ async function abrirDiario() {
     h('p', { class: 'pn-sub' }, `${dd_mm(d.dia)} · `, h('span', { class: 'pn-apelido' }, d.apelido)),
   ];
   const rodape = h('div', { class: 'pn-linha' },
-    botao('Ranking', () => abrirRanking(d.dia), { icone: 'rank' }),
+    botao('Ranking', () => abrirRanking('dia', d.dia), { icone: 'rank' }),
     botao('Perfil', abrirPerfil, { icone: 'pessoa', tipo: 'suave' }),
     botao('Voltar ao jogo', fechar, { icone: 'voltar', tipo: 'suave' }),
   );
@@ -194,10 +196,18 @@ async function abrirPerfil() {
   );
 }
 
-async function abrirRanking(dia) {
+function abasDoRanking(aba) {
+  return h('div', { class: 'pn-abas' },
+    h('button', { class: 'pn-aba' + (aba === 'dia' ? ' on' : ''), type: 'button', onclick: () => abrirRanking('dia') }, 'Do dia'),
+    h('button', { class: 'pn-aba' + (aba === 'mes' ? ' on' : ''), type: 'button', onclick: () => abrirRanking('mes') }, 'Do mês'));
+}
+
+// aba 'dia': ref = AAAA-MM-DD (padrão: hoje). aba 'mes': ref = AAAA-MM (padrão: este mês).
+async function abrirRanking(aba = 'dia', ref) {
+  if (aba === 'mes') return rankingMensal(ref);
   carregando();
-  const r = await api('/api/jopuzzle/ranking' + (dia ? `?dia=${dia}` : ''));
-  if (r.status !== 200) return semConexao(() => abrirRanking(dia));
+  const r = await api('/api/jopuzzle/ranking' + (ref ? `?dia=${ref}` : ''));
+  if (r.status !== 200) return semConexao(() => abrirRanking('dia', ref));
   const d = r.dados;
   const linha = (pos, nome, ms, extra = '') => h('li', { class: extra },
     h('span', { class: 'pos' }, pos + 'º'), h('span', {}, nome), h('span', { class: 'tempo' }, tempoLongo(ms)));
@@ -208,9 +218,52 @@ async function abrirRanking(dia) {
     itens.push(linha(d.eu.posicao, d.eu.apelido, d.eu.tempoMs, 'eu'));
   }
   mostrar(
-    h('h2', { class: 'pn-titulo' }, 'Ranking do dia'),
-    h('p', { class: 'pn-sub' }, `${dd_mm(d.dia)} · ${d.total} ${d.total === 1 ? 'jogador' : 'jogadores'}`),
+    h('h2', { class: 'pn-titulo' }, 'Ranking'),
+    abasDoRanking('dia'),
+    h('p', { class: 'pn-sub' }, `Hoje, ${dd_mm(d.dia)} · ${d.total} ${d.total === 1 ? 'jogador' : 'jogadores'}`),
     itens.length ? h('ol', { class: 'pn-rank' }, itens) : h('p', { class: 'pn-sub' }, 'Ninguém terminou o desafio ainda. Seja o primeiro!'),
+    h('div', { class: 'pn-linha' }, botao('Voltar', eu ? abrirDiario : fechar, { icone: 'voltar', tipo: 'suave' })),
+  );
+}
+
+const nomeDoMes = (m) => {
+  const [a, n] = m.split('-').map(Number);
+  const t = new Date(Date.UTC(a, n - 1, 1)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+const somarMeses = (m, k) => {
+  const [a, n] = m.split('-').map(Number);
+  const x = new Date(Date.UTC(a, n - 1 + k, 1));
+  return `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+// Ranking do mês: soma dos pontos de cada dia (a posição no dia vale pontos).
+async function rankingMensal(mes) {
+  carregando();
+  const r = await api('/api/jopuzzle/ranking-mensal' + (mes ? `?mes=${mes}` : ''));
+  if (r.status !== 200) return semConexao(() => abrirRanking('mes', mes));
+  const d = r.dados;
+  const linha = (x, extra = '') => h('li', { class: extra },
+    h('span', { class: 'pos' }, x.posicao + 'º'),
+    h('span', {}, x.apelido, h('small', { class: 'dias' }, `${x.dias} ${x.dias === 1 ? 'dia' : 'dias'} · ${x.vitorias} ${x.vitorias === 1 ? 'vitória' : 'vitórias'}`)),
+    h('span', { class: 'tempo' }, `${x.pontos} pts`));
+  const itens = d.top.map((x) => linha(x, (eu && x.apelido === eu.apelido ? 'eu ' : '') + (x.posicao === 1 ? 'ouro' : '')));
+  if (d.eu && !d.top.some((x) => x.apelido === d.eu.apelido)) {
+    itens.push(h('li', { class: 'sep' }, h('span'), h('span', {}, '...'), h('span')));
+    itens.push(linha(d.eu, 'eu'));
+  }
+  const anterior = somarMeses(d.mes, -1);
+  const seguinte = somarMeses(d.mes, 1);
+  const pontos = d.pontosPorPosicao.map((p, i) => `${i + 1}º ${p}`).join(', ');
+  mostrar(
+    h('h2', { class: 'pn-titulo' }, 'Ranking'),
+    abasDoRanking('mes'),
+    h('p', { class: 'pn-sub' }, `${nomeDoMes(d.mes)} · ${d.total} ${d.total === 1 ? 'jogador' : 'jogadores'}`),
+    h('div', { class: 'pn-linha junta' },
+      botao('Anterior', () => abrirRanking('mes', anterior), { icone: 'voltar', tipo: 'suave compacto', desligado: d.mes <= somarMeses(d.mesAtual, -12) }),
+      botao('Próximo', () => abrirRanking('mes', seguinte), { icone: 'prox', depois: true, tipo: 'suave compacto', desligado: d.mes >= d.mesAtual })),
+    itens.length ? h('ol', { class: 'pn-rank' }, itens) : h('p', { class: 'pn-sub' }, 'Ninguém terminou o desafio neste mês.'),
+    h('p', { class: 'pn-sub pequeno' }, `Cada dia vale pontos pela posição: ${pontos}, e os demais ${d.pontosParticipacao}. Empate: mais vitórias, mais dias, menor tempo total.`),
     h('div', { class: 'pn-linha' }, botao('Voltar', eu ? abrirDiario : fechar, { icone: 'voltar', tipo: 'suave' })),
   );
 }

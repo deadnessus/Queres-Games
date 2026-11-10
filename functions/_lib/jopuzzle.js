@@ -19,6 +19,18 @@ export function desafioDoDia(dia) {
   return DESAFIOS[((dias % n) + n) % n];
 }
 
+// Ranking do mês: cada dia vale pontos pela posição de quem terminou o desafio. Quem terminou depois da
+// 7ª posição ganha o ponto de participação. Para mudar a pontuação, mude só estas duas linhas.
+export const PONTOS_POR_POSICAO = [10, 8, 6, 5, 4, 3, 2];
+export const PONTOS_PARTICIPACAO = 1;
+
+// "AAAA-MM" válido, ou null.
+export const mesValido = (m) => (typeof m === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : null);
+export function mesSeguinte(mes) {
+  const [a, m] = mes.split('-').map(Number);
+  return m === 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, '0')}`;
+}
+
 let tabelasProntas = false;
 export async function prepararTentativas(db) {
   await prepararBanco(db);
