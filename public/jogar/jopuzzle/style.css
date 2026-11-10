@@ -165,9 +165,10 @@ svg { display: block; }
 .tray[data-n="5"] .slot { flex: 0 0 calc((100% - 16px) / 3); aspect-ratio: auto; height: 76px; }
 .slot.sel { border: 1px solid rgba(255, 255, 255, .5); background: rgba(255, 255, 255, .07); }
 
-.legend { display: flex; justify-content: center; gap: 28px; color: rgba(255, 255, 255, .5); }
-.lg { display: flex; align-items: center; gap: 5px; }
-.lg svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; margin-right: 2px; }
+.legend { display: flex; justify-content: center; gap: 22px; color: rgba(255, 255, 255, .6); font-size: 16px; }
+.lg { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.lg b { color: #fff; font-weight: 700; }
+.lg svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .lg .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .lg .hold { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; position: relative; }
 .lg .hold::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: currentColor; }
@@ -313,3 +314,44 @@ svg { display: block; }
 .pn-rank li.sep { background: none; padding: 0 12px; color: rgba(255, 255, 255, .4); }
 .pn-btn.compacto { min-height: 44px; padding: 0 14px; font-size: 18px; }
 .pn-linha.junta { flex-wrap: nowrap; gap: 10px; }
+
+/* anel de "segurando": se fecha ao redor da peça enquanto o dedo está parado nela */
+.piece.segurando::after {
+  content: ""; position: absolute; inset: -8px; border-radius: 14px; border: 2.5px solid var(--col);
+  pointer-events: none; opacity: .15; animation: anel .35s linear forwards;
+}
+@keyframes anel { from { opacity: .15; transform: scale(1.3); } to { opacity: .95; transform: scale(1); } }
+
+/* botão "Como jogar" na tela inicial e na pausa */
+.entrada.ajuda { width: min(100%, 300px); }
+
+/* tela "Como jogar" */
+.aj-palco { position: relative; width: 100%; flex: none; height: 150px; border-radius: 20px; background: rgba(255, 255, 255, .04); border: 1.5px dashed rgba(255, 255, 255, .22); touch-action: none; }
+.aj-peca { cursor: pointer; }
+.aj-chips { display: flex; justify-content: center; gap: 10px; }
+.aj-chip { padding: 4px 14px; border-radius: 999px; font-size: 17px; border: 2px solid rgba(255, 255, 255, .25); color: rgba(255, 255, 255, .6); }
+.aj-chip::before { content: "○ "; }
+.aj-chip.feito { border-color: var(--green); color: var(--green); background: rgba(140, 255, 107, .1); }
+.aj-chip.feito::before { content: "✓ "; }
+.aj-dica { min-height: 2.5em; color: #fff; }
+.aj-regras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.aj-regras li { display: flex; align-items: center; gap: 12px; font-size: 19px; line-height: 1.25; color: rgba(255, 255, 255, .85); }
+.aj-regras b { color: var(--yellow); }
+.aj-ico { flex: none; width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--cyan); background: rgba(56, 225, 255, .1); border: 1.5px solid rgba(56, 225, 255, .35); }
+.aj-ico svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.aj-ico .n { fill: currentColor; stroke: none; }
+.aj-ico.toque .o { animation: toque 1.2s ease-out infinite; transform-origin: center; }
+@keyframes toque { 0% { opacity: .9; transform: scale(.35); } 100% { opacity: 0; transform: scale(1); } }
+.aj-ico.segura .a { stroke-dasharray: 53.4; stroke-dashoffset: 53.4; animation: segura 1.4s linear infinite; transform: rotate(-90deg); transform-origin: center; }
+@keyframes segura { 0% { stroke-dashoffset: 53.4; opacity: 1; } 70% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .aj-ico.toque .o, .aj-ico.segura .a { animation: none; stroke-dashoffset: 0; opacity: .8; } }
+@media (max-height: 700px) {
+  #painel:has(.aj-palco) { gap: 10px; padding-top: 14px; padding-bottom: 14px; }
+  #painel:has(.aj-palco) .pn-titulo { font-size: 26px; }
+  .aj-palco { height: 104px; }
+  .aj-regras { gap: 6px; }
+  .aj-regras li { font-size: 16px; gap: 10px; }
+  .aj-ico { width: 34px; height: 34px; }
+  .aj-dica { min-height: 2.4em; font-size: 16px; }
+  .aj-chip { font-size: 15px; padding: 2px 12px; }
+}

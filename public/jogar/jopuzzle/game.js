@@ -290,13 +290,15 @@ function onDown(e, p) {
   select(p);
   const d = { p, id: e.pointerId, sx: e.clientX, sy: e.clientY, active: false, held: false };
   d.timer = setTimeout(() => {
-    if (S.drag === d && !d.active) { d.held = true; onHold(p); }
+    if (S.drag === d && !d.active) { d.held = true; p.el.classList.remove('segurando'); onHold(p); }
   }, HOLD_MS);
+  p.el.classList.add('segurando'); // anel que se fecha: mostra que segurar vai espelhar
   S.drag = d;
 }
 
 function startDrag(d) {
   const p = d.p;
+  p.el.classList.remove('segurando');
   d.active = true;
   p.state = 'drag';
   p.el.classList.add('dragging');
@@ -335,6 +337,7 @@ function endDrag(e, cancelled) {
   if (!d || (e && e.pointerId !== d.id)) return;
   S.drag = null;
   clearTimeout(d.timer);
+  d.p.el.classList.remove('segurando');
   showGhost(d.p, null);
   if (!d.active) { select(d.p); if (!cancelled && !d.held) onTap(d.p); return; }
   if (d.snap && !cancelled) {
@@ -541,7 +544,11 @@ function giveUp() {
 $('btn-skip').addEventListener('click', giveUp);
 $('btn-skip2').addEventListener('click', giveUp);
 
-$('btn-play').addEventListener('click', play);
+// Na primeira vez, explica como arrastar, girar e espelhar antes de começar o relógio (ajuda.js).
+$('btn-play').addEventListener('click', () => {
+  if (window.JoAjuda && window.JoAjuda.precisa()) window.JoAjuda.mostrar({ aoConcluir: play, aoFechar: () => Engine.voltar() });
+  else play();
+});
 $('btn-pause').addEventListener('click', pause);
 $('btn-next').addEventListener('click', () => {
   el.overlay.hidden = true;
@@ -577,6 +584,8 @@ const Engine = window.JoPuzzleEngine = {
     else if (S.status === 'paused') showOverlay('pause');
     else el.overlay.hidden = true;
   },
+  formas: { norm, rotate, mirror }, // usadas pela peça de treino do "Como jogar"
+  holdMs: HOLD_MS,
   mostrar: (kind) => showOverlay(kind),
   esconder: () => { el.overlay.hidden = true; },
   emDiario: () => !!S.daily,
