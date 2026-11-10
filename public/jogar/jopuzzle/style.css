@@ -306,3 +306,10 @@ svg { display: block; }
 
 /* cores da janela de conta (conta.js) combinando com o visual do jogo */
 :root { --qgc-acento: var(--cyan); --qgc-destaque: var(--yellow); --qgc-rosa: var(--pink); --qgc-fundo: #10153a; }
+
+/* ranking do mês */
+.pn-rank li .dias { display: block; font-size: 14px; color: rgba(255, 255, 255, .55); }
+.pn-sub.pequeno { font-size: 15px; color: rgba(255, 255, 255, .6); }
+.pn-rank li.sep { background: none; padding: 0 12px; color: rgba(255, 255, 255, .4); }
+.pn-btn.compacto { min-height: 44px; padding: 0 14px; font-size: 18px; }
+.pn-linha.junta { flex-wrap: nowrap; gap: 10px; }
