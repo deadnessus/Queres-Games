@@ -135,8 +135,6 @@ async function abrirDiario() {
 }
 
 async function comecar() {
-  // primeira vez neste aparelho: explica ANTES de iniciar, porque o relógio do servidor começa em /iniciar
-  if (window.JoAjuda && window.JoAjuda.precisa()) return window.JoAjuda.mostrar({ aoConcluir: comecar, aoFechar: abrirDiario });
   carregando('Começando...');
   const r = await api('/api/jopuzzle/iniciar', { metodo: 'POST', corpo: {} });
   if (r.status === 401) { eu = null; return abrirLogin(); }
