@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Fúria: Arena &amp; Guerra</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ============ MENU PRINCIPAL ============ -->
+<div id="menu" class="screen active">
+  <div class="menu-box">
+    <h1 class="logo">FÚRIA<span>Arena &amp; Guerra</span></h1>
+    <div id="menuChars" class="menu-chars"></div>
+    <div class="row">
+      <button class="btn big half" data-go="creator" data-edit="0">✦ Montar Jogador 1</button>
+      <button class="btn big half p2" data-go="creator" data-edit="1">✦ Montar Jogador 2</button>
+    </div>
+    <h3>Modo Luta</h3>
+    <div class="row">
+      <button class="btn" data-mode="fight1v1">1 x 1 contra Bot</button>
+      <button class="btn" data-mode="fight2v2">2 x 2 (você + bot aliado)</button>
+      <button class="btn" data-mode="fight2v2p2">2 x 2 com amigo (2 jogadores)</button>
+    </div>
+    <h3>Modo Battlefield <small>(1ª pessoa 3D)</small></h3>
+    <div class="row">
+      <button class="btn war" data-mode="bfSolo">Solo + esquadrão de bots</button>
+      <button class="btn war" data-mode="bf2p">2 Jogadores (tela dividida)</button>
+    </div>
+    <div class="row opts">
+      <label>Dificuldade
+        <select id="difficulty">
+          <option value="0">Fácil</option>
+          <option value="1" selected>Normal</option>
+          <option value="2">Difícil</option>
+        </select>
+      </label>
+      <button class="btn small" data-go="controls">🎮 Controles</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CRIADOR DE PERSONAGEM ============ -->
+<div id="creator" class="screen">
+  <div class="creator-wrap">
+    <div class="creator-left">
+      <h2 id="cTitle">Montar Personagem</h2>
+      <div class="tabs">
+        <button class="tab active" data-player="0">👤 Jogador 1</button>
+        <button class="tab" data-player="1">👥 Jogador 2</button>
+      </div>
+      <label class="field">Nome
+        <input id="cName" maxlength="14" placeholder="Seu nome">
+      </label>
+      <div class="field">Tipo de personagem
+        <div id="cClasses" class="cards"></div>
+      </div>
+      <div class="field">Tipo de habilidade (elemento)
+        <div id="cElements" class="chips"></div>
+      </div>
+      <div class="field">Cor do uniforme
+        <div id="cColors" class="swatches"></div>
+      </div>
+      <div class="field">Tom de pele
+        <div id="cSkins" class="swatches"></div>
+      </div>
+      <div class="field">Acessório
+        <div id="cHats" class="chips"></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="cRandom">🎲 Aleatório</button>
+        <button class="btn" id="cNext">👥 Salvar e montar o Jogador 2 →</button>
+        <button class="btn big" id="cSave">✔ Salvar e voltar</button>
+      </div>
+    </div>
+    <div class="creator-right">
+      <canvas id="preview"></canvas>
+      <div id="cInfo" class="class-info"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONTROLES ============ -->
+<div id="controls" class="screen">
+  <div class="menu-box wide">
+    <h2>Controles</h2>
+    <div class="ctrl-grid">
+      <div>
+        <h3>Luta — Jogador 1</h3>
+        <ul>
+          <li><b>W A S D</b> mover</li>
+          <li><b>Espaço</b> pular · <b>Shift</b> esquiva</li>
+          <li><b>F</b> ou <b>J</b> ataque leve (combo 3x)</li>
+          <li><b>G</b> ou <b>K</b> ataque pesado</li>
+          <li><b>H</b> ou <b>L</b> especial (30 energia)</li>
+          <li><b>R</b> ou <b>I</b> ULTIMATE (100 energia)</li>
+          <li><b>E</b> ou <b>O</b> defender · <b>Esc</b> / <b>P</b> pausar</li>
+        </ul>
+        <h3>Luta — Jogador 2</h3>
+        <ul>
+          <li><b>Setas</b> mover · <b>Enter</b> pular · <b>Shift dir.</b> esquiva</li>
+          <li><b>Numpad 1</b> leve · <b>2</b> pesado · <b>3</b> especial</li>
+          <li><b>Numpad 0</b> ultimate · <b>Numpad .</b> defender</li>
+          <li>(sem numpad: <b>B</b> leve, <b>N</b> pesado, <b>M</b> especial, <b>,</b> ultimate, <b>.</b> defender)</li>
+          <li>Também funciona com <b>controle (gamepad)</b></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Battlefield — Jogador 1</h3>
+        <ul>
+          <li><b>Mouse</b> mirar · <b>Clique esq.</b> atirar · <b>Clique dir.</b> zoom</li>
+          <li><b>W A S D</b> andar · <b>Shift</b> correr · <b>Espaço</b> pular</li>
+          <li><b>R</b> recarregar · <b>1 / 2</b> trocar arma</li>
+          <li><b>Q</b> habilidade da classe · <b>E</b> entrar/sair de veículo</li>
+          <li><b>G</b> pedir ataque aéreo (precisa do item Rádio ✈)</li>
+          <li><b>Tab</b> placar · <b>Esc</b> pausar</li>
+        </ul>
+        <h3>Battlefield — Jogador 2</h3>
+        <ul>
+          <li><b>Setas</b> andar · <b>J L</b> girar · <b>I K</b> olhar cima/baixo</li>
+          <li><b>O</b> atirar · <b>P</b> recarregar · <b>U</b> veículo</li>
+          <li><b>Y</b> habilidade · <b>H</b> ataque aéreo · <b>Enter</b> pular · <b>Shift dir.</b> correr</li>
+          <li><b>9 / 0</b> trocar arma · <b>N</b> zoom</li>
+          <li>Ou use um <b>controle (gamepad)</b></li>
+        </ul>
+        <h3>Celular / tablet (toque)</h3>
+        <ul>
+          <li>Arraste o dedo no <b>lado esquerdo</b> da tela para andar (joystick)</li>
+          <li>Use os <b>botões redondos</b> à direita para atacar, pular, defender etc.</li>
+          <li>Battlefield: arraste o dedo no <b>lado direito</b> (ou segurando ATIRAR) para mirar</li>
+          <li>Empurre o joystick até a borda para frente para correr · <b>II</b> pausa</li>
+        </ul>
+        <h3>Itens na arena</h3>
+        <ul>
+          <li>✚ Kit médico · ▮ Munição · ⛨ Colete · ★ Recarga de habilidade</li>
+          <li>⚡ Adrenalina (mais velocidade e dano) · ✈ Rádio (ataque aéreo)</li>
+        </ul>
+        <h3>Veículos</h3>
+        <ul>
+          <li>Jipe: rápido, atropela inimigos</li>
+          <li>Tanque: blindado, clique / O dispara o canhão</li>
+        </ul>
+      </div>
+    </div>
+    <button class="btn big" data-go="menu">Voltar</button>
+  </div>
+</div>
+
+<!-- ============ HUD LUTA ============ -->
+<div id="fightHud" class="hud hidden">
+  <div class="fh-top">
+    <div id="fhLeft" class="fh-team left"></div>
+    <div class="fh-center"><div id="fhRound">ROUND 1</div><div id="fhScore">0 - 0</div><div id="fhTimer">99</div></div>
+    <div id="fhRight" class="fh-team right"></div>
+  </div>
+  <div id="fhMoves" class="fh-moves"></div>
+  <div id="fhBanner" class="banner"></div>
+</div>
+
+<!-- ============ HUD BATTLEFIELD ============ -->
+<div id="bfHud" class="hud hidden">
+  <div class="bf-top">
+    <div class="tickets blue"><span id="tkBlue">100</span><small>AZUL</small></div>
+    <div id="bfFlags" class="flags"></div>
+    <div class="tickets red"><span id="tkRed">100</span><small>VERMELHO</small></div>
+  </div>
+  <div id="killfeed" class="killfeed"></div>
+  <div id="bfViews" class="bf-views"></div>
+  <div id="scoreboard" class="scoreboard hidden"></div>
+  <div id="bfBanner" class="banner"></div>
+</div>
+
+<!-- ============ PAUSA / FIM ============ -->
+<div id="pause" class="screen overlay">
+  <div class="menu-box">
+    <h2 id="pauseTitle">Pausado</h2>
+    <p id="pauseText"></p>
+    <div class="row col">
+      <button class="btn big" id="btnResume">Continuar</button>
+      <button class="btn" id="btnRestart">Jogar de novo</button>
+      <button class="btn" id="btnQuit">Menu principal</button>
+    </div>
+  </div>
+</div>
+
+<div id="clickToPlay" class="click-to-play hidden">Clique para jogar</div>
+<div class="rotate-hint">📱↻ Gire o celular para a horizontal para jogar</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

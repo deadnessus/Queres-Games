@@ -41,6 +41,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | `turbo-jojo` | Turbo Jojo | Jojô | `deadnessus/Jojo-1` | `claude/fervent-goldberg-xz80zn` |
 | `ginga` | Ginga (Dribble Game) | Jojô e Bento | `deadnessus/Dribble-Game` | `claude/football-mobile-game-td9nex` |
 | `ilha-selvagem` | Ilha Selvagem (só a versão **solo**) | Jojô | `deadnessus/jojo-game-2`, pasta `ilha/` | `claude/3d-building-game-animals-b49gqr` |
+| `furia` | Fúria: Arena & Guerra | Bento | `deadnessus/Bento-1` (copiar `index.html`, `style.css`, `js/` e `lib/`; o Three.js já vem guardado em `lib/`, sem sites externos; não copiar `jogar.html`, `tools/` nem README) | `claude/kind-davinci-3p5s5s` |
 
 Ao publicar um jogo novo ou mudar a origem de um jogo, **atualize esta tabela**.
 
