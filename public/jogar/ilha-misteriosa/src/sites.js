@@ -169,7 +169,7 @@
         if (st.hydration < 15) { res.reason = 'Sede crítica: beba água antes de continuar.'; break; }
         if (st.calories < 250) { res.reason = 'Fome crítica: coma antes de continuar.'; break; }
 
-        if (!Pl.act({ minutes: 60, kcal: r.site.kcal, stamina: r.site.stamina, hygiene: -2, work: true, noCheck: true })) break;
+        if (!Pl.act({ minutes: 60, kcal: r.site.kcal, stamina: r.site.stamina, hygiene: -2, work: true, noCheck: true, label: 'Obra' })) break;
         if (d.dead) { res.worked++; return res; }
         r.in.forEach((ing, i) => {
           if (need[i] <= 0) return;
@@ -187,9 +187,11 @@
       }
 
       if (res.worked && !res.finished) {
+        if (Ilha.Fx) Ilha.Fx.burst(site.cx, site.cy, 'dust');
         Ilha.State.log(`Você trabalha ${res.worked} h na obra [${r.name}]: ${site.done}/${site.hours} h (${Math.round(this.progress(site) * 100)}%).`, 'good');
       }
       if (res.reason) Ilha.State.log(res.reason, 'warn');
+      if (Ilha.Fx && res.worked) { const nm = r.name.replace(' (obra)', ''); Ilha.Fx.note(res.finished ? `${nm}: pronta!` : `${nm}: ${Math.round(this.progress(site) * 100)}% da obra`); }
       Ilha.World.bump();
       Ilha.State.touch();
       return res;
@@ -217,6 +219,14 @@
         Ilha.Stations.ensure(site.cx, site.cy);
       }
       Wd.bump();
+      if (Ilha.Fx) {
+        Ilha.Fx.burst(site.cx, site.cy, 'glow');
+        if (tiles.length > 1) { // casa: brilho também nos 4 cantos
+          const xs = tiles.map((t) => t.x), ys = tiles.map((t) => t.y);
+          const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+          [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].forEach(([bx, by]) => Ilha.Fx.burst(bx, by, 'glow'));
+        }
+      }
       Ilha.State.log(`A obra terminou! [${r.name}] está pronta.`, 'good');
       Ilha.UI.toast(`Obra concluída: ${r.name.replace(' (obra)', '')}!`);
       const pl = D().player;

@@ -19,3 +19,7 @@ Sim. O primeiro passo é vasculhar os Destroços do Balão, perto de onde você 
 ## O que vem a seguir
 
 O jogo continua recebendo novidades. A mais recente está no próximo post.
+
+## Atualização de 11 de novembro
+
+Algumas coisas deste post mudaram: agora há **uma tribo só** (a Raiz Verde), e o jogo ganhou um objetivo, o sinal de resgate. Os detalhes estão em [A Ilha Misteriosa agora tem um objetivo: o sinal de resgate](/blog/ilha-misteriosa-sinal-de-resgate/).

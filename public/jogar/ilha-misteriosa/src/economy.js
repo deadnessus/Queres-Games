@@ -1,5 +1,5 @@
 /* =====================================================================
- * economy.js — As 3 Tribos da Ilha Lincoln: comércio por escambo com
+ * economy.js — A Tribo da Ilha Lincoln: comércio por escambo com
  * oferta e demanda direta, Conchas de Escambo (UT), reputação,
  * Caravana de Troca e acesso instantâneo pelo Telégrafo (Era 4)
  * ===================================================================== */
@@ -13,29 +13,17 @@
   const M = () => Ilha.State.data.map;
 
   // item: [estoqueAtual, estoqueAlvo, precoBase (UT)]
+  // Uma única tribo (simples de aprender): agricultores, pescadores e mineradores do Vale Central.
   const TRIBES = {
-    coral_crown: {
-      name: 'Tribo Coroa de Coral', place: 'Costa Leste', icon: '🐚',
-      desc: 'Pescadores e navegadores. Produzem peixe, óleo e pérolas; precisam de madeira, ferramentas e lentes.',
-      items: {
-        salted_fish: [50, 40, 4], fish_oil: [14, 12, 6], iron_scrap: [20, 15, 5], pearl: [8, 6, 14], cooked_fish: [24, 20, 5],
-        log: [4, 14, 7], plank: [5, 14, 6], iron_knife: [2, 6, 28], lens: [1, 3, 30], citrus: [4, 15, 6],
-      },
-    },
     raiz_verde: {
       name: 'Tribo Raiz Verde', place: 'Vale Central', icon: '🌿',
-      desc: 'Agricultores e herbalistas. Produzem sementes, ervas e fibras; precisam de enxadas, potes, sabão e cinzas.',
+      desc: 'A única tribo da ilha. Planta, pesca e minera: vende sementes, ervas, peixe, couro e minérios; precisa de madeira, ferramentas, sabão e remédios.',
       items: {
         seed_tuber: [25, 20, 5], seed_legume: [18, 16, 6], seed_veg: [18, 16, 6], seed_fiber: [14, 14, 5], herb: [36, 30, 4],
-        fiber: [40, 40, 3], iron_hoe: [1, 4, 35], pot: [3, 10, 10], soap: [2, 8, 16], ash: [3, 12, 5],
-      },
-    },
-    cinza_pico: {
-      name: 'Tribo Cinza do Pico', place: 'Norte Vulcânico', icon: '🌋',
-      desc: 'Caçadores e mineradores. Produzem couro, minérios e carvão; precisam de farinha, sabão, aço e remédios.',
-      items: {
-        leather: [18, 15, 8], copper_ore: [16, 14, 9], sulfur: [16, 14, 7], iron_ore: [20, 18, 6], charcoal: [22, 20, 4],
-        flour: [3, 14, 9], soap: [2, 8, 16], steel_blade: [1, 5, 22], quinine: [1, 4, 45], iron_knife: [2, 6, 28],
+        fiber: [40, 40, 3], salted_fish: [50, 40, 4], cooked_fish: [24, 20, 5], fish_oil: [14, 12, 6], citrus: [4, 15, 6],
+        leather: [18, 15, 8], copper_ore: [16, 14, 9], iron_ore: [20, 18, 6], iron_scrap: [20, 15, 5], sulfur: [16, 14, 7], charcoal: [22, 20, 4], pearl: [8, 6, 14],
+        log: [4, 14, 7], plank: [5, 14, 6], flour: [3, 14, 9], ash: [3, 12, 5], pot: [3, 10, 10], soap: [2, 8, 16],
+        iron_knife: [2, 6, 28], iron_hoe: [1, 4, 35], steel_blade: [1, 5, 22], lens: [1, 3, 30], quinine: [1, 4, 45],
       },
     },
   };
@@ -172,7 +160,7 @@
       const disc = this.discoveredCount();
       const repAvg = ids.reduce((a, id) => a + this.tribe(id).reputation, 0) / (ids.length * 100);
       const trade = clamp(0.6 * repAvg + 0.4 * clamp(m.volume / 600, 0, 1), 0, 1);
-      return clamp(0.3 * disc + 1.1 * trade, 0, 2);
+      return clamp(0.5 * disc + 1.5 * trade, 0, 2);
     },
   };
 

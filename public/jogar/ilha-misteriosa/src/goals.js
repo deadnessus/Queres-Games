@@ -9,14 +9,14 @@
   const made = (id) => !!D().player.crafted[id];
 
   const GOALS = [
-    { id: 'wreck', text: 'Vasculhe os destroços do balão', hint: 'Clique nas lonas vermelhas e brancas: há comida, água e ferramentas.', done: () => !!D().catalog['Destroços do Balão'] },
-    { id: 'fire', text: 'Construa uma Fogueira', hint: '[C] → Fogueira: 5 galhos + 3 pedras. Colha galhos nos arbustos e pedras nas rochas.', done: () => made('campfire') },
-    { id: 'light', text: 'Acenda a Fogueira', hint: 'Clique nela e escolha Acender (1 pedra + 1 galho).', done: () => made('first_fire') },
+    { id: 'wreck', text: 'Vasculhe os destroços do balão', hint: 'Clique nas lonas vermelhas e brancas: há comida, água e ferramentas.', done: () => !!D().catalog['Destroços do Balão'], glow: ['BALLOON_WRECKAGE'] },
+    { id: 'fire', text: 'Construa uma Fogueira', hint: '[C] → Fogueira: 5 galhos + 3 pedras. Colha galhos nos arbustos e pedras nas rochas.', done: () => made('campfire'), glow: ['BUSH_TWIGS', 'BOULDER_STONE'] },
+    { id: 'light', text: 'Acenda a Fogueira', hint: 'Clique nela e escolha Acender (1 pedra + 1 galho).', done: () => made('first_fire'), glow: ['CAMPFIRE_UNLIT'] },
     { id: 'boil', text: 'Ferva Água do Rio', hint: 'Clique direito no rio para coletar água suja; ferva perto do fogo em [C].', done: () => made('boiled_water') || made('boiled_water_5') },
-    { id: 'shelter', text: 'Construa um Abrigo de Folhas', hint: '[C] → Abrigo de Folhas (12 galhos). Durma encostado nele [R].', done: () => made('leaf_shelter') },
-    { id: 'crate', text: 'Construa um Caixote Rústico', hint: '[C] → Caixote (16 galhos) para guardar itens fora da mochila.', done: () => made('crate_rustic') },
-    { id: 'axe', text: 'Fabrique o Machado de Pedra', hint: '[C] → Machado de Pedra (2 pedras + 3 galhos).', done: () => made('stone_axe') },
-    { id: 'spear', text: 'Fabrique a Lança de Madeira', hint: '[C] → Lança (4 galhos + 1 pedra). Serve para pescar.', done: () => made('wood_spear') },
+    { id: 'shelter', text: 'Construa um Abrigo de Folhas', hint: '[C] → Abrigo de Folhas (12 galhos). Durma encostado nele [R].', done: () => made('leaf_shelter'), glow: ['BUSH_TWIGS'] },
+    { id: 'crate', text: 'Construa um Caixote Rústico', hint: '[C] → Caixote (16 galhos) para guardar itens fora da mochila.', done: () => made('crate_rustic'), glow: ['BUSH_TWIGS'] },
+    { id: 'axe', text: 'Fabrique o Machado de Pedra', hint: '[C] → Machado de Pedra (2 pedras + 3 galhos).', done: () => made('stone_axe'), glow: ['BOULDER_STONE'] },
+    { id: 'spear', text: 'Fabrique a Lança de Madeira', hint: '[C] → Lança (4 galhos + 1 pedra). Serve para pescar.', done: () => made('wood_spear'), glow: ['BUSH_TWIGS', 'BOULDER_STONE'] },
     { id: 'routine', text: 'Use uma Rotina', hint: 'Abra Rotinas [T], escolha quantos peixes, águas ou raízes e execute: Cyrus faz o ciclo inteiro.', done: () => made('first_routine') },
     { id: 'house', text: 'Erga a Casa de Madeira', hint: 'Nível 2. Serre tábuas com o machado e marque a obra em [C]: ela pode ser feita em etapas.', done: () => made('house_wood') },
     { id: 'expedition', text: 'Faça sua primeira expedição', hint: 'Abra o Mapa [M] e explore um setor vizinho (leve comida e água).', done: () => D().map.explored >= 1 },

@@ -23,7 +23,14 @@
   const P_ROOT = 0.55, ROOT_YIELD = 1.5, ROOT_PER_TRY = P_ROOT * ROOT_YIELD;
   const KCAL = { cooked_fish: 260, root: 220 };
   const EAT_MIN = { cooked_fish: 6, root: 5 };
-  const MAX_N = { fish: 20, water: 40, roots: 20 };
+  const MAX_N = { fish: 20, water: 40, roots: 20, branches: 40, stone: 24, logs: 12, planks: 12 };
+  // coletas em lote de recursos naturais
+  const GATHER = {
+    branches: { obj: 'BUSH_TWIGS', item: 'wood_branch' },
+    stone: { obj: 'BOULDER_STONE', item: 'stone' },
+    logs: { obj: 'TREE_HARDWOOD', item: 'log', tool: 'axe' },
+  };
+  const AXES = ['steel_axe', 'iron_axe', 'stone_axe'];
 
   const fmtMin = (m) => { m = Math.round(m); const h = Math.floor(m / 60); return h ? `${h} h ${String(m % 60).padStart(2, '0')} min` : `${m} min`; };
 
@@ -110,6 +117,10 @@
       if (id === 'fish') return !!(cr.first_fish || cat['Peixes']);
       if (id === 'roots') return !!(cr.first_roots || cat['Raízes Comestíveis']);
       if (id === 'water') return !!(cr.first_water || cr.boiled_water || cr.boiled_water_5);
+      if (id === 'branches') return !!(cr.first_branches || cat['Galhos e Cipós']);
+      if (id === 'stone') return !!(cr.first_stone || cat['Pedra e Sílex']);
+      if (id === 'logs') return !!(cr.first_logs || (cat['Madeira de Lei'] && cr.stone_axe));
+      if (id === 'planks') return !!cr.plank;
       return false;
     },
 
@@ -117,11 +128,19 @@
       fish: { name: 'Pescar', icon: '🐟', unit: 'peixes', hint: 'Pesque uma vez com a Lança para liberar esta rotina.' },
       water: { name: 'Buscar água', icon: '💧', unit: 'porções de água', hint: 'Colete água do rio uma vez para liberar esta rotina.' },
       roots: { name: 'Buscar raízes', icon: '🥔', unit: 'raízes', hint: 'Ache raízes cavando o solo uma vez para liberar esta rotina.' },
+      branches: { name: 'Coletar galhos', icon: '🌿', unit: 'galhos', hint: 'Colha galhos de um arbusto uma vez para liberar esta rotina.' },
+      stone: { name: 'Coletar pedras', icon: '🪨', unit: 'pedras', hint: 'Lasque uma pedra uma vez para liberar esta rotina.' },
+      logs: { name: 'Cortar toras', icon: '🪓', unit: 'toras', hint: 'Corte uma árvore uma vez (com machado) para liberar esta rotina.' },
+      planks: { name: 'Serrar tábuas', icon: '🪵', unit: 'toras (4 tábuas cada)', hint: 'Serre tábuas uma vez à mão para liberar esta rotina.' },
     },
 
     defaults(id) {
       if (id === 'fish') return { n: 3, cook: true, eat: true, store: false };
       if (id === 'water') return { n: 5, boil: true, store: false };
+      if (id === 'branches') return { n: 12, store: false };
+      if (id === 'stone') return { n: 6, store: false };
+      if (id === 'logs') return { n: 4, store: false };
+      if (id === 'planks') return { n: 3, store: false };
       return { n: 3, eat: true, store: false };
     },
 
@@ -147,6 +166,8 @@
       const room = (item) => C().room(item);
       if (id === 'fish') return { max: Math.max(1, room('raw_fish')) };
       if (id === 'water') return { max: Math.max(1, room('dirty_water')) };
+      if (GATHER[id]) return { max: Math.max(1, room(GATHER[id].item)) };
+      if (id === 'planks') return { max: Math.max(1, C().count('log')) };
       return { max: MAX_N.roots };
     },
 
@@ -194,7 +215,7 @@
         phases.forEach((p) => { m += p.reps * p.minutes; k += p.reps * p.kcal; });
         return { m: m * timeMult, k };
       };
-      const calAfterSoFar = () => { const t = totalsSoFar(); return st.calories - t.k - (t.m / 60) * B.BASAL_KCAL_H; };
+      const calAfterSoFar = () => { const t = totalsSoFar(); return st.calories - t.k - (t.m / 60) * B.BASAL_KCAL_H * Ilha.Player.easyMult(); };
 
       if (id === 'fish') {
         if (C().count('wood_spear') < 1) blockers.push('Precisa de uma Lança de Madeira na mochila.');
@@ -288,6 +309,43 @@
         }
       }
 
+      else if (GATHER[id]) {
+        const kd = GATHER[id]; const W = Ilha.World; const def = Config.OBJECTS[kd.obj]; const wd = d.world;
+        let mult = 1;
+        if (kd.tool) {
+          const have = AXES.filter((a) => C().count(a) > 0);
+          if (!have.length) blockers.push('Precisa de um Machado na mochila.');
+          else mult = Math.min(...have.map((a) => C().ITEMS[a].equip.mult));
+        }
+        const avg = def.drops.filter((x) => x.id === kd.item).reduce((a, x) => a + (x.min + x.max) / 2 * (x.chance || 1), 0);
+        const bonus = def.drops.filter((x) => x.id !== kd.item).map((x) => ({ id: x.id, per: (x.min + x.max) / 2 * (x.chance || 1) }));
+        const need = Math.ceil(n / avg);
+        const objs = [];
+        for (let y = 0; y < Config.MAP_H; y++) for (let x = 0; x < Config.MAP_W; x++) {
+          if (W.objectAt(x, y) !== kd.obj) continue;
+          const c = cx.costNextTo(x, y); if (c == null) continue;
+          objs.push({ x, y, cost: c, left: def.uses ? def.uses - (wd.uses[key(x, y)] || 0) : 1 });
+        }
+        objs.sort((a, b) => a.cost - b.cost);
+        const seq = []; const chain = [];
+        for (const o of objs) { if (seq.length >= need) break; chain.push(o); for (let i = 0; i < o.left && seq.length < need; i++) seq.push(o); }
+        if (seq.length < need) blockers.push(`Só há ${seq.length} ${kd.item === 'log' ? 'colheitas de árvore' : 'colheitas'} ao alcance (${def.name.split(' ')[0]} descansa depois de colhido).`);
+        else {
+          let hop = 0; for (let i = 1; i < chain.length; i++) hop += Math.max(1, Math.max(Math.abs(chain[i].x - chain[i - 1].x), Math.abs(chain[i].y - chain[i - 1].y)));
+          if (n > room(kd.item)) blockers.push('A mochila não aguenta tanto.');
+          phases.push(this._walk('Ir até ' + def.name.toLowerCase(), chain[0].cost, 'out'));
+          if (hop > 0) phases.push(this._walk('Andar entre os pontos', hop, 'hop'));
+          phases.push({ kind: 'gather', label: def.verb, reps: need, minutes: def.minutes * mult, kcal: def.kcal * mult, stamina: def.stamina, hyd: 0, hygiene: def.hygiene || 0, seq, kd, def, bonus, total: n });
+          phases.push(this._walk('Voltar', chain[chain.length - 1].cost, 'back'));
+          items[kd.item] = n; bonus.forEach((b) => { const q = Math.floor(b.per * need); if (q > 0) items[b.id] = q; });
+        }
+      } else if (id === 'planks') {
+        if (!AXES.some((a) => C().count(a) > 0)) blockers.push('Precisa de um Machado na mochila.');
+        if (n > C().count('log')) blockers.push('Faltam toras na mochila (corte toras primeiro).');
+        phases.push({ kind: 'saw', label: 'Serrar toras', reps: n, minutes: 40, kcal: 60, stamina: 6, hyd: 0, hygiene: 0 });
+        items.plank = n * 4;
+      }
+
       // guardar o que sobrou no armazém mais próximo
       let stored = null;
       if (opts.store) {
@@ -314,8 +372,8 @@
       minutes *= timeMult; walkMin *= timeMult; sta *= staMult;
       const hours = minutes / 60;
       const sunny = S.sunStrong() && !Ilha.Player.nearShelter();
-      const hydLoss = hours * (sunny ? B.HYDRATION_SUN_H : B.HYDRATION_H) - hyd;
-      const basal = hours * B.BASAL_KCAL_H;
+      const hydLoss = hours * (sunny ? B.HYDRATION_SUN_H : B.HYDRATION_H) * Ilha.Player.easyMult() - hyd;
+      const basal = hours * B.BASAL_KCAL_H * Ilha.Player.easyMult();
       const net = eatKcal - kcal - basal;
       const spent = kcal + basal;
       const retorno = spent > 0 ? (foodKcal || eatKcal) / spent : 0;
@@ -403,6 +461,19 @@
             if (q > 0 && give('root', q) < q) { aborted = 'A mochila encheu.'; break; }
             if (Math.random() < P_ROOT) Ilha.Farming.seedDrop('root');
             Pl.catalogOnce('Raízes Comestíveis');
+          } else if (ph.kind === 'gather') {
+            act(ph);
+            const o = ph.seq[i]; const k = key(o.x, o.y); const w = d.world;
+            const q = Math.floor(((i + 1) * ph.total) / ph.reps) - Math.floor((i * ph.total) / ph.reps);
+            if (q > 0 && give(ph.kd.item, q) < q) { aborted = 'A mochila encheu.'; break; }
+            ph.bonus.forEach((b) => { const bq = Math.floor((i + 1) * b.per) - Math.floor(i * b.per); if (bq > 0) give(b.id, bq); });
+            if (ph.def.catalog) Pl.catalogOnce(ph.def.catalog);
+            if (ph.kd.obj === 'BUSH_TWIGS') Ilha.Farming.seedDrop('bush');
+            if (ph.def.uses) { w.uses[k] = (w.uses[k] || 0) + 1; if (w.uses[k] >= ph.def.uses) Ilha.World.deplete(o.x, o.y, ph.kd.obj); }
+            else Ilha.World.deplete(o.x, o.y, ph.kd.obj);
+          } else if (ph.kind === 'saw') {
+            if (Cr.count('log') < 1) break;
+            act(ph); Cr.remove('log', 1); give('plank', 4); markCrafted('plank');
           } else if (ph.kind === 'cook') {
             const q = Math.min(ph.per, Cr.count('raw_fish'));
             if (q < 1) break;
@@ -432,6 +503,7 @@
       const dk = Math.round(d.player.stats.calories - c0);
       const parts = Object.keys(got).filter((k) => got[k] > 0).map((k) => `${got[k]}x ${Cr.name(k)}`);
       const summary = `${def.icon} Rotina “${def.name}” concluída em ${fmtMin(mins)}. Obteve: ${parts.join(', ') || 'nada'}${eaten ? `; comeu ${eaten}` : ''}${storedN ? `; guardou ${storedN}` : ''}. Energia ${dk >= 0 ? '+' : ''}${dk} kcal, stamina ${Math.round(d.player.stats.stamina - s0)}.`;
+      if (Ilha.Fx) Ilha.Fx.timePass(mins, `${def.name}: ${parts.join(', ') || 'nada'}`, '', true);
       S.log(summary, aborted ? 'warn' : 'good');
       if (aborted) S.log(aborted, 'warn');
       S.float(`${def.icon} ${def.name}: ${plan.n}`, aborted ? 'bad' : 'good');

@@ -26,3 +26,7 @@ Sim. Pesque uma vez à mão, depois aperte **T** e escolha uma Rotina. Se a Roti
 ## O que vem a seguir
 
 Vamos ver se as Rotinas deixaram o jogo mais gostoso de jogar, sem tirar a graça de fazer as coisas à mão.
+
+## Atualização de 11 de novembro
+
+As Rotinas também funcionam agora para **galhos, pedras, toras e tábuas**, além de pescar, buscar água e buscar raízes.

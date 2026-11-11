@@ -9,88 +9,76 @@
   <meta name="theme-color" content="#2b1a0e">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
   <title>A Ilha Misteriosa — Engineer's Survival</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game">
 
-    <!-- ===== Viewport do Mundo (75% superiores) ===== -->
+    <!-- ===== Viewport do Mundo ===== -->
     <div id="world">
       <canvas id="gameCanvas"></canvas>
       <div id="buildBanner" class="hidden"></div>
+      <div id="hudBars" aria-label="Estado de Cyrus">
+        <div class="gauge" data-g="hp" data-name="Vida"><span class="g-label">❤️</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">100</span></div>
+        <div class="gauge" data-g="calories" data-name="Energia (comida)"><span class="g-label">🍖</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">2200</span></div>
+        <div class="gauge" data-g="hydration" data-name="Água"><span class="g-label">💧</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">85%</span></div>
+        <div class="gauge" data-g="stamina" data-name="Fôlego"><span class="g-label">🫁</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">100</span></div>
+      </div>
+      <div id="rescueBar" title="Sinal de resgate"><div class="rs-fill"></div><span class="rs-txt">📡 Sinal de resgate 0%</span></div>
+      <button id="evtBtn" class="hidden" data-action="event" aria-label="Novidade do dia"></button>
       <div id="goalBar" class="hidden"></div>
       <button id="muteBtn" data-action="mute" aria-label="Som">🔊</button>
+      <button id="zoomBtn" class="hidden" data-action="zoom" aria-label="Zoom do mundo" title="Zoom do mundo (1× / 2×)">🔍1×</button>
       <button id="fsBtn" class="touch-only" data-action="fullscreen" aria-label="Tela cheia">⛶</button>
       <button id="cancelBtn" class="hidden" aria-label="Cancelar">✕ Cancelar</button>
       <div id="statusStrip" aria-label="Condições ativas"></div>
       <div id="locationBadge">Praia do Naufrágio &middot; Setor 5-9</div>
       <div id="tooltip" class="hidden" role="tooltip"></div>
       <div id="toast" class="hidden"></div>
+      <div id="logBox" aria-live="polite"></div>
     </div>
 
-    <!-- ===== Gabinete de Engenharia Vitoriano (25% inferiores) ===== -->
+    <!-- ===== Faixa de comando (relógio, atalhos e mãos) ===== -->
     <div id="cabinet">
+      <div class="dock-clock">
+        <div class="clock-face">
+          <div class="clk-day" id="clkDay">Dia 1</div>
+          <div class="clk-time" id="clkTime">08:00</div>
+        </div>
+        <div class="glass clock-info">
+          <div id="clkWeather">Sol</div>
+          <div id="clkTemp">37.0°C</div>
+          <div id="xpLine">Nível 1 &middot; XP 0/100</div>
+          <div id="clkCiv" title="Índice de Civilização">IC 0</div>
+          <div id="clkPower" class="hidden" title="Energia elétrica"></div>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="brass-btn" data-action="inventory"><kbd>I</kbd><span>Inventário</span></button>
+        <button class="brass-btn" data-action="craft"><kbd>C</kbd><span>Criação</span></button>
+        <button class="brass-btn" data-action="map"><kbd>M</kbd><span>Mapa</span></button>
+        <button class="brass-btn" data-action="journal"><kbd>J</kbd><span>Diário</span></button>
+        <button class="brass-btn" data-action="rest"><kbd>R</kbd><span>Descansar</span></button>
+        <button class="brass-btn" data-action="routines"><kbd>T</kbd><span>Rotinas</span></button>
+      </div>
+      <div class="hands">
+        <div class="slot" id="slotMain" title="Mão direita (clique para guardar)">
+          <div class="glass slot-body" id="slotMainBody"></div>
+        </div>
+        <div class="slot" id="slotOff" title="Mão esquerda (clique para guardar)">
+          <div class="glass slot-body" id="slotOffBody"></div>
+        </div>
+      </div>
+    </div>
 
-      <!-- Bloco esquerdo: Terminal de Log Narrativo -->
-      <section class="panel" id="logPanel">
-        <div class="plate">DIÁRIO DE BORDO</div>
-        <div class="glass crt" id="logBox" aria-live="polite"></div>
-      </section>
-
-      <!-- Bloco central: Ferramentas e Botões Mecânicos -->
-      <section class="panel" id="toolsPanel">
-        <div class="plate">FERRAMENTAS ATIVAS</div>
-        <div class="hands">
-          <div class="slot" id="slotMain" title="Clique para guardar">
-            <span class="slot-label">Mão Direita</span>
-            <div class="glass slot-body" id="slotMainBody"></div>
-          </div>
-          <div class="slot" id="slotOff" title="Clique para guardar">
-            <span class="slot-label">Mão Esquerda</span>
-            <div class="glass slot-body" id="slotOffBody"></div>
-          </div>
-        </div>
-        <div class="buttons">
-          <button class="brass-btn" data-action="inventory"><kbd>I</kbd><span class="lg">Inventário &amp; Sucata</span><span class="sh">Inventário</span></button>
-          <button class="brass-btn" data-action="craft"><kbd>C</kbd><span class="lg">Engenharia &amp; Criação</span><span class="sh">Criação</span></button>
-          <button class="brass-btn" data-action="map"><kbd>M</kbd><span class="lg">Mapa Cartográfico</span><span class="sh">Mapa</span></button>
-          <button class="brass-btn" data-action="journal"><kbd>J</kbd><span class="lg">Diário Científico</span><span class="sh">Diário</span></button>
-          <button class="brass-btn" data-action="rest"><kbd>R</kbd><span class="lg">Descansar</span><span class="sh">Descansar</span></button>
-          <button class="brass-btn" data-action="routines"><kbd>T</kbd><span class="lg">Rotinas</span><span class="sh">Rotinas</span></button>
-        </div>
-        <div class="tools-foot">
-          <span id="xpLine">Nível 1 &middot; XP 0/100</span>
-          <span class="foot-btns">
-            <button class="mini-btn" data-action="save" title="Salvar agora">Salvar</button>
-            <button class="mini-btn" data-action="newgame" title="Reiniciar a aventura">Novo Jogo</button>
-          </span>
-        </div>
-      </section>
-
-      <!-- Bloco direito: Mostradores Biológicos e Relógio de Bolso -->
-      <section class="panel" id="vitalsPanel">
-        <div class="clock">
-          <div class="clock-face">
-            <div class="clk-day" id="clkDay">Dia 1</div>
-            <div class="clk-time" id="clkTime">08:00</div>
-          </div>
-          <div class="glass clock-info">
-            <div id="clkWeather">Sol</div>
-            <div id="clkTemp">37.0°C</div>
-            <div id="clkCiv" title="Índice de Civilização">IC 0</div>
-            <div id="clkPower" class="hidden" title="Energia elétrica armazenada"></div>
-          </div>
-        </div>
-        <div class="gauges" id="gauges">
-          <div class="gauge" data-g="hp"><span class="g-label">HP</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">100</span></div>
-          <div class="gauge" data-g="stamina"><span class="g-label">STA</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">100</span></div>
-          <div class="gauge" data-g="calories"><span class="g-label">KCAL</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">2200</span></div>
-          <div class="gauge" data-g="hydration"><span class="g-label">H&#8322;O</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">85%</span></div>
-          <div class="gauge" data-g="immunity"><span class="g-label">IMUN</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">72%</span></div>
-          <div class="gauge" data-g="comfort"><span class="g-label">CONF</span><div class="g-bar"><i class="g-fill"></i><b class="g-cap"></b></div><span class="g-val">40%</span></div>
-        </div>
-      </section>
+    <!-- Capa -->
+    <div id="cover" class="hidden">
+      <div class="cv-title"><small>1865 · ILHA LINCOLN</small><h1>A Ilha Misteriosa</h1><p>Engineer's Survival</p></div>
+      <canvas id="coverCanvas" width="900" height="500" aria-hidden="true"></canvas>
+      <div class="cv-actions"><button id="cvPlay" class="cv-btn primary">▶ Jogar</button><button id="cvNew" class="cv-btn hidden">Nova aventura</button></div>
+      <div class="cv-tag">Sobreviva. Construa. Acenda o telégrafo e seja resgatado.</div>
     </div>
 
     <!-- Aviso para girar o celular -->
@@ -134,7 +122,11 @@
   <script src="src/island.js"></script>
   <script src="src/economy.js"></script>
   <script src="src/audio.js"></script>
+  <script src="src/fx.js"></script>
+  <script src="src/cover.js"></script>
   <script src="src/goals.js"></script>
+  <script src="src/rescue.js"></script>
+  <script src="src/events.js"></script>
   <script src="src/achievements.js"></script>
   <script src="src/routines.js"></script>
   <script src="src/player.js"></script>

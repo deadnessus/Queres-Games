@@ -19,6 +19,8 @@
   let S = 1;                       // escala inteira dos sprites
   const view = { x: 0, y: 0 };     // posição suavizada da câmera (grid)
   const mouse = { tx: -1, ty: -1, px: 0, py: 0, inside: false };
+  let zoomPref = 0; // 0 = automático, 1 ou 2 = escolha do jogador (localStorage ilha_zoom)
+  const GRAIN = false; // imagem limpa: sem grão por padrão
   let vignette = null, grainPat = null, grainOff = [0, 0], grainAt = 0;
   let lastNow = 0, lastTipKey = '', lastTouchAt = -9999, tipTimer = null;
   const edgeCache = new Map();
@@ -31,10 +33,14 @@
     const h = Math.max(150, worldEl.clientHeight);
     canvas.width = w; canvas.height = h;
     lightCanvas.width = w; lightCanvas.height = h;
-    S = (w >= 2300 || h >= 1150) ? 2 : 1;
+    // Zoom: automático (2x em telas grandes) ou escolhido no botão 🔍; telas pequenas ficam sempre em 1x
+    const canZoom = w >= 1100 && h >= 560;
+    S = !canZoom ? 1 : (zoomPref || ((w >= 1700 && h >= 820) ? 2 : 1));
+    const zb = document.getElementById('zoomBtn');
+    if (zb) { zb.classList.toggle('hidden', !canZoom); zb.textContent = '🔍' + S + '×'; }
     vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.38, w / 2, h / 2, Math.max(w, h) * 0.78);
     vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.2)');
   }
 
   function makeGrain() {
@@ -94,6 +100,7 @@
   // Bordas de terreno e espuma
   // ------------------------------------------------------------
   const WATERSET = { DEEP_OCEAN: 1, SHALLOW_WATER: 1, RIVER_WATER: 1 };
+  const FOG = [0.3, 0.46, 0.6, 0.72, 0.82, 0.9].map((a) => `rgba(8,11,16,${a})`); // névoa por distância da borda
   function edgesFor(x, y) {
     const k = y * MW + x;
     let e = edgeCache.get(k);
@@ -118,10 +125,10 @@
   // Iluminação dinâmica
   // ------------------------------------------------------------
   const SKY = [
-    [0, [42, 52, 96]], [4.5, [44, 54, 98]], [5.5, [150, 120, 135]], [7, [245, 215, 180]], [9, [255, 255, 255]],
-    [17, [255, 250, 238]], [18.5, [255, 175, 115]], [19.7, [130, 95, 130]], [21, [52, 60, 104]], [24, [42, 52, 96]],
+    [0, [88, 106, 172]], [4.5, [90, 108, 174]], [5.5, [165, 140, 158]], [7, [250, 226, 196]], [9, [255, 255, 255]],
+    [17, [255, 252, 242]], [18.5, [255, 190, 135]], [19.7, [150, 118, 156]], [21, [96, 112, 176]], [24, [88, 106, 172]],
   ];
-  const WEATHER_TINT = { CLEAR: [1, 1, 1], WIND: [0.95, 0.96, 0.97], RAIN: [0.78, 0.82, 0.9], MONSOON: [0.55, 0.6, 0.72] };
+  const WEATHER_TINT = { CLEAR: [1, 1, 1], WIND: [0.95, 0.96, 0.97], RAIN: [0.78, 0.82, 0.9], MONSOON: [0.68, 0.72, 0.82] };
 
   function ambientColor() {
     const t = Ilha.State.data.time;
@@ -217,6 +224,7 @@
     for (let i = 0; i < list.length; i++) {
       const f = list[i];
       const age = (t - f.t0) / FLOAT_MS;
+      if (age < 0) continue; // ainda esperando o anel de progresso fechar
       const rise = Main.lowGfx ? 0 : age * 34 * S;
       const row = list.length - 1 - i;
       const y = topY - 6 * S - row * (fs + 3) - rise;
@@ -238,10 +246,11 @@
 
     // Intervalo de grid visível (com margem para sprites altos)
     const corners = [[-TW * S, -TH * S], [W + TW * S, -TH * S], [-TW * S, H + 110 * S], [W + TW * S, H + 110 * S]].map(([a, b]) => unproj(a, b));
-    const x0 = Math.max(0, Math.floor(Math.min(...corners.map((c) => c.gx))) - 1);
-    const x1 = Math.min(MW - 1, Math.ceil(Math.max(...corners.map((c) => c.gx))) + 1);
-    const y0 = Math.max(0, Math.floor(Math.min(...corners.map((c) => c.gy))) - 1);
-    const y1 = Math.min(MH - 1, Math.ceil(Math.max(...corners.map((c) => c.gy))) + 1);
+    // (sem cortar no limite do mapa: fora dele o mar continua e a terra some na névoa)
+    const x0 = Math.floor(Math.min(...corners.map((c) => c.gx))) - 1;
+    const x1 = Math.ceil(Math.max(...corners.map((c) => c.gx))) + 1;
+    const y0 = Math.floor(Math.min(...corners.map((c) => c.gy))) - 1;
+    const y1 = Math.ceil(Math.max(...corners.map((c) => c.gy))) + 1;
     const terrain = d.world.terrain, objects = d.world.objects, floors = d.world.floors, roofs = d.world.roofs;
     const hw = (TW / 2) * S, hh = (TH / 2) * S;
 
@@ -251,6 +260,18 @@
       for (let x = x0; x <= x1; x++) {
         const c = proj(x, y);
         if (c.x < -hw * 2 || c.x > W + hw * 2 || c.y < -hh * 2 || c.y > H + hh * 2 + 120 * S) continue;
+        if (x < 0 || y < 0 || x >= MW || y >= MH) {
+          // além da borda: repete o terreno da margem; água segue como mar, terra escurece (território inexplorado)
+          const bx = x < 0 ? 0 : x >= MW ? MW - 1 : x, by = y < 0 ? 0 : y >= MH ? MH - 1 : y;
+          const tn = terrain[by][bx];
+          ctx.drawImage(SE.terrain(tn, x, y, now), c.x - hw, c.y - hh, TW * S, TH * S);
+          if (!WATERSET[tn]) {
+            const dist = Math.max(bx - x, x - bx, by - y, y - by);
+            ctx.fillStyle = FOG[Math.min(FOG.length - 1, dist - 1)];
+            diamondPath(ctx, c.x, c.y, hw + 1, hh + 1); ctx.fill();
+          }
+          continue;
+        }
         ctx.drawImage(SE.terrain(terrain[y][x], x, y, now), c.x - hw, c.y - hh, TW * S, TH * S);
         const fl = floors[y][x];
         if (fl) ctx.drawImage(SE.floor(fl, x, y), c.x - hw, c.y - hh, TW * S, TH * S);
@@ -264,6 +285,14 @@
         if (objects[y][x]) objs.push({ depth: x + y, x, y, name: objects[y][x], cx: c.x, cy: c.y });
         if (roofs[y][x]) objs.push({ depth: x + y + 0.8, x, y, roof: roofs[y][x], cx: c.x, cy: c.y });
       }
+    }
+
+    // Objetos que acabaram de ser colhidos ficam na tela até o golpe terminar (Fx.hit)
+    const ghosts = Ilha.Fx.ghosts();
+    for (let gi = 0; gi < ghosts.length; gi++) {
+      const g = ghosts[gi]; const ex = objs.find((q) => q.x === g.x && q.y === g.y && q.name);
+      if (ex) ex.name = g.prev;
+      else { const c = proj(g.x, g.y); objs.push({ depth: g.x + g.y, x: g.x, y: g.y, name: g.prev, cx: c.x, cy: c.y }); }
     }
 
     // Pilhas de itens largados no chão
@@ -316,12 +345,25 @@
     objs.sort((a, b) => (a.depth - b.depth) || (a.x - b.x));
     const room = Ilha.Player.indoors();           // cutaway: telhado do cômodo atual some
     const pd = p.x + p.y;
+    const Fx = Ilha.Fx; const windy = d.time.weather === 'WIND';
+    // G3: contorno do objeto sob o cursor e brilho (até 2) no alvo da meta atual
+    const hoverKey = (!modalOpen && !d.dead && !Ilha.Building.mode && mouse.inside) ? mouse.tx + ',' + mouse.ty : null;
+    const glowSet = new Set(); const arrows = [];
+    const gl = Ilha.Goals && !modalOpen ? Ilha.Goals.current() : null;
+    if (gl && gl.goal && gl.goal.glow) {
+      objs.filter((q) => q.name && gl.goal.glow.indexOf(q.name) >= 0)
+        .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)))
+        .slice(0, 2).forEach((q) => glowSet.add(q.x + ',' + q.y));
+    }
     for (let i = 0; i < objs.length; i++) {
       const o = objs[i];
       if (o.player) {
         const c = proj(view.x, view.y);
         const spr = SE.player(p.facing, pf);
-        ctx.drawImage(spr.c, c.x - spr.ax * S, c.y - spr.ay * S, spr.w * S, spr.h * S);
+        const pose = Fx.pose(p.facing, S);
+        if (!moving && !Fx.active() && !d.dead) Fx.drawBreath(ctx, spr, c.x - spr.ax * S, c.y - spr.ay * S, spr.w * S, spr.h * S, S, now);
+        else ctx.drawImage(spr.c, c.x - spr.ax * S + pose.dx, c.y - spr.ay * S + pose.dy, spr.w * S, spr.h * S);
+        Fx.drawRing(ctx, c.x, c.y - spr.ay * S, S);
         drawFloats(c.x, c.y - spr.ay * S, now);
         continue;
       }
@@ -341,9 +383,20 @@
       const spr = SE.object(Ilha.Building.spriteKey(o.x, o.y, o.name), o.x, o.y, now);
       if (!spr) continue;
       if (alpha < 1) ctx.globalAlpha = alpha;
-      ctx.drawImage(spr.c, o.cx - spr.ax * S, o.cy - spr.ay * S, spr.w * S, spr.h * S);
+      const ox = o.cx - spr.ax * S + Fx.shake(o.x, o.y, S), oy = o.cy - spr.ay * S, ow = spr.w * S, oh = spr.h * S;
+      const od = Config.OBJECTS[o.name];
+      if (hoverKey === k && od && (od.handler || od.verb) && !od.inert) Fx.outline(ctx, spr, ox, oy, ow, oh, S, '#ffffff', 1);
+      else if (glowSet.has(k)) { Fx.outline(ctx, spr, ox, oy, ow, oh, S, '#ffd24a', 0.6 + 0.4 * Math.sin(now / 380)); arrows.push([o.cx, oy]); }
+      if (Fx.swaying(o.name)) Fx.drawSway(ctx, spr, ox, oy, ow, oh, S, now, o.x, o.y, windy);
+      else ctx.drawImage(spr.c, ox, oy, ow, oh);
       if (alpha < 1) ctx.globalAlpha = 1;
     }
+
+    // vida do mundo: fumaça, poeira/brilho de obra
+    Fx.drawSmoke(ctx, Ilha.Building.lights().filter((l) => l.kind === 'fire'), proj, S, now, W, H, windy);
+    Fx.drawBursts(ctx, proj, S);
+    Fx.drawHits(ctx, proj, S);
+    for (let ai = 0; ai < arrows.length; ai++) Fx.drawArrow(ctx, arrows[ai][0], arrows[ai][1], S, now);
 
     // Fantasma do modo construção
     const Bd = Ilha.Building;
@@ -385,10 +438,11 @@
     }
 
     // Camada 3: iluminação, clima, vinheta e grão
+    Ilha.Fx.drawBirds(ctx, W, H, now, S, d.time.hour, d.time.weather);
     drawLighting(now);
     drawWeather(now);
     if (vignette && !Main.lowGfx) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H); }
-    if (grainPat && !Main.lowGfx) {
+    if (GRAIN && grainPat && !Main.lowGfx) {
       if (now - grainAt > 90) { grainAt = now; grainOff = [Math.random() * 128 | 0, Math.random() * 128 | 0]; }
       ctx.save(); ctx.globalAlpha = 0.055; ctx.globalCompositeOperation = 'overlay';
       ctx.translate(-grainOff[0], -grainOff[1]);
@@ -632,6 +686,13 @@
   const Main = {
     view, proj, unproj, pick,
     lowGfx: false,
+    /** Alterna o zoom do mundo entre 1x e 2x (guarda a escolha). */
+    toggleZoom() {
+      zoomPref = S === 2 ? 1 : 2;
+      try { localStorage.setItem('ilha_zoom', String(zoomPref)); } catch (e) { /* ignore */ }
+      resize(); Ilha.State.touch();
+    },
+    zoom() { return S; },
 
     setLowGfx(v) {
       this.lowGfx = !!v;
@@ -656,19 +717,22 @@
       let pref = null;
       try { pref = localStorage.getItem('ilha_lowgfx'); } catch (e) { /* ignore */ }
       this.setLowGfx(pref === null ? coarse : pref === '1');
+      try { zoomPref = +localStorage.getItem('ilha_zoom') || 0; } catch (e) { zoomPref = 0; }
+      if (zoomPref !== 1 && zoomPref !== 2) zoomPref = 0;
       Ilha.SpriteEngine.init();
-      resize(); makeGrain();
+      resize(); if (GRAIN) makeGrain();
       let loaded = false;
       if (Ilha.State.hasSave()) loaded = Ilha.State.load();
       if (!loaded) Ilha.State.newGame();
       else Ilha.State.log('Jogo carregado. Cyrus retoma a sobrevivência na Ilha Lincoln.', 'story');
       Ilha.State.onDeath = () => Ilha.UI.showGameOver();
+      Ilha.State.onRevive = (cause, lost) => { const q = Ilha.State.data.player; view.x = q.x; view.y = q.y; Ilha.Player.cancelRoute(); Ilha.Building.mode = null; Ilha.UI.closeModal(); Ilha.UI.refresh(true); Ilha.UI.showRevive(cause, lost); };
       const p = Ilha.State.data.player;
       view.x = p.x; view.y = p.y;
       Ilha.UI.init();
       if (Ilha.Audio) Ilha.Audio.init();
       bindInput();
-      if (!loaded) Ilha.UI.showIntro();
+      if (Ilha.Cover) Ilha.Cover.show(loaded); else if (!loaded) Ilha.UI.showIntro();
       requestAnimationFrame(frame);
     },
 

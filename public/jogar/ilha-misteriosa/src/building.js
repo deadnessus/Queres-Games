@@ -125,7 +125,7 @@
         else if (layer === 'terrain') Ilha.World.setTerrain(x, y, r.place);
         Ilha.State.log(`Você construiu [${r.name}].`, 'good');
       });
-      if (ok) Ilha.State.touch();
+      if (ok) { Ilha.State.touch(); if (Ilha.Fx) Ilha.Fx.burst(x, y, 'dust'); }
       return ok;
     },
 

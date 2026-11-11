@@ -40,7 +40,7 @@
   const BASE = { x: 5, y: 9 };
 
   // Aldeias (comércio em economy.js) e Pontos de Interesse de saque
-  const TRIBE_POS = { coral_crown: { x: 9, y: 5 }, raiz_verde: { x: 5, y: 6 }, cinza_pico: { x: 6, y: 2 } };
+  const TRIBE_POS = { raiz_verde: { x: 5, y: 6 } }; // uma única tribo, perto da base
 
   const POIS = {
     frigate: {
@@ -107,7 +107,18 @@
       m.poi = m.poi || {};
       Object.keys(POIS).forEach((id) => { if (!m.poi[id]) m.poi[id] = fresh.poi[id]; });
       m.tribes = m.tribes || fresh.tribes;
-      Object.keys(fresh.tribes).forEach((id) => { if (!m.tribes[id]) m.tribes[id] = fresh.tribes[id]; });
+      // saves antigos tinham 3 tribos: funde tudo na única tribo atual (descoberta, reputação e volume)
+      const old = Object.keys(m.tribes).filter((id) => !fresh.tribes[id]);
+      Object.keys(fresh.tribes).forEach((id) => {
+        if (!m.tribes[id]) m.tribes[id] = fresh.tribes[id];
+        const t = m.tribes[id]; const fs = fresh.tribes[id].stock;
+        old.forEach((o) => { const ot = m.tribes[o]; if (!ot) return; t.discovered = !!(t.discovered || ot.discovered); t.reputation = Math.max(t.reputation || 0, ot.reputation || 0); t.volume = (t.volume || 0) + (ot.volume || 0); });
+        t.stock = t.stock || {};
+        Object.keys(fs).forEach((it) => { if (!t.stock[it]) t.stock[it] = fs[it]; });
+      });
+      old.forEach((o) => { delete m.tribes[o]; });
+      // tribo já descoberta (ex.: vinda de um save com 3 tribos): o setor dela fica revelado para o comércio abrir
+      Object.keys(fresh.tribes).forEach((id) => { const tp = TRIBE_POS[id]; if (tp && m.tribes[id] && m.tribes[id].discovered) m.revealed[tp.y * N + tp.x] = true; });
       ['explored', 'credits', 'trades', 'volume'].forEach((k) => { if (typeof m[k] !== 'number') m[k] = 0; });
     },
 
@@ -147,7 +158,7 @@
       if (!P.canAfford({ stamina: c.stamina })) return false;
       const bname = BIOMES[this.biomeAt(x, y)].name;
       S.log(`Você parte em expedição rumo ao setor (${x},${y}) — ${bname}…`);
-      if (!P.act({ minutes: c.minutes, kcal: c.kcal, stamina: c.stamina, hyd: -c.hydration, noCheck: true })) return false;
+      if (!P.act({ minutes: c.minutes, kcal: c.kcal, stamina: c.stamina, hyd: -c.hydration, noCheck: true, label: 'Expedição: ' + bname })) return false;
       if (d.dead) return false;
       M().revealed[y * N + x] = true; M().explored++;
       const found = [];
@@ -192,7 +203,7 @@
       S.log(`Você parte para vasculhar: ${def.name}…`);
       const light = P.torchActive(); // a luz conta na PARTIDA (a tocha pode queimar durante a viagem)
       if (useNitro) { C.remove('nitro', 1); st.hp = Math.max(1, st.hp - 10); S.log('A nitroglicerina rasga o casco/entulho: estilhaços ferem Cyrus (-10 HP).', 'bad'); }
-      if (!P.act({ minutes: FORAGE.minutes, kcal: FORAGE.kcal, stamina: FORAGE.stamina, hyd: -FORAGE.hydration, noCheck: true })) return false;
+      if (!P.act({ minutes: FORAGE.minutes, kcal: FORAGE.kcal, stamina: FORAGE.stamina, hyd: -FORAGE.hydration, noCheck: true, label: 'Coleta: ' + def.name })) return false;
       if (d.dead) return false;
       sp.left--; sp.done++;
       // bônus: luz, picareta, nitroglicerina

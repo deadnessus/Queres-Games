@@ -46,12 +46,12 @@
     sulfuric_acid: { name: 'Ácido Sulfúrico', icon: 'sulfuric_acid', weight: 0.5, type: 'material', desc: 'Reagente corrosivo. Cuidado!' },
     nitro: { name: 'Nitroglicerina', icon: 'nitro', weight: 0.5, type: 'material', desc: 'Explosivo instável. Interaja com rochas, veios ou árvores para detoná-la.' },
 
-    salted_fish: { name: 'Peixe Salgado', icon: 'salted_fish', weight: 0.4, type: 'food', desc: 'Conserva das tribos costeiras: muita proteína e calorias.',
+    salted_fish: { name: 'Peixe Salgado', icon: 'salted_fish', weight: 0.4, type: 'food', desc: 'Conserva da tribo: muita proteína e calorias.',
       use: { minutes: 5, cal: 240, protein: 32 } },
-    leather: { name: 'Couro Curtido', icon: 'leather', weight: 0.6, type: 'material', desc: 'Couro das caçadas da Tribo Cinza do Pico. Serve de fole no Alto-Forno.' },
-    pearl: { name: 'Pérola', icon: 'pearl', weight: 0.02, type: 'material', desc: 'Gema da Tribo Coroa de Coral: valiosa no escambo.' },
-    volt_cell: { name: 'Célula Voltaica Naval', icon: 'volt_cell', weight: 0.6, type: 'component', desc: 'Pilha avançada do Submarino. Substitui o ácido e o cobre na Bateria Voltaica.' },
-    citrus: { name: 'Fruta Cítrica', icon: 'citrus', weight: 0.3, type: 'food', desc: 'Rica em vitamina C: previne e cura o Escorbuto.',
+    leather: { name: 'Couro Curtido', icon: 'leather', weight: 0.6, type: 'material', desc: 'Couro da tribo. Serve de fole no Alto-Forno.' },
+    pearl: { name: 'Pérola', icon: 'pearl', weight: 0.02, type: 'material', desc: 'Gema da tribo: valiosa no escambo.' },
+    volt_cell: { name: 'Célula Voltaica Naval', icon: 'volt_cell', weight: 0.6, type: 'component', desc: 'Pilha avançada do Submarino. Curiosidade de colecionador.' },
+    citrus: { name: 'Fruta Cítrica', icon: 'citrus', weight: 0.3, type: 'food', desc: 'Rica em vitaminas e hidratação.',
       use: { minutes: 3, cal: 60, hyd: 8, vit: 25 } },
     root: { name: 'Raízes Comestíveis', icon: 'root', weight: 0.4, type: 'food', desc: 'Tubérculos, densos em calorias.',
       use: { minutes: 5, cal: 220, vit: 3 } },
@@ -67,17 +67,17 @@
       use: { minutes: 4, cal: 120, protein: 18, special: 'raw_fish' } },
     cooked_fish: { name: 'Peixe Assado', icon: 'cooked_fish', weight: 0.4, type: 'food', desc: 'Peixe assado na brasa: seguro e nutritivo.',
       use: { minutes: 6, cal: 260, protein: 35, vit: 2 } },
-    dirty_water: { name: 'Água Suja do Rio', icon: 'water_dirty', weight: 0.5, type: 'drink', desc: 'Não tratada: 35% de chance de causar Disenteria. Ferva ou filtre. (Serve para regar plantas.)',
+    dirty_water: { name: 'Água Suja do Rio', icon: 'water_dirty', weight: 0.5, type: 'drink', desc: 'Não tratada: 35% de chance de causar Intoxicação. Ferva ou filtre. (Serve para regar plantas.)',
       use: { minutes: 1, hyd: 25, special: 'dirty_water' } },
     boiled_water: { name: 'Água Fervida', icon: 'water_boiled', weight: 0.5, type: 'drink', desc: 'Água segura, purificada pelo fogo.',
       use: { minutes: 1, hyd: 30 } },
     clean_water: { name: 'Água Purificada', icon: 'water_clean', weight: 0.5, type: 'drink', desc: 'Filtrada em areia e carvão: segura e sem gastar lenha.',
       use: { minutes: 1, hyd: 30 } },
-    herb_tea: { name: 'Chá de Ervas Digestivas', icon: 'herb_tea', weight: 0.4, type: 'medicine', desc: 'Bebida quente: cura Intoxicação Alimentar, alivia Disenteria e aquece o corpo.',
+    herb_tea: { name: 'Chá de Ervas Digestivas', icon: 'herb_tea', weight: 0.4, type: 'medicine', desc: 'Bebida quente: cura Intoxicação Alimentar e aquece o corpo.',
       use: { minutes: 3, hyd: 20, vit: 4, special: 'herb_tea' } },
     soap: { name: 'Sabão', icon: 'soap', weight: 0.2, type: 'medicine', desc: 'Higiene a 100% e cura a Infecção Cutânea.',
       use: { minutes: 10, special: 'soap' } },
-    quinine: { name: 'Extrato de Quinino Refinado', icon: 'quinine', weight: 0.2, type: 'medicine', desc: 'Cura a Malária / Febre Tropical.',
+    quinine: { name: 'Remédio de Quinino', icon: 'quinine', weight: 0.2, type: 'medicine', desc: 'Remédio: cura Intoxicação e Infecção.',
       use: { minutes: 2, special: 'quinine' } },
     ration: { name: 'Ração de Emergência', icon: 'ration', weight: 0.4, type: 'food', desc: 'Lata de biscoito e carne seca do balão. Muito calórica.',
       use: { minutes: 5, cal: 700, protein: 15, vit: 5 } },
@@ -138,7 +138,7 @@
   item('boiled_water_5', 'Água Fervida (5x)', { id: 'boiled_water', qty: 5 }, [{ id: 'dirty_water', qty: 5 }],
     { minutes: 30, kcal: 10, stamina: 2, xp: 4, fire: true, desc: 'Ferve cinco porções de uma vez, no mesmo caldeirão: bem mais rápido que uma a uma.' });
   item('herb_tea', 'Chá de Ervas Digestivas', { id: 'herb_tea', qty: 1 }, [{ id: 'herb', qty: 1 }, { id: 'boiled_water', qty: 1 }],
-    { minutes: 10, kcal: 5, stamina: 1, xp: 10, fire: true, desc: 'Cura Intoxicação Alimentar e alivia a Disenteria.' });
+    { minutes: 10, kcal: 5, stamina: 1, xp: 10, fire: true, desc: 'Cura a Intoxicação Alimentar.' });
   item('charcoal', 'Carvão Vegetal', { id: 'charcoal', qty: 2 }, [{ id: 'log', qty: 1 }],
     { minutes: 40, kcal: 30, stamina: 3, xp: 12, fire: true, desc: 'Queima lenta de uma tora na brasa. Essencial para o Filtro de Água e fornos.' });
   struct('campfire', 'Fogueira', 'CAMPFIRE_UNLIT', [{ id: 'wood_branch', qty: 5 }, { id: 'stone', qty: 3 }],
@@ -236,8 +236,8 @@
     { station: 'lab', minutes: 30, kcal: 15, stamina: 2, xp: 70, minLevel: 9, desc: 'Enxofre + sucata de ferro.' });
   struct('mill', 'Moinho Hidráulico', 'MILL', [{ id: 'plank', qty: 8 }, { id: 'stone', qty: 4 }, { id: 'iron_gear', qty: 2 }, { id: 'iron_ingot', qty: 2 }],
     { minutes: 100, kcal: 140, stamina: 14, xp: 140, minLevel: 10, desc: 'Mói raízes e feijões em Farinha Nutritiva automaticamente.' });
-  item('quinine', 'Extrato de Quinino Refinado (2x)', { id: 'quinine', qty: 2 }, [{ id: 'herb', qty: 4 }, { id: 'sulfuric_acid', qty: 1 }],
-    { station: 'lab', minutes: 40, kcal: 20, stamina: 3, xp: 90, minLevel: 10, desc: 'Cura Malária / Febre Tropical.' });
+  item('quinine', 'Remédio de Quinino (2x)', { id: 'quinine', qty: 2 }, [{ id: 'herb', qty: 4 }, { id: 'sulfuric_acid', qty: 1 }],
+    { station: 'lab', minutes: 40, kcal: 20, stamina: 3, xp: 90, minLevel: 10, desc: 'Remédio: cura Intoxicação e Infecção.' });
   item('copper_wire', 'Fio de Cobre (3x)', { id: 'copper_wire', qty: 3 }, [{ id: 'copper_ingot', qty: 1 }],
     { station: 'workbench', minutes: 25, kcal: 20, stamina: 3, xp: 60, minLevel: 10, desc: 'Trefila cobre em fio.' });
   item('nitro', 'Nitroglicerina', { id: 'nitro', qty: 1 }, [{ id: 'sulfuric_acid', qty: 2 }, { id: 'fish_oil', qty: 1 }],
@@ -245,17 +245,17 @@
 
   // ---- Era 4: Eletricidade e Domínio Industrial (12–15) ----
   struct('dynamo', 'Dínamo Hidrelétrico', 'DYNAMO', [{ id: 'iron_ingot', qty: 6 }, { id: 'copper_wire', qty: 6 }, { id: 'iron_gear', qty: 2 }, { id: 'refractory_brick', qty: 4 }],
-    { minutes: 120, kcal: 160, stamina: 14, xp: 200, minLevel: 12, desc: 'Converte a força da Roda d\'Água (a até 2 tiles) em 2 kWh por hora.' });
+    { minutes: 120, kcal: 160, stamina: 14, xp: 200, minLevel: 12, desc: 'Converte a força da Roda d\'Água (a até 2 tiles) em energia para Poste, Estufa, Oficina e Telégrafo a até 5 tiles.' });
   struct('battery', 'Bateria Voltaica', 'BATTERY', [{ id: 'copper_ingot', qty: 4 }, { id: 'iron_ingot', qty: 4 }, { id: 'sulfuric_acid', qty: 2 }, { id: 'glass', qty: 2 }],
-    { minutes: 60, kcal: 80, stamina: 8, xp: 160, minLevel: 12, desc: 'Armazena até 10 kWh.' });
+    { minutes: 60, kcal: 80, stamina: 8, xp: 160, minLevel: 12, desc: 'Peça antiga: não é mais necessária.', hidden: true });
   struct('battery_naval', 'Bateria Voltaica (Células Navais)', 'BATTERY', [{ id: 'volt_cell', qty: 2 }, { id: 'iron_ingot', qty: 2 }, { id: 'glass', qty: 1 }],
-    { minutes: 40, kcal: 60, stamina: 6, xp: 120, minLevel: 12, desc: 'Versão simples da Bateria usando as Células do Submarino Misterioso.' });
+    { minutes: 40, kcal: 60, stamina: 6, xp: 120, minLevel: 12, desc: 'Peça antiga: não é mais necessária.', hidden: true });
   struct('lamp_post', 'Poste de Luz Elétrica', 'LAMP_POST', [{ id: 'iron_ingot', qty: 2 }, { id: 'copper_wire', qty: 2 }, { id: 'glass', qty: 1 }, { id: 'plank', qty: 2 }],
-    { minutes: 40, kcal: 50, stamina: 5, xp: 120, minLevel: 12, desc: 'Ilumina um raio amplo à noite sem lenha (0,2 kWh/h).' });
+    { minutes: 40, kcal: 50, stamina: 5, xp: 120, minLevel: 12, desc: 'Ilumina um raio amplo à noite sem lenha (com Dínamo ligado a até 5 tiles).' });
   struct('greenhouse', 'Estufa Climatizada', 'GREENHOUSE', [{ id: 'glass', qty: 8 }, { id: 'iron_ingot', qty: 6 }, { id: 'plank', qty: 4 }],
-    { minutes: 120, kcal: 160, stamina: 16, xp: 220, minLevel: 13, desc: 'Plantações a até 2 tiles crescem 2x mais rápido e ignoram clima (0,4 kWh/h).' });
+    { minutes: 120, kcal: 160, stamina: 16, xp: 220, minLevel: 13, desc: 'Plantações a até 2 tiles crescem 2x mais rápido e ignoram clima (com Dínamo ligado a até 5 tiles).' });
   struct('workshop', 'Oficina de Precisão', 'WORKSHOP', [{ id: 'iron_ingot', qty: 8 }, { id: 'steel_ingot', qty: 4 }, { id: 'iron_gear', qty: 4 }, { id: 'glass', qty: 4 }],
-    { minutes: 120, kcal: 160, stamina: 14, xp: 240, minLevel: 13, desc: 'Fabrica engrenagens, lentes, molas e ferramentas de aço (1 kWh por peça).' });
+    { minutes: 120, kcal: 160, stamina: 14, xp: 240, minLevel: 13, desc: 'Fabrica engrenagens, lentes, molas e ferramentas de aço (precisa de Dínamo ligado a até 5 tiles).' });
   item('gear', 'Engrenagem de Precisão (2x)', { id: 'gear', qty: 2 }, [{ id: 'steel_ingot', qty: 1 }],
     { station: 'workshop', power: 1, minutes: 30, kcal: 20, stamina: 3, xp: 60, minLevel: 13, desc: 'Peças de relojoaria feitas do zero.' });
   item('lens', 'Lente Óptica', { id: 'lens', qty: 1 }, [{ id: 'glass', qty: 2 }],
@@ -267,7 +267,7 @@
   item('steel_pickaxe', 'Picareta de Aço', { id: 'steel_pickaxe', qty: 1 }, [{ id: 'steel_ingot', qty: 3 }, { id: 'plank', qty: 2 }],
     { station: 'workshop', power: 1, minutes: 45, kcal: 40, stamina: 5, xp: 100, minLevel: 14, desc: 'Minera em 60% do tempo e das calorias.' });
   struct('telegraph', 'Estação de Telégrafo', 'TELEGRAPH', [{ id: 'copper_wire', qty: 10 }, { id: 'iron_ingot', qty: 4 }, { id: 'steel_ingot', qty: 2 }, { id: 'plank', qty: 4 }, { id: 'lens', qty: 2 }],
-    { minutes: 180, kcal: 200, stamina: 20, xp: 400, minLevel: 15, desc: 'Estrutura final da Era 4: conecta a base às tribos (Sprint 4).' });
+    { minutes: 180, kcal: 200, stamina: 20, xp: 400, minLevel: 15, desc: 'Estrutura final da Era 4: negocia com a tribo sem caravana e chama o resgate (precisa de Dínamo ligado a até 5 tiles).' });
 
 
   // Estruturas de 1 tile que levam 90 min ou mais viram OBRAS: o trabalho é dividido em horas
@@ -422,7 +422,7 @@
         const newQty = Math.ceil(e.charge / 5);
         if (newQty < e.qty) { e.qty = newQty; if (e.qty <= 0) P().inventory.splice(P().inventory.indexOf(e), 1); this.add('pot', 1); }
       } else if (u.special === 'soap' || u.special === 'quinine') {
-        if (u.special === 'quinine' && !Pl.hasCond('MALARIA')) { Ilha.UI.toast('Você não está com Malária.'); return false; }
+        if (u.special === 'quinine' && !Pl.hasCond('FOOD_POISONING') && !Pl.hasCond('SKIN_INFECTION')) { Ilha.UI.toast('Você não está doente.'); return false; }
         this.remove(id, 1);
       } else {
         this.remove(id, 1);
@@ -444,10 +444,8 @@
 
       switch (u.special) {
         case 'dirty_water':
-          if (Math.random() < Config.BIO.DYSENTERY_CHANCE) {
-            Pl.addCondition('DYSENTERY', Config.BIO.DYSENTERY_HOURS);
-            S().log('Seu estômago se revolta: a água suja causou DISENTERIA!', 'bad');
-          } else S().log('Você teve sorte: a água suja não lhe fez mal… desta vez.', 'warn');
+          if (Math.random() < Config.BIO.DIRTY_WATER_CHANCE) Pl.foodPoisoning();
+          else S().log('Você teve sorte: a água suja não lhe fez mal… desta vez.', 'warn');
           break;
         case 'raw_fish':
           if (Math.random() < Config.BIO.FOOD_POISON_RAW_CHANCE) Pl.foodPoisoning();
@@ -460,10 +458,6 @@
           break;
         case 'herb_tea':
           if (Pl.hasCond('FOOD_POISONING')) { Pl.removeCondition('FOOD_POISONING'); S().log('O chá acalma o estômago: a Intoxicação Alimentar passou.', 'good'); }
-          if (Pl.hasCond('DYSENTERY')) {
-            P().condTimers.DYSENTERY = Math.max(0, (P().condTimers.DYSENTERY || 0) - 12);
-            S().log('O chá alivia a Disenteria (-12h de convalescença).', 'good');
-          }
           st.bodyTemp = Math.min(37.5, st.bodyTemp + 0.4);
           break;
         case 'soap':
@@ -472,8 +466,8 @@
           if (Pl.hasCond('SKIN_INFECTION')) { Pl.removeCondition('SKIN_INFECTION'); S().log('O sabão elimina a Infecção Cutânea!', 'good'); }
           break;
         case 'quinine':
-          Pl.removeCondition('MALARIA');
-          S().log('O quinino derruba a febre: a MALÁRIA foi curada!', 'good');
+          Pl.removeCondition('FOOD_POISONING'); Pl.removeCondition('SKIN_INFECTION');
+          S().log('O remédio de quinino faz efeito: Intoxicação e Infecção curadas!', 'good');
           break;
         default: break;
       }
@@ -515,7 +509,7 @@
       const levelOk = lvl >= (r.minLevel || 1);
       const toolOk = !r.tool || this.hasTool(r.tool);
       const stationOk = !r.station || (Ilha.Stations && Ilha.Stations.nearStation(r.station));
-      const powerOk = !r.power || (Ilha.Stations && Ilha.Stations.powerStored() >= r.power);
+      const powerOk = !r.power || (Ilha.Stations && Ilha.Stations.nearPowered(r.station || 'workshop'));
       let placeOk = true; let placeMsg = '';
       if (r.kind === 'structure' && !skipPlace) {
         const t = target || Ilha.Player.facingTile();
@@ -525,7 +519,7 @@
       const reason = !levelOk ? `Requer Nível ${r.minLevel}`
         : !toolOk ? `Requer ${Config.TOOL_NAMES[r.tool] || r.tool} equipado`
         : !stationOk ? `Requer ${Config.STATION_NAMES[r.station] || r.station} por perto (até 2 tiles)`
-        : !powerOk ? 'Sem energia elétrica (kWh)'
+        : !powerOk ? 'Sem energia (ligue a Oficina a um Dínamo)'
         : (missing.length && !r.site) ? 'Faltam ingredientes'
         : !fireOk ? 'Requer Fogueira acesa por perto'
         : !placeOk ? placeMsg : '';
@@ -541,7 +535,7 @@
       const d = P();
       if (!d.crafted[r.id]) { d.crafted[r.id] = true; Ilha.Player.gainXP(r.xp, 'primeira vez: ' + r.name); }
       if (r.power) Ilha.Stations.usePower(r.power);
-      Ilha.Player.act({ minutes: r.minutes, kcal: r.kcal, stamina: r.stamina, hygiene: -1, noCheck: true });
+      Ilha.Player.act({ minutes: r.minutes, kcal: r.kcal, stamina: r.stamina, hygiene: -1, noCheck: true, label: r.name });
       return true;
     },
 

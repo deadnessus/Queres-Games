@@ -809,7 +809,14 @@
     const ingot = (g, base, top) => { R(g, OL, 2, 7, 12, 6); R(g, base, 3, 8, 10, 4); R(g, OL, 4, 4, 8, 4); R(g, top, 5, 5, 6, 3); R(g, '#ffffff55', 5, 5, 6, 1); };
     const seed = (g, c1, c2) => { box(g, 3, 5, 10, 9, '#d8c48c'); R(g, OL, 5, 3, 6, 3); R(g, '#c9a66b', 6, 4, 4, 1); R(g, c1, 5, 8, 2, 2); R(g, c2, 8, 7, 2, 2); R(g, c1, 10, 10, 2, 2); R(g, c2, 6, 11, 2, 1); };
     const tool = (g, head) => { handle(g, 3, 13, 11, 5); head(g); };
+    // Ícones do HUD (as 4 barras): arte em texto, 1 caractere = 1 pixel
+    const PAL = { X: OL, r: '#d8483a', h: '#ffd0c8', b: '#c8742c', w: '#f1e6cc', c: '#4da3d8', g: '#8ee06a' };
+    const art = (g, rows, pal) => rows.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const c = pal[row[x]]; if (c) R(g, c, x, y); } });
     return {
+      hud_hp: (g) => art(g, ["................", "................", "...XXX...XXX....", "..XrrrX.XrrrX...", ".XrhrrrXrrrrrX..", ".XrhrrrrrrrrrX..", ".XrrrrrrrrrrrX..", "..XrrrrrrrrrX...", "...XrrrrrrrX....", "....XrrrrrX.....", ".....XrrrX......", "......XrX.......", ".......X........", "................"], PAL),
+      hud_food: (g) => art(g, ["................", "......XXXX......", ".....XbbbbX.....", "....XbbbbbbX....", "....XbhbbbbX....", "....XbbbbbbX....", ".....XbbbbX.....", "......XbbX......", ".......XwX......", ".......XwX......", "......XwwwX.....", "......XwXwX.....", ".......X.X......", "................"], PAL),
+      hud_water: (g) => art(g, ["................", ".......X........", "......XcX.......", "......XcX.......", ".....XcccX......", ".....XcccX......", "....XchcccX.....", "....XchcccX.....", "...XchcccccX....", "...XcccccccX....", "...XcccccccX....", "....XcccccX.....", ".....XXXXX......", "................"], PAL),
+      hud_breath: (g) => art(g, ["................", "........ggg.....", ".......g...g....", "...........g....", ".ggggggggggg....", ".gggggggggg.....", "................", "..gggggggggggg..", "..ggggggggggggg.", "..............g.", ".............g..", ".ggggggg........", ".gggggggg.......", "........g.......", ".......g........", "................"], PAL),
       plank: (g) => { box(g, 1, 3, 13, 3, '#c9a66b', '#e6d3a3'); box(g, 2, 7, 13, 3, '#b8935a', '#d8c08a'); box(g, 1, 11, 13, 3, '#c9a66b', '#e6d3a3'); },
       refractory_brick: (g) => { box(g, 1, 4, 10, 6, '#a85a38', '#c87a52'); box(g, 5, 9, 10, 6, '#944c30', '#b86a48'); R(g, '#d8c8a0', 6, 6, 3, 1); },
       roof_tile: (g) => { box(g, 2, 4, 12, 9, '#b0583a', '#d07852'); for (let i = 0; i < 4; i++) R(g, '#7a3c28', 4 + i * 3, 5, 1, 7); },
