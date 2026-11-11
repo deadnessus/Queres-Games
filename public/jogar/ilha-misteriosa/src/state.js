@@ -33,6 +33,10 @@
       },
       catalog: {},
       achievements: {},
+      hardcore: false,     // morte definitiva (padrão: volta ao amanhecer da última noite dormida)
+      rescued: false,
+      event: null,
+      snap: null,
       world: Ilha.World.generate(Config.SEED),
       log: [],
       logSeq: 0,
@@ -51,6 +55,7 @@
     data: null,
     dirty: true,
     onDeath: null,
+    onRevive: null,
 
     touch() { this.dirty = true; },
 
@@ -62,23 +67,58 @@
       this.dirty = true;
       Ilha.Player.recalcMax();
       this.log('Você, Cyrus Smith, engenheiro, desperta entre os destroços do balão numa praia desconhecida. O céu está claro.', 'story');
+      this.clearCheckpoint(); this.checkpointSave();
+      this.log('Nos 3 primeiros dias a fome e a sede passam mais devagar: aproveite para aprender.', 'hint');
       this.log('Dica: clique no chão para andar, clique num objeto para usá-lo (botão direito interage com qualquer tile). WASD/Setas também funcionam. O tempo só passa quando você age.', 'hint');
       return this.data;
     },
 
     suspendSave: false,
 
+    /** JSON do estado (formato do save). O terreno é regenerado da semente ao carregar. */
+    serialize(d) {
+      d = d || this.data;
+      return JSON.stringify(Object.assign({}, d, { log: d.log.slice(-120), world: Object.assign({}, d.world, { terrain: undefined }) }));
+    },
+
     save() {
       if (!this.data || this.data.dead || this.suspendSave) return false;
+      try { localStorage.setItem(Config.SAVE_KEY, this.serialize()); return true; } catch (e) { return false; }
+    },
+
+    // ---- Ponto de retorno (morte leve): guardado ao acordar de uma noite e no início do jogo ----
+    CP_KEY: 'ilha_checkpoint',
+    checkpointSave() {
+      if (!this.data || this.data.dead) return false;
+      try { localStorage.setItem(this.CP_KEY, this.serialize()); return true; } catch (e) { return false; }
+    },
+    hasCheckpoint() { try { return !!localStorage.getItem(this.CP_KEY); } catch (e) { return false; } },
+    clearCheckpoint() { try { localStorage.removeItem(this.CP_KEY); } catch (e) { /* ignore */ } },
+
+    /** Restaura o ponto de retorno após a morte (modo normal). Retorna true se deu certo. */
+    revive(cause) {
+      let d;
+      try { d = JSON.parse(localStorage.getItem(this.CP_KEY)); } catch (e) { d = null; }
+      if (!d || !d.world || !d.player) return false;
+      const old = this.data;
       try {
-        const d = this.data;
-        const copy = Object.assign({}, d, {
-          log: d.log.slice(-120),
-          world: Object.assign({}, d.world, { terrain: undefined }),
-        });
-        localStorage.setItem(Config.SAVE_KEY, JSON.stringify(copy));
-        return true;
+        d.world.terrain = Ilha.World.generate(d.world.seed || Config.SEED).terrain;
+        this.migrate(d);
+        Ilha.World.applyMods(d.world);
       } catch (e) { return false; }
+      d.sleeping = false; d.dead = null;
+      d.hardcore = !!old.hardcore;
+      d.achievements = Object.assign({}, old.achievements || {}, d.achievements || {});
+      d.catalog = Object.assign({}, old.catalog || {}, d.catalog || {});
+      d.stats = Object.assign({}, d.stats, { revives: ((old.stats && old.stats.revives) || 0) + 1 });
+      const lostDays = old.time.day - d.time.day;
+      this.data = d; this.dirty = true;
+      Ilha.World.bump();
+      Ilha.Player.recalcMax();
+      this.log(`Cyrus desmaiou (${cause}) e acorda no amanhecer, no último abrigo onde dormiu.${lostDays > 0 ? ` O tempo volta ${lostDays} dia${lostDays > 1 ? 's' : ''}.` : ''}`, 'warn');
+      this.save();
+      if (this.onRevive) this.onRevive(cause, lostDays);
+      return true;
     },
 
     /** Serializa o jogo (mesmo formato do save) para exportar. */
@@ -135,10 +175,12 @@
       Ilha.Island.migrate(d);
       if (typeof d.rainedToday !== 'boolean') d.rainedToday = false;
       if (typeof d.monsoonToday !== 'boolean') d.monsoonToday = false;
-      d.achievements = d.achievements || {};
+      d.achievements = d.achievements || {}; d.hardcore = !!d.hardcore; d.rescued = !!d.rescued; if (d.snap === undefined) d.snap = null; if (d.event === undefined) d.event = null;
       d.catalog = d.catalog || {}; d.stats = d.stats || { daysSurvived: 0, tilesWalked: 0 };
       const p = d.player;
       p.condTimers = p.condTimers || {}; p.crafted = p.crafted || {}; p.conditions = p.conditions || [];
+      p.conditions = p.conditions.filter((c) => Config.CONDITIONS[c]);
+      Object.keys(p.condTimers).forEach((c) => { if (!Config.CONDITIONS[c] && c !== 'SKIN_INFECTION_CURE') delete p.condTimers[c]; });
       p.equipped = p.equipped || { mainHand: null, offHand: null };
       if (typeof p.level !== 'number') p.level = 1;
       p.level = Math.min(p.level, Config.LEVEL_CAP);
@@ -169,7 +211,7 @@
     float(text, kind) {
       if (this.floatMute) return;
       const f = this.floats;
-      f.push({ t0: performance.now(), text, kind: kind || 'good' });
+      f.push({ t0: performance.now() + (Ilha.Fx ? Ilha.Fx.floatDelay() : 0), text, kind: kind || 'good' });
       if (f.length > 8) f.shift();
     },
 
@@ -269,7 +311,7 @@
       Ilha.Stations.hourly();
       Ilha.Player.hourlyBio();
       Ilha.Player.checkDeath();
-      if (!this.data.dead) { if (Ilha.Achievements) Ilha.Achievements.check(); if (Ilha.Goals) Ilha.Goals.check(); this.save(); }
+      if (!this.data.dead) { if (Ilha.Achievements) Ilha.Achievements.check(); if (Ilha.Goals) Ilha.Goals.check(); if (Ilha.Rescue) Ilha.Rescue.check(); if (Ilha.Events) Ilha.Events.hourly(); this.save(); }
     },
 
     /** Às 00:00. */

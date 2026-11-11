@@ -31,6 +31,7 @@
     hasCond(id) { return PL().conditions.includes(id); },
     addCondition(id, hours) {
       const p = PL();
+      if (!Config.CONDITIONS[id]) return; // condição removida/desconhecida (ex.: saves e scripts antigos)
       if (!p.conditions.includes(id)) p.conditions.push(id);
       if (hours != null) p.condTimers[id] = Math.max(p.condTimers[id] || 0, hours);
       this.recalcMax();
@@ -52,30 +53,16 @@
       Ilha.State.log(`Náusea violenta! INTOXICAÇÃO ALIMENTAR: -${B.FOOD_POISON_KCAL} kcal e -${B.FOOD_POISON_HYD}% de Hidratação.`, 'bad');
     },
 
-    checkScurvyCure() {
-      if (this.hasCond('SCURVY') && ST().vitamins > B.SCURVY_CURE_VIT) {
-        this.removeCondition('SCURVY');
-        PL().lowVitaminDays = 0;
-        Ilha.State.log('As gengivas deixam de sangrar: o ESCORBUTO foi curado pelas vitaminas!', 'good');
-      }
-      if (this.hasCond('SCURVY_RISK') && ST().vitamins >= B.SCURVY_LOW_VIT) {
-        this.removeCondition('SCURVY_RISK');
-        PL().lowVitaminDays = 0;
-      }
-    },
+    checkScurvyCure() { /* escorbuto removido (jogo simplificado) */ },
 
     /** Recalcula HP/Stamina máximos conforme condições e nutrição. */
     recalcMax() {
       const p = PL(); const st = p.stats;
       let hp = B.BASE_MAX_HP + (p.level - 1) * 2;
-      if (p.conditions.includes('SCURVY')) hp *= B.SCURVY_MAXHP_MULT;
       let sta = B.BASE_MAX_STAMINA;
       if (st.calories < B.LOW_KCAL) sta *= 0.6;
-      if (p.conditions.includes('DYSENTERY')) sta *= B.DYSENTERY_STAMINA_MULT;
       if (p.conditions.includes('FOOD_POISONING')) sta *= 0.8;
-      if (p.conditions.includes('SCURVY')) sta *= 0.85;
       if (p.conditions.includes('HYPOTHERMIA')) sta *= 0.8;
-      if (p.conditions.includes('MALARIA')) sta *= 0.4;
       st.maxHp = Math.round(hp);
       st.maxStamina = Math.max(20, Math.round(sta));
       st.hp = Math.min(st.hp, st.maxHp);
@@ -170,9 +157,10 @@
     timeMult() {
       let m = 1;
       if (this.hasCond('HYPOTHERMIA')) m *= 2;
-      if (this.hasCond('MUSCLE_ACHE')) m *= 1.2;
       return m;
     },
+    /** Primeiros dias: fome e sede mais lentas (início mais gentil). */
+    easyMult() { return D().time.day <= B.EASY_DAYS ? B.EASY_MULT : 1; },
     staminaMult() { return ST().protein > 80 ? 0.8 : 1; },
 
     estimate(c) {
@@ -203,6 +191,7 @@
       if (!c.noCheck && !this.canAfford(c)) return false;
       let minutes = (c.minutes || 0) * this.timeMult();
       if (c.walk && st.stamina <= 0) minutes *= 2; // exausto: passos lentos
+      if (Ilha.Fx && !c.walk && !c.quiet) Ilha.Fx.act(minutes); // encenação: o anel abre antes dos textos flutuantes
 
       if (!c.walk && !c.quiet && ((c.stamina || 0) * this.staminaMult() >= 2 || (c.kcal || 0) >= 20)) {
         const fs = Math.round((c.stamina || 0) * this.staminaMult()); const fk = Math.round(c.kcal || 0);
@@ -220,6 +209,7 @@
         PL().condTimers.SKIN_INFECTION_CURE = 0;
         Ilha.State.log('Sua ferida suja infeccionou: INFECÇÃO CUTÂNEA! Lave-se no rio.', 'bad');
       }
+      if (Ilha.Fx && !c.walk && !c.quiet) Ilha.Fx.timePass(minutes, c.label);
       Ilha.State.advance(minutes);
       return true;
     },
@@ -423,7 +413,7 @@
           break;
         case 'IRRIGATION_CANAL':
           UI.menu('Canal de Irrigação', [
-            { label: 'Beber direto do canal', hint: '+25% Hidratação • 35% de risco de Disenteria', action: () => this.drinkRiver() },
+            { label: 'Beber direto do canal', hint: '+25% Hidratação • 35% de risco de Intoxicação', action: () => this.drinkRiver() },
             { label: 'Coletar Água Suja (x2)', hint: 'Também serve para regar • 5 min', action: () => this.collectWater(2) },
             { label: 'Lavar-se no canal', hint: 'Recupera Higiene até 70% • 15 min', action: () => this.wash() },
           ], 'Plantações a até 2 tiles de um canal ligado ao rio são irrigadas sozinhas.');
@@ -431,7 +421,7 @@
         case 'RIVER_WATER':
           this.catalogOnce('Rio de Água Doce');
           UI.menu('Rio de Água Doce', [
-            { label: 'Beber direto do rio', hint: '+25% Hidratação • 35% de risco de Disenteria', action: () => this.drinkRiver() },
+            { label: 'Beber direto do rio', hint: '+25% Hidratação • 35% de risco de Intoxicação', action: () => this.drinkRiver() },
             { label: 'Coletar Água Suja (x2)', hint: 'Para ferver ou filtrar depois • 5 min', action: () => this.collectWater(2) },
             { label: 'Lavar-se no rio', hint: 'Recupera Higiene até 70% • 15 min', action: () => this.wash() },
             { label: 'Pescar com Lança', hint: 'Requer Lança de Madeira equipada • 45 min', action: () => this.fish(true) },
@@ -450,6 +440,7 @@
           if (Crafting().room('sand') <= 0) { say('Mochila cheia.'); return; }
           this.catalogOnce('Areia de Praia');
           if (!this.act({ minutes: 5, kcal: 8, stamina: 1, hygiene: -1 })) return;
+          if (Ilha.Fx) Ilha.Fx.hit(x, y, 'sand');
           Crafting().add('sand', 2);
           Ilha.State.log('Você peneira e junta 2x Areia.', 'good');
           break;
@@ -458,6 +449,7 @@
           if ((w.dug[k] || 0) > day) { say('Esta margem já foi escavada. Volte em alguns dias.', 'hint'); return; }
           if (Crafting().room('clay') <= 0) { say('Mochila cheia.'); return; }
           if (!this.act({ minutes: 20, kcal: 35, stamina: 6, hygiene: -6, work: true })) return;
+          if (Ilha.Fx) Ilha.Fx.hit(x, y, 'dirt');
           Crafting().add('clay', 1);
           w.dug[k] = day + 2;
           Ilha.State.log('Você escava a margem com as mãos e junta 1x Argila Úmida.', 'good');
@@ -488,6 +480,7 @@
       if ((w.dug[k] || 0) > day) { say('O solo aqui já foi revirado. Tente outro lugar.', 'hint'); return; }
       if (Crafting().room('root') <= 0) { say('Mochila cheia.'); return; }
       if (!this.act({ minutes: 25, kcal: 50, stamina: 8, hygiene: -3, work: true })) return;
+      if (Ilha.Fx) Ilha.Fx.hit(x, y, 'dirt');
       w.dug[k] = day + 3;
       if (Math.random() < 0.55) {
         const n = 1 + Math.floor(Math.random() * 2);
@@ -597,10 +590,8 @@
       st.hydration = clamp(st.hydration + 25, 0, 100);
       if (Ilha.Audio) Ilha.Audio.play('drink');
       Ilha.State.log('Você bebe da corrente do rio. +25% Hidratação.');
-      if (Math.random() < B.DYSENTERY_CHANCE) {
-        this.addCondition('DYSENTERY', B.DYSENTERY_HOURS);
-        Ilha.State.log('A água estava contaminada: DISENTERIA! Hidratação cai 3x mais rápido.', 'bad');
-      } else Ilha.State.log('Você teve sorte: a água não lhe fez mal… desta vez.', 'warn');
+      if (Math.random() < B.DIRTY_WATER_CHANCE) this.foodPoisoning();
+      else Ilha.State.log('Você teve sorte: a água não lhe fez mal… desta vez.', 'warn');
     },
 
     collectWater(n) {
@@ -608,6 +599,7 @@
       const room = C.room('dirty_water');
       if (room <= 0) { say('Mochila cheia.'); return; }
       if (!this.act({ minutes: 5, kcal: 3, stamina: 0, noCheck: true })) return;
+      if (Ilha.Fx) Ilha.Fx.hitFacing('water');
       const got = C.add('dirty_water', Math.min(n, room));
       if (got > 0 && !PL().crafted.first_water) { PL().crafted.first_water = true; Ilha.State.log('Você aprendeu o caminho do rio: a rotina “Buscar água” está liberada em [T].', 'xp'); }
       Ilha.State.log(`Você coleta ${got}x Água Suja do Rio. Ferva ou filtre antes de beber.`, 'good');
@@ -627,6 +619,7 @@
       if (!C.hasTool('spear')) { say('Pescar exige uma Lança de Madeira equipada numa das mãos.'); return; }
       if (C.room('raw_fish') <= 0) { say('Mochila cheia.'); return; }
       if (!this.act({ minutes: 25, kcal: 45, stamina: 6, hygiene: -1 })) return;
+      if (Ilha.Fx) Ilha.Fx.hitFacing('water');
       if (Math.random() < (river ? 0.65 : 0.55)) {
         const n = Math.random() < 0.15 ? 2 : 1;
         const got = C.add('raw_fish', n);
@@ -647,6 +640,7 @@
         if (C.room(firstDrop) <= 0) { say('Mochila cheia: libere peso antes de coletar.'); return; }
         const mult = def.tool ? C.toolMult(def.tool) : 1;
         if (!Player.act({ minutes: def.minutes * mult, kcal: def.kcal * mult, stamina: def.stamina, hygiene: def.hygiene, work: true })) return;
+        if (Ilha.Fx) Ilha.Fx.hit(x, y, def.tool === 'axe' ? 'wood' : (def.tool === 'pickaxe' || def.drops[0].id === 'stone' || def.handler === 'mine') ? 'stone' : def.drops[0].id === 'clay' ? 'dirt' : 'leaf', id);
         if (Ilha.Audio) Ilha.Audio.play(def.tool === 'axe' ? 'chop' : (def.tool === 'pickaxe' || def.drops[0].id === 'stone' || def.handler === 'mine') ? 'stone' : 'pick');
         const got = [];
         def.drops.forEach((dr) => {
@@ -657,6 +651,8 @@
           if (added < n) Ilha.State.log('Sua mochila está cheia: parte do material ficou para trás.', 'warn');
         });
         Ilha.State.log(`${def.verb}: ${def.name}. Obteve: ${got.join(', ') || 'nada'}.`, 'good');
+        const unl = { BUSH_TWIGS: 'first_branches', BOULDER_STONE: 'first_stone', TREE_HARDWOOD: 'first_logs' }[id];
+        if (unl && !PL().crafted[unl]) { PL().crafted[unl] = true; Ilha.State.log('Você pegou o jeito: uma rotina nova está liberada em [T].', 'xp'); }
         const seedSrc = { BUSH_TWIGS: 'bush', CITRUS_TREE: 'citrus', HERB_PLANT: 'herb' }[id];
         if (seedSrc) Ilha.Farming.seedDrop(seedSrc);
         if (id === 'IRON_VEIN' && !PL().crafted.first_mine) { PL().crafted.first_mine = true; Player.gainXP(60, 'primeira mineração'); }
@@ -953,15 +949,19 @@
       if (mode === 'sleep') {
         if (slept >= 6 && q.total >= 70) {
           this.addCondition('WELL_RESTED', B.WELL_RESTED_HOURS);
-          this.removeCondition('MUSCLE_ACHE');
           Ilha.State.log('Você acorda revigorado: BEM DESCANSADO.', 'good');
-        } else if (slept >= 4 && q.total < 40) {
-          this.addCondition('MUSCLE_ACHE', B.MUSCLE_ACHE_HOURS);
-          Ilha.State.log('Dormir assim, sem conforto, deixou o corpo dolorido: DORES MUSCULARES.', 'bad');
         }
       }
       Ilha.State.log(`Você ${mode === 'rest' ? 'descansou' : 'dormiu'} ${slept}h. Stamina ${Math.round(startStamina)} → ${Math.round(st.stamina)}.`);
+      const willSum = mode === 'sleep' && slept >= 4 && !!Ilha.Rescue; // o resumo do dia mostra o relógio no lugar do cartão
+      if (Ilha.Fx && slept >= 1 && !willSum) Ilha.Fx.timePass(slept * 60, mode === 'rest' ? 'Descansou' : 'Dormiu', mode === 'rest' ? '' : 'sleep');
       Ilha.State.touch();
+      if (mode === 'sleep' && slept >= 4 && !d.dead && Ilha.Rescue) {
+        if (Ilha.Achievements) Ilha.Achievements.check();
+        const sum = Ilha.Rescue.daySummary(); sum.slept = slept;
+        Ilha.State.checkpointSave();
+        if (Ilha.UI && Ilha.UI.showDaySummary) Ilha.UI.showDaySummary(sum);
+      }
     },
 
     // ------------------------------------------------------------
@@ -977,13 +977,12 @@
       const timers = p.condTimers;
 
       // 1) Calorias
-      st.calories = Math.max(0, st.calories - B.BASAL_KCAL_H);
+      st.calories = Math.max(0, st.calories - B.BASAL_KCAL_H * this.easyMult());
 
       // 2) Hidratação
       let hyd = (S.sunStrong() && !shel) ? B.HYDRATION_SUN_H : B.HYDRATION_H;
-      if (this.hasCond('DYSENTERY')) hyd *= B.DYSENTERY_HYD_MULT;
       if (sleeping) hyd *= B.SLEEP_HYD_MULT;
-      st.hydration = Math.max(0, st.hydration - hyd);
+      st.hydration = Math.max(0, st.hydration - hyd * this.easyMult());
 
       // 3) Higiene
       st.hygiene = Math.max(0, st.hygiene - B.HYGIENE_H);
@@ -1019,31 +1018,10 @@
         S.log('O calor volta ao seu corpo: a Hipotermia passou.', 'good');
       }
 
-      // 4b) Malária / Febre Tropical: noites na selva, a partir do dia 4, sem abrigo nem fogo
-      if (d.time.day >= 4 && !this.hasCond('MALARIA') && !shel && !fire && Ilha.World.terrainAt(p.x, p.y) === 'JUNGLE_FLOOR' &&
-          (d.time.hour >= 19 || d.time.hour < 6) && Math.random() < 0.03) {
-        this.addCondition('MALARIA', 96);
-        S.log('Picadas de mosquito na selva à noite: MALÁRIA! A febre derruba suas forças. Procure Quinino.', 'bad');
-      }
-      if (this.hasCond('MALARIA')) {
-        timers.MALARIA = (timers.MALARIA || 96) - 1;
-        st.bodyTemp = Math.max(st.bodyTemp, 38.3);
-        st.hp = Math.max(0, st.hp - 0.5);
-        if (timers.MALARIA <= 0) { this.removeCondition('MALARIA'); S.log('A febre finalmente cedeu sozinha: a Malária passou.', 'good'); }
-      }
-
       // 5) Temporizadores das condições
-      if (this.hasCond('DYSENTERY')) {
-        timers.DYSENTERY = (timers.DYSENTERY || 0) - (sleeping ? 3 : 1);
-        if (timers.DYSENTERY <= 0) { this.removeCondition('DYSENTERY'); S.log('A Disenteria finalmente cedeu.', 'good'); }
-      }
       if (this.hasCond('FOOD_POISONING')) {
         timers.FOOD_POISONING = (timers.FOOD_POISONING || 0) - 1;
         if (timers.FOOD_POISONING <= 0) { this.removeCondition('FOOD_POISONING'); S.log('A náusea passou: a Intoxicação Alimentar acabou.', 'good'); }
-      }
-      if (this.hasCond('MUSCLE_ACHE')) {
-        timers.MUSCLE_ACHE = (timers.MUSCLE_ACHE || 0) - 1;
-        if (timers.MUSCLE_ACHE <= 0) this.removeCondition('MUSCLE_ACHE');
       }
       if (this.hasCond('WELL_RESTED')) {
         timers.WELL_RESTED = (timers.WELL_RESTED || 0) - 1;
@@ -1125,20 +1103,6 @@
       st.protein = Math.max(0, st.protein - B.PROTEIN_DAILY);
       st.vitamins = Math.max(0, st.vitamins - B.VITAMIN_DAILY);
 
-      if (st.vitamins < B.SCURVY_LOW_VIT) p.lowVitaminDays++; else p.lowVitaminDays = 0;
-      if (p.lowVitaminDays >= 1 && !this.hasCond('SCURVY_RISK') && !this.hasCond('SCURVY')) {
-        this.addCondition('SCURVY_RISK');
-        S.log('Suas gengivas doem: as Vitaminas estão perigosamente baixas (risco de Escorbuto).', 'warn');
-      }
-      if (p.lowVitaminDays >= B.SCURVY_DAYS && !this.hasCond('SCURVY')) {
-        this.removeCondition('SCURVY_RISK');
-        this.addCondition('SCURVY');
-        S.log('Após 3 dias sem vitaminas, surge o ESCORBUTO: HP máximo -40% e sangramento lento.', 'bad');
-      }
-      if (this.hasCond('SCURVY')) {
-        st.hp = Math.max(0, st.hp - B.SCURVY_DAILY_HP);
-        S.log(`O Escorbuto drena ${B.SCURVY_DAILY_HP} HP durante a noite.`, 'bad');
-      }
       this.checkScurvyCure();
       this.recalcMax();
       // Sobreviver ao dia
@@ -1163,7 +1127,7 @@
       const cs = Ilha.Building.civStats();
       const mEng = clamp(0.5 + 0.05 * (p.level - 1) + 0.1 * cs.types + (cs.heatedRoom ? 0.3 : 0) +
         0.15 * Math.min(3, cs.hydraulic) + 0.2 * Math.min(3, cs.electric) + (cs.telegraph ? 0.5 : 0), 0.5, 3);
-      const mEco = Ilha.Economy.ecoScore(); // tribos descobertas (+0.3 cada) + reputação/volume de trocas (até +1.1)
+      const mEco = Ilha.Economy.ecoScore(); // tribo descoberta (+0.5) + reputação/volume de trocas (até +1.5)
       const points = Math.round(10 * (mSaude + mNutri + mConf + mEng + mEco) * 10) / 10;
       return { points, mSaude, mNutri, mConf, mEng, mEco, structures, base: cs };
     },
@@ -1180,9 +1144,9 @@
       else if (st.hydration <= 0) cause = 'desidratação';
       else if (this.hasCond('HYPOTHERMIA')) cause = 'hipotermia';
       else if (this.hasCond('SKIN_INFECTION')) cause = 'infecção generalizada';
-      else if (this.hasCond('SCURVY')) cause = 'escorbuto';
       d.dead = { cause, day: d.time.day, time: Ilha.State.timeString() };
       if (Ilha.Audio) Ilha.Audio.play('death');
+      if (!d.hardcore && Ilha.State.hasCheckpoint() && Ilha.State.revive(cause)) return; // morte leve: volta ao amanhecer
       Ilha.State.log(`Cyrus Smith sucumbiu a ${cause}. Fim de jogo.`, 'bad');
       Ilha.State.clearSave();
       if (Ilha.State.onDeath) Ilha.State.onDeath();

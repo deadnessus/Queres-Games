@@ -39,6 +39,8 @@
     BIO: {
       MAX_CALORIES: 3000,
       BASAL_KCAL_H: 80,
+      EASY_DAYS: 3,        // nos primeiros dias a fome e a sede são mais lentas
+      EASY_MULT: 0.6,
       HYDRATION_H: 4,
       HYDRATION_SUN_H: 8,
       HYDRATION_RAIN_H: 3,
@@ -52,7 +54,7 @@
       SCURVY_CURE_VIT: 60,
       SCURVY_DAILY_HP: 5,
       SCURVY_MAXHP_MULT: 0.6,
-      DYSENTERY_CHANCE: 0.35,
+      DIRTY_WATER_CHANCE: 0.35,   // água suja: chance de intoxicação
       DYSENTERY_HOURS: 72,
       DYSENTERY_STAMINA_MULT: 0.7,
       FOOD_POISON_RAW_CHANCE: 0.4,
@@ -175,21 +177,6 @@
 
     // ---- Condições (doenças e buffs) ---------------------------------
     CONDITIONS: {
-      DYSENTERY: {
-        name: 'Disenteria', kind: 'bad', icon: '☣',
-        desc: 'Hidratação cai 3x mais rápido e a Stamina máxima é reduzida em 30%.',
-        cure: 'Beba apenas água fervida ou filtrada, tome Chá de Ervas e descanse/durma por cerca de 2 dias.',
-      },
-      SCURVY: {
-        name: 'Escorbuto', kind: 'bad', icon: '☠',
-        desc: 'HP máximo reduzido em 40%, sangramento lento (-5 HP/dia) e fadiga.',
-        cure: 'Coma frutas cítricas ou vegetais frescos até as Vitaminas passarem de 60%.',
-      },
-      SCURVY_RISK: {
-        name: 'Risco de Escorbuto', kind: 'warn', icon: '!',
-        desc: 'As Vitaminas estão abaixo de 20%. Após 3 dias assim surge o Escorbuto.',
-        cure: 'Colha Frutas Cítricas nas árvores silvestres da floresta.',
-      },
       FOOD_POISONING: {
         name: 'Intoxicação Alimentar', kind: 'bad', icon: '☢',
         desc: 'Náusea: perda de Hidratação, HP e Stamina máxima reduzida por algumas horas.',
@@ -204,16 +191,6 @@
         name: 'Infecção Cutânea', kind: 'bad', icon: '✚',
         desc: 'Dano contínuo de HP e febre. Surge ao trabalhar ferido com Higiene < 30%.',
         cure: 'Lave-se no rio (Higiene ≥ 60%) e descanse; Ervas Medicinais aceleram a cura.',
-      },
-      MALARIA: {
-        name: 'Malária / Febre Tropical', kind: 'bad', icon: '♨',
-        desc: 'Picos de febre: a Stamina máxima despenca (×0,4) e há tremores à noite.',
-        cure: 'Extrato de Quinino Refinado (Laboratório Químico: Ervas + Ácido Sulfúrico) e uma cama aquecida.',
-      },
-      MUSCLE_ACHE: {
-        name: 'Dores Musculares', kind: 'bad', icon: '≈',
-        desc: 'Ações 20% mais lentas. Causado por sono ruim no chão/na chuva.',
-        cure: 'Durma em um Abrigo de Folhas perto de uma Fogueira.',
       },
       WELL_RESTED: {
         name: 'Bem Descansado', kind: 'good', icon: '☼',

@@ -62,6 +62,13 @@
       document.querySelectorAll('[data-action]').forEach((b) => {
         b.addEventListener('click', () => this.action(b.dataset.action));
       });
+      // barras do topo: ícones em pixel art do próprio jogo; clicar/tocar mostra o nome e o valor
+      const HUD_ICON = { hp: 'hud_hp', calories: 'hud_food', hydration: 'hud_water', stamina: 'hud_breath' };
+      document.querySelectorAll('#hudBars .gauge').forEach((g) => {
+        const lab = g.querySelector('.g-label'); const ic = HUD_ICON[g.dataset.g];
+        if (lab && ic) { lab.textContent = ''; lab.appendChild(iconImg(ic, 2)); }
+        g.addEventListener('click', () => this.toast(g.title || g.dataset.name));
+      });
       $('slotMain').addEventListener('click', () => { if (!D().sleeping) Cr().unequip('mainHand'); });
       $('slotOff').addEventListener('click', () => { if (!D().sleeping) Cr().unequip('offHand'); });
       $('modalClose').addEventListener('click', () => this.closeModal());
@@ -77,7 +84,9 @@
         case 'inventory': case 'craft': case 'map': case 'journal': case 'rest': case 'routines': this.toggle(name); break;
         case 'fullscreen': Ilha.Main.fullscreen(); break;
         case 'mute': Ilha.Audio.toggleMute(); break;
+        case 'zoom': Ilha.Main.toggleZoom(); break;
         case 'goal': this.toggleGoal(); break;
+        case 'event': this.showEvent(); break;
         case 'save':
           S().save(); this.toast('Jogo salvo.');
           break;
@@ -99,20 +108,19 @@
       const d = st.data; const p = d.player; const s = p.stats;
       if (Ilha.Achievements) Ilha.Achievements.check();
       if (Ilha.Goals) Ilha.Goals.check();
+      if (Ilha.Rescue) Ilha.Rescue.check();
       this.renderGoal();
+      this.renderRescue(); this.renderEvent();
       if (Ilha.Audio) Ilha.Audio.setRain(!d.dead && !d.sleeping && Ilha.State.weather().wet);
 
       // Log
       const box = $('logBox');
       const fresh = d.log.filter((l) => l.id > this.lastLogId);
       if (fresh.length) {
-        const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-        fresh.forEach((l) => {
-          box.appendChild(el('p', { class: 'logline ' + l.cls }, el('span', { class: 'ts', text: l.t + ' ' }), l.text));
-          this.lastLogId = l.id;
-        });
-        while (box.children.length > 220) box.removeChild(box.firstChild);
-        if (nearBottom || force) box.scrollTop = box.scrollHeight;
+        // só as 2 últimas linhas ficam sobre o mundo; o histórico completo está no Diário → Registro
+        fresh.slice(-2).forEach((l) => box.appendChild(el('p', { class: 'logline ' + l.cls, title: l.t }, el('span', { class: 'ts', text: l.t + ' ' }), l.text)));
+        this.lastLogId = fresh[fresh.length - 1].id;
+        while (box.children.length > 2) box.removeChild(box.firstChild);
       }
 
       // Mãos
@@ -120,13 +128,10 @@
       this.renderSlot('slotOffBody', p.equipped.offHand);
 
       // Mostradores
-      const imm = (s.protein + s.vitamins) / 2;
       this.gauge('hp', s.hp, s.maxHp, 100, `${fmt(s.hp)}`);
       this.gauge('stamina', s.stamina, s.maxStamina, 100, `${fmt(s.stamina)}`);
       this.gauge('calories', s.calories, s.maxCalories, s.maxCalories, `${fmt(s.calories)}`);
       this.gauge('hydration', s.hydration, 100, 100, `${fmt(s.hydration)}%`);
-      this.gauge('immunity', imm, 100, 100, `${fmt(imm)}%`);
-      this.gauge('comfort', s.comfort, 100, 100, `${fmt(s.comfort)}%`);
 
       // Relógio
       const t = d.time;
@@ -136,7 +141,7 @@
       $('clkWeather').textContent = `${st.weather().label} · ${Math.round(st.ambientTemp())}°C${inRoom ? ' · Interior' + (inRoom.heated ? ' aquecido' : '') : ''}`;
       const pw = d.power;
       const pe = $('clkPower');
-      if (pe) { const show = pw && (pw.cap > 0 || pw.gen > 0); pe.classList.toggle('hidden', !show); if (show) pe.textContent = `⚡ ${pw.stored.toFixed(1)}/${pw.cap} kWh (+${pw.gen || 0}/h)`; }
+      if (pe) { const show = pw && pw.gen > 0; pe.classList.toggle('hidden', !show); if (show) pe.textContent = `⚡ Energia ligada (${pw.use || 0} em uso)`; }
       $('clkTemp').textContent = `Corpo ${s.bodyTemp.toFixed(1)}°C`;
       $('clkTemp').style.color = s.bodyTemp < Config.BIO.HYPOTHERMIA_ON ? '#ff8466' : s.bodyTemp > 38 ? '#ffd24a' : '';
       const civ = Pl().civScore();
@@ -185,7 +190,7 @@
       g.querySelector('.g-cap').style.width = clamp(100 - (max / scaleMax) * 100, 0, 100) + '%';
       g.querySelector('.g-val').textContent = text;
       g.classList.toggle('low', val / Math.max(1, max) < 0.2);
-      g.title = `${g.querySelector('.g-label').textContent}: ${text}`;
+      g.title = `${g.dataset.name || id}: ${text}`;
     },
 
     renderSlot(id, itemId) {
@@ -249,7 +254,7 @@
         site: () => this.buildSite(),
         routines: () => this.buildRoutines(),
       };
-      if (name === 'craft' && !this.craftTab) this.craftTab = D().player.era;
+      if (name === 'craft' && this.craftTab == null) this.craftTab = 0;
       const build = (opts && opts.build) || builders[name];
       if (!build) return;
       this.modal = { name, build, closable: !(opts && opts.closable === false), live: !(opts && opts.live === false) && !!builders[name] };
@@ -383,6 +388,7 @@
       const body = el('div');
       const tabs = el('div', { class: 'tabs' });
       const firstLevel = { 1: 1, 2: 4, 3: 8, 4: 12 };
+      tabs.appendChild(el('button', { class: 'tab' + (this.craftTab === 0 ? ' active' : ''), text: '⭐ Agora', onclick: () => { this.craftTab = 0; this.rerender(); } }));
       Config.ERAS.forEach((era) => {
         const locked = p.level < firstLevel[era.id];
         tabs.appendChild(el('button', {
@@ -393,9 +399,13 @@
       });
       body.appendChild(tabs);
 
-      const era = Config.ERAS[(this.craftTab || 1) - 1];
-      body.appendChild(el('h3', { text: `Era ${era.id} — ${era.name} (Níveis ${era.levels})` }));
-      body.appendChild(el('div', { class: 'quote small', text: era.diary || era.text }));
+      const nowView = this.craftTab === 0;
+      const era = Config.ERAS[(nowView ? p.era : this.craftTab) - 1];
+      if (nowView) body.appendChild(el('p', { class: 'small', html: '⭐ <b>Só o que importa agora:</b> o que você já pode fazer e o que está quase lá. Para ver tudo, use as abas de Era.' }));
+      else {
+        body.appendChild(el('h3', { text: `Era ${era.id} — ${era.name} (Níveis ${era.levels})` }));
+        body.appendChild(el('div', { class: 'quote small', text: era.diary || era.text }));
+      }
       const fire = P.nearLitFire();
       body.appendChild(el('p', { class: 'small', html: `Seu nível: <b>${p.level}</b> · Fogueira/lareira acesa por perto: <b class="${fire ? 'c-ok' : 'c-bad'}">${fire ? 'SIM ✔' : 'NÃO ✘'}</b> · Estruturas são posicionadas no <b>modo construção</b> (clique no mapa; Esc sai).` }));
       body.appendChild(el('p', {}, el('button', { class: 'btn sm danger', text: '⛏ Modo Demolir (devolve 50%)', onclick: () => { this.closeModal(); Ilha.Building.setMode('demolish'); } })));
@@ -405,11 +415,12 @@
         if (C.RECIPE_ICON_OBJ[r.id]) return objImg(C.RECIPE_ICON_OBJ[r.id]);
         return iconImg({ floor: 'plank', roof: 'roof_tile', canal: 'iron_shovel' }[r.icon] || 'stone', 3);
       };
-      const group = (title, kind) => {
-        const list = C.visibleRecipes().filter((r) => r.kind === kind && C.eraOf(r) === era.id);
+      const group = (title, kind, custom) => {
+        const list = custom || C.visibleRecipes().filter((r) => r.kind === kind && C.eraOf(r) === era.id);
         if (!list.length) return;
         body.appendChild(el('h3', { text: title }));
         list.forEach((r) => {
+          const kind = r.kind;
           const st = C.status(r, null, true);
           const est = P.estimate(r);
           const chips = r.in.map((i) => {
@@ -420,7 +431,7 @@
           if (!st.levelOk) notes.push(el('span', { class: 'c-bad', text: ` 🔒 Requer Nível ${r.minLevel}` }));
           if (r.tool) notes.push(el('span', { class: st.toolOk ? 'c-ok' : 'c-bad', text: ` ${st.toolOk ? '✔' : '✘'} ${Config.TOOL_NAMES[r.tool] || r.tool} equipado` }));
           if (r.station) notes.push(el('span', { class: st.stationOk ? 'c-ok' : 'c-bad', text: ` ${st.stationOk ? '✔' : '✘'} ${Config.STATION_NAMES[r.station]} por perto` }));
-          if (r.power) notes.push(el('span', { class: st.powerOk ? 'c-ok' : 'c-bad', text: ` ⚡ ${r.power} kWh` }));
+          if (r.power) notes.push(el('span', { class: st.powerOk ? 'c-ok' : 'c-bad', text: ' ⚡ energia' }));
           if (r.fire) notes.push(el('span', { class: st.fireOk ? 'c-ok' : 'c-bad', text: st.fireOk ? ' 🔥 Fogueira ✔' : ' 🔥 Requer fogo aceso próximo ✘' }));
           if (r.rule === 'river') notes.push(el('span', { class: 'c-warn', text: ' ≈ ao lado do rio' }));
           const crafted = p.crafted[r.id];
@@ -443,8 +454,19 @@
             }))));
         });
       };
-      group('Fabricação', 'item');
-      group('Construção (modo construção)', 'structure');
+      if (nowView) {
+        const vis = C.visibleRecipes();
+        const stOf = (r) => C.status(r, null, true);
+        const ready = vis.filter((r) => { const s = stOf(r); return s.levelOk && s.toolOk && (r.site || !s.missing.length) && (r.kind === 'structure' || (s.stationOk && s.fireOk && s.powerOk)); });
+        const readyIds = new Set(ready.map((r) => r.id));
+        const near = vis.filter((r) => { const s = stOf(r); return !readyIds.has(r.id) && s.levelOk && (s.missing.length <= 1 || (!s.missing.length && (!s.toolOk || !s.stationOk || !s.fireOk))) && C.eraOf(r) <= p.era; });
+        group('Dá para fazer agora', null, ready.filter((r) => !p.crafted[r.id]).concat(ready.filter((r) => p.crafted[r.id])).slice(0, 12));
+        group('Falta pouco', null, near.slice(0, 8));
+        if (!ready.length && !near.length) body.appendChild(el('p', { class: 'muted', text: 'Colete galhos, pedras e água; depois volte aqui. As abas de Era mostram tudo.' }));
+      } else {
+        group('Fabricação', 'item');
+        group('Construção (modo construção)', 'structure');
+      }
 
       return { title: 'Engenharia & Criação', body, foot: [el('button', { class: 'btn', text: 'Fechar [C]', onclick: () => this.closeModal() })] };
     },
@@ -496,10 +518,10 @@
         const why = !rec ? 'Selecione uma receita.'
           : active ? 'Em operação.'
           : (stn.progress > 0 || Object.keys(rec.in).every((id) => (stn.in[id] || 0) >= rec.in[id]))
-            ? (needFuel && stn.fuel < 1 ? 'Parado: sem combustível.' : hyd ? 'Parado: sem Roda d\'Água com torque livre a até 2 tiles.' : 'Aguardando a próxima hora.')
+            ? (needFuel && stn.fuel < 1 ? 'Parado: sem combustível.' : hyd ? 'Parado: precisa de uma Roda d\'Água a até 2 tiles.' : 'Aguardando a próxima hora.')
             : 'Parado: faltam insumos.';
         body.appendChild(el('p', { class: active ? 'c-ok' : 'c-warn', text: `Estado: ${why}${stn.progress > 0 ? ` (${stn.progress}h restantes no lote)` : ''}` }));
-        body.appendChild(el('p', { class: 'small muted', text: 'Funciona sozinha a cada hora, sem gastar tempo ou calorias de Cyrus.' + (needFuel ? ` Combustível: ${stn.fuel.toFixed(1)} h (Tora 3h, Carvão 5h, Galhos 0,5h).` : ` Torque necessário: ${St.TORQUE_NEED[obj]}.`) }));
+        body.appendChild(el('p', { class: 'small muted', text: 'Funciona sozinha a cada hora, sem gastar tempo ou calorias de Cyrus.' + (needFuel ? ` Combustível: ${stn.fuel.toFixed(1)} h (Tora 3h, Carvão 5h, Galhos 0,5h).` : ' Precisa de uma Roda d\'Água ao lado (até 2 tiles).') }));
 
         body.appendChild(el('h3', { text: 'Receita' }));
         recs.forEach((r) => {
@@ -542,7 +564,7 @@
       }
 
       // Estações manuais: bancada, laboratório, oficina
-      body.appendChild(el('p', { class: 'small muted', text: type === 'workshop' ? `Energia: ${pw.stored.toFixed(1)} kWh disponíveis (1 kWh por peça).` : 'Fabricação manual: gasta tempo e calorias de Cyrus.' }));
+      body.appendChild(el('p', { class: 'small muted', text: type === 'workshop' ? (pw.on[`${pos.x},${pos.y}`] ? 'Oficina ligada: o Dínamo fornece a energia.' : 'Oficina sem energia: ligue-a a um Dínamo a até 5 tiles.') : 'Fabricação manual: gasta tempo e calorias de Cyrus.' }));
       const recs = C.RECIPES.filter((r) => r.station === type);
       body.appendChild(el('h3', { text: 'Fabricar' }));
       recs.forEach((r) => {
@@ -654,7 +676,7 @@
       const rs = this.routineState = this.routineState || {};
       const sign = (v) => (v >= 0 ? '+' : '−') + Math.abs(Math.round(v));
       const kfmt = (v) => `${sign(v)} kcal`;
-      ['fish', 'water', 'roots'].forEach((id) => {
+      ['fish', 'water', 'roots', 'branches', 'stone', 'logs', 'planks'].forEach((id) => {
         const def = R.DEFS[id];
         const card = el('div', { class: 'routine' });
         card.appendChild(el('h3', { text: `${def.icon} ${def.name}` }));
@@ -684,6 +706,7 @@
         if (id === 'fish') { opts.appendChild(opt('cook', 'Assar na fogueira', hasFire, 'sem fogueira por perto')); opts.appendChild(opt('eat', 'Comer até saciar', hasFire && st.cook, 'precisa assar')); }
         if (id === 'water') opts.appendChild(opt('boil', 'Ferver na fogueira', hasFire, 'sem fogueira por perto'));
         if (id === 'roots') opts.appendChild(opt('eat', 'Comer até saciar', true, ''));
+        if (id === 'planks') card.appendChild(el('p', { class: 'small muted', text: 'Usa as toras da mochila (cada uma rende 4 tábuas). Corte toras primeiro.' }));
         opts.appendChild(opt('store', 'Guardar no caixote/baú mais próximo', hasStore, 'sem armazém por perto'));
         card.appendChild(opts);
         // resumo líquido
@@ -743,7 +766,7 @@
       const d = D(); const p = d.player; const s = p.stats;
       const body = el('div');
       const tabs = el('div', { class: 'tabs' });
-      [['diag', 'Diagnóstico Médico'], ['eng', 'Engenharia & Eras'], ['hist', 'Índice de Civilização'], ['tribes', 'Ilha & Tribos'], ['ach', 'Conquistas'], ['sys', 'Sistema / Save']].forEach(([id, label]) => {
+      [['diag', 'Diagnóstico Médico'], ['eng', 'Engenharia & Eras'], ['hist', 'Índice de Civilização'], ['tribes', 'Ilha & Tribo'], ['ach', 'Conquistas'], ['log', 'Registro'], ['sys', 'Sistema / Save']].forEach(([id, label]) => {
         tabs.appendChild(el('button', { class: 'tab' + (this.journalTab === id ? ' active' : ''), text: label, onclick: () => { this.journalTab = id; this.rerender(); } }));
       });
       body.appendChild(tabs);
@@ -777,14 +800,13 @@
             el('div', { class: 'cc', text: cd.desc }),
             cd.cure ? el('div', { class: 'cc', html: `<b>Tratamento:</b> ${cd.cure}` }) : null));
         });
-        if (p.lowVitaminDays > 0) body.appendChild(el('p', { class: 'c-warn small', text: `Dias seguidos com Vitaminas < 20%: ${p.lowVitaminDays}/3 (3 dias causam Escorbuto).` }));
 
         body.appendChild(el('h3', { text: 'Recomendações do Dr. Smith' }));
         const tips = [];
-        if (s.hydration < 45) tips.push('Beba água FERVIDA ou PURIFICADA. A água suja do rio tem 35% de chance de causar Disenteria.');
+        if (s.hydration < 45) tips.push('Beba água FERVIDA ou PURIFICADA. A água suja do rio tem 35% de chance de causar Intoxicação.');
         if (s.calories < 1000) tips.push('Calorias baixas: coma Raízes Comestíveis (cave a grama/selva), Ração de Emergência ou Peixe Assado.');
         if (s.protein < 45) tips.push('Proteínas baixas: pesque com a Lança de Madeira e asse o Peixe na Fogueira (cru pode intoxicar).');
-        if (s.vitamins < 45) tips.push('Vitaminas baixas: colha Frutas Cítricas nas árvores silvestres. Abaixo de 20% por 3 dias → Escorbuto.');
+        if (s.vitamins < 45) tips.push('Vitaminas baixas: colha Frutas Cítricas nas árvores silvestres e coma vegetais.');
         if (s.hygiene < 45) tips.push('Higiene baixa: lave-se no rio (até 70%). Trabalhar ferido e sujo causa Infecção Cutânea.');
         if (S().isNight() && !Pl().nearLitFire() && !Pl().nearShelter()) tips.push('Noite fria: acenda uma Fogueira e/ou construa um Abrigo de Folhas antes de dormir para evitar Hipotermia.');
         if (s.stamina < 30) tips.push('Stamina baixa: descanse ou durma com [R], de preferência junto ao abrigo e à fogueira.');
@@ -824,7 +846,7 @@
         const sc = Pl().civScore();
         body.appendChild(el('h3', { text: 'Índice de Civilização — hoje' }));
         body.appendChild(el('p', { html: `<b>${sc.points.toFixed(1)} pts</b> projetados para hoje · acumulado: <b>${d.score.totalAccumulatedScore.toFixed(1)}</b> · dias sobrevividos: <b>${d.stats.daysSurvived}</b>` }));
-        const parts = [['Saúde', sc.mSaude, 2], ['Nutrição', sc.mNutri, 2], ['Conforto', sc.mConf, 2], ['Engenharia', sc.mEng, 3], ['Economia (tribos)', sc.mEco, 2]];
+        const parts = [['Saúde', sc.mSaude, 2], ['Nutrição', sc.mNutri, 2], ['Conforto', sc.mConf, 2], ['Engenharia', sc.mEng, 3], ['Economia (tribo)', sc.mEco, 2]];
         const g = el('div', { class: 'diag-grid' });
         parts.forEach(([n, v, mx]) => g.appendChild(diag(`M ${n}`, v, mx, '#8a6c26', `${v.toFixed(2)}/${mx}`)));
         body.appendChild(g);
@@ -838,8 +860,8 @@
         const I = Ilha.Island; const E = Ilha.Economy; const m = d.map;
         body.appendChild(el('h3', { text: 'Exploração da Ilha Lincoln' }));
         body.appendChild(el('p', { html: `Setores revelados: <b>${I.revealedCount()}/${I.landCount()}</b> · Expedições de desbravamento: <b>${m.explored}</b> · Conchas de Escambo: <b>${m.credits} UT</b> · Trocas realizadas: <b>${m.trades}</b> (${Math.round(m.volume)} UT)` }));
-        body.appendChild(el('p', { class: 'small muted', text: 'Use o Mapa [M] para explorar setores, vasculhar locais de saque e negociar com as aldeias.' }));
-        body.appendChild(el('h3', { text: 'As 3 Tribos' }));
+        body.appendChild(el('p', { class: 'small muted', text: 'Use o Mapa [M] para explorar setores, vasculhar locais de saque e negociar com a tribo.' }));
+        body.appendChild(el('h3', { text: 'A Tribo da Ilha' }));
         Object.keys(E.TRIBES).forEach((id) => {
           const def = E.TRIBES[id]; const t = E.tribe(id);
           body.appendChild(el('div', { class: 'cond ' + (t.discovered ? 'good' : 'warn') },
@@ -862,8 +884,16 @@
             el('div', { class: 'info' }, el('div', { class: 'name', text: `${ok ? '🏆' : '🔒'} ${a.name}` }), el('div', { class: 'desc', text: a.desc + (ok ? ` · Dia ${got[a.id]}` : '') }))));
         });
       }
+      if (this.journalTab === 'log') {
+        body.appendChild(el('p', { class: 'small muted', text: 'Tudo o que aconteceu, do mais recente para o mais antigo (últimas 300 linhas).' }));
+        const full = el('div', { class: 'glass logfull' });
+        d.log.slice().reverse().forEach((l) => full.appendChild(el('p', { class: 'logline ' + l.cls }, el('span', { class: 'ts', text: l.t + ' ' }), l.text)));
+        body.appendChild(full);
+      }
       if (this.journalTab === 'sys') {
         const S_ = Ilha.State;
+        body.appendChild(el('p', {}, el('button', { class: 'btn', text: '💾 Salvar agora', onclick: () => this.action('save') })));
+        body.appendChild(el('p', {}, el('label', { class: 'opt' }, (() => { const cb = el('input', { type: 'checkbox', onchange: (e) => { d.hardcore = e.target.checked; Ilha.State.log(d.hardcore ? 'Modo difícil: a morte agora é definitiva.' : 'Modo normal: Cyrus volta ao amanhecer se desmaiar.', 'warn'); this.toast(d.hardcore ? 'Modo difícil ligado.' : 'Modo normal.'); } }); cb.checked = !!d.hardcore; return cb; })(), ' Modo difícil: morte definitiva (sem ponto de retorno)')));
         body.appendChild(el('p', {}, el('button', { class: 'btn sm', text: Ilha.Audio.muted ? '🔇 Som desligado — ligar' : '🔊 Som ligado — desligar', onclick: () => { Ilha.Audio.toggleMute(); this.rerender(true); } })));
         body.appendChild(el('h3', { text: 'Exportar / Importar / Novo Jogo' }));
         body.appendChild(el('p', { class: 'small muted', text: 'O progresso fica salvo automaticamente no navegador. Exporte um arquivo .json para levar o jogo a outro computador ou fazer backup.' }));
@@ -895,7 +925,7 @@
         body.appendChild(el('h3', { text: 'Desempenho e tela' }));
         const lg = el('input', { type: 'checkbox' }); lg.checked = Ilha.Main.lowGfx;
         lg.addEventListener('change', () => Ilha.Main.setLowGfx(lg.checked));
-        body.appendChild(el('label', { class: 'opt' }, lg, 'Gráficos leves (sem grão, vinheta e filtro de cor — melhor em celulares)'));
+        body.appendChild(el('label', { class: 'opt' }, lg, 'Gráficos leves (sem vinheta nem filtro de cor)'));
         body.appendChild(el('button', { class: 'btn', text: '⛶ Tela cheia (paisagem)', onclick: () => Ilha.Main.fullscreen() }));
         body.appendChild(el('h3', { text: 'Novo Jogo' }));
         body.appendChild(el('button', { class: 'btn danger', text: '⟲ Novo Jogo (apaga o progresso atual)', onclick: () => this.confirm('Reiniciar a aventura? O progresso atual será perdido (exporte antes, se quiser guardar).', () => Ilha.Main.newGame()) }));
@@ -928,7 +958,7 @@
         const warn = [];
         if (!q.shelter) warn.push('Sem Abrigo de Folhas encostado: o sono será pior.');
         if (!q.fire && S().isNight()) warn.push('Sem fogueira acesa por perto: risco de Hipotermia à noite.');
-        if (q.wet) warn.push('Dormir na chuva, sem abrigo, causa Dores Musculares e frio.');
+        if (q.wet) warn.push('Dormir na chuva, sem abrigo, causa frio e sono pior.');
         if (s.calories < 600 || s.hydration < 25) warn.push('Fome/sede NÃO interrompem o sono: o corpo sofre dano a cada hora e você só acorda com HP muito baixo (≤ 20%).');
         warn.forEach((w) => out.appendChild(el('div', { class: 'c-warn small', text: '⚠ ' + w })));
       };
@@ -1031,7 +1061,7 @@
       body.appendChild(wrap);
 
       const leg = el('div', { class: 'small muted' });
-      leg.innerHTML = '✚ base · 🐚🌿🌋 aldeias · ⚓ Fragata · ⛏ Caverna · 🔭 Observatório · ☸ Submarino · "?" névoa (borda tracejada = pode ser explorado)';
+      leg.innerHTML = '✚ base · 🌿 tribo · ⚓ Fragata · ⛏ Caverna · 🔭 Observatório · ☸ Submarino · "?" névoa (borda tracejada = pode ser explorado)';
       body.appendChild(leg);
       return { title: 'Mapa Cartográfico da Ilha Lincoln (12×12)', body, foot: [el('button', { class: 'btn', text: 'Fechar [M]', onclick: () => this.closeModal() })] };
     },
@@ -1048,7 +1078,7 @@
       const sp = E.spread(tr.tid);
       const body = el('div');
       body.appendChild(el('p', { class: 'small', html: `<b>${def.icon} ${def.name}</b> — ${def.desc}` }));
-      body.appendChild(el('p', { class: 'small', html: `Saldo de escambo: <b>${m.credits} UT (Conchas)</b> · Reputação: <b>${Math.round(t.reputation)}</b> · Spread: ${Math.round(sp * 100)}% · ${E.telegraphActive() ? '<span class="c-ok">⚡ via Telégrafo</span>' : 'via caravana'}` }));
+      body.appendChild(el('p', { class: 'small', html: `Saldo: <b>${m.credits} conchas</b> · Reputação: <b>${Math.round(t.reputation)}</b> · ${E.telegraphActive() ? '<span class="c-ok">⚡ via Telégrafo</span>' : 'via caravana'}` }));
       const q = E.quote(tr.tid, tr.give, tr.take);
 
       const bump = (side, id, delta, max) => {
@@ -1066,21 +1096,28 @@
           el('button', { class: 'btn sm', disabled: n >= max, text: '+', onclick: () => bump(side, id, 1, max) }),
           el('button', { class: 'btn sm', disabled: n >= max, text: '+5', onclick: () => bump(side, id, 5, max) }));
       };
-      const trend = (id) => { const s = t.stock[id]; const r = E.price(tr.tid, id) / s.base; return r > 1.1 ? '▲' : r < 0.9 ? '▼' : '='; };
+      // Simples por padrão: à esquerda só o que você tem para vender; à direita só o que a tribo tem sobrando.
+      const all = !!tr.all; const ids = Object.keys(def.items);
+      const wanted = ids.filter((id) => t.stock[id].qty < t.stock[id].target);
+      const leftIds = all ? ids : ids.filter((id) => C.count(id) > 0 || tr.give[id]);
+      const rightIds = all ? ids : ids.filter((id) => (E.available(tr.tid, id) > 0 && t.stock[id].qty >= t.stock[id].target * 0.9) || tr.take[id]);
+      if (!all && wanted.length) body.appendChild(el('p', { class: 'small', html: `<b>A tribo procura:</b> ${wanted.map((id) => C.ITEMS[id].name).join(', ')}.` }));
 
       const cols = el('div', { class: 'tradecols' });
-      const left = el('div', {}, el('h3', { text: 'Sua Mochila (você vende)' }));
-      const right = el('div', {}, el('h3', { text: 'Estoque da Tribo (você compra)' }));
-      Object.keys(def.items).forEach((id) => {
-        const it = C.ITEMS[id]; const st = t.stock[id];
-        const own = C.count(id); const av = E.available(tr.tid, id);
-        const sell = Math.max(1, Math.round(E.price(tr.tid, id) * (1 - sp)));
-        const buy = Math.max(1, Math.round(E.price(tr.tid, id) * (1 + sp)));
+      const left = el('div', {}, el('h3', { text: 'Você pode vender' }));
+      const right = el('div', {}, el('h3', { text: 'A tribo oferece' }));
+      const price = (id, k) => Math.max(1, Math.round(E.price(tr.tid, id) * k));
+      leftIds.forEach((id) => {
+        const it = C.ITEMS[id]; const own = C.count(id);
         left.appendChild(el('div', { class: 'row', style: own ? '' : 'opacity:.55' }, iconImg(it.icon, 2),
-          el('div', { class: 'info' }, el('div', { class: 'name', text: `${it.name} ×${own}` }), el('div', { class: 'desc', text: `Paga ${sell} UT/un ${trend(id)} · base ${st.base}` })),
+          el('div', { class: 'info' }, el('div', { class: 'name', text: `${it.name} ×${own}` }), el('div', { class: 'desc', text: `Paga ${price(id, 1 - sp)} conchas cada` })),
           ctrl('give', id, own)));
+      });
+      if (!leftIds.length) left.appendChild(el('p', { class: 'small muted', text: 'Você não tem nada que a tribo troque agora.' }));
+      rightIds.forEach((id) => {
+        const it = C.ITEMS[id]; const av = E.available(tr.tid, id);
         right.appendChild(el('div', { class: 'row', style: av ? '' : 'opacity:.55' }, iconImg(it.icon, 2),
-          el('div', { class: 'info' }, el('div', { class: 'name', text: `${it.name} ×${av}` }), el('div', { class: 'desc', text: `Pede ${buy} UT/un ${trend(id)} · alvo ${st.target}` })),
+          el('div', { class: 'info' }, el('div', { class: 'name', text: `${it.name} ×${av}` }), el('div', { class: 'desc', text: `Custa ${price(id, 1 + sp)} conchas cada` })),
           ctrl('take', id, av)));
       });
       cols.appendChild(left); cols.appendChild(right);
@@ -1088,10 +1125,11 @@
 
       const enough = !q.err && (q.giveValue + m.credits >= q.takeValue) && q.lines.length > 0;
       body.appendChild(el('div', { class: 'tradesum' },
-        el('div', { html: `Você oferece: <b>${q.giveValue} UT</b> + saldo <b>${m.credits} UT</b> = <b>${Math.round((q.giveValue + m.credits) * 100) / 100} UT</b> &nbsp;|&nbsp; A tribo pede: <b>${q.takeValue} UT</b>` }),
-        q.err ? el('div', { class: 'c-bad', text: q.err }) : (q.lines.length && !enough ? el('div', { class: 'c-bad', text: `Faltam ${Math.round((q.takeValue - q.giveValue - m.credits) * 100) / 100} UT.` }) : null),
-        enough && q.giveValue + m.credits - q.takeValue > 0 ? el('div', { class: 'c-ok small', text: `Sobra ${Math.round((q.giveValue + m.credits - q.takeValue) * 100) / 100} UT: fica como saldo de Conchas.` }) : null));
+        el('div', { html: `Você oferece: <b>${q.giveValue}</b> + saldo <b>${m.credits}</b> = <b>${Math.round((q.giveValue + m.credits) * 100) / 100} conchas</b> &nbsp;|&nbsp; A tribo pede: <b>${q.takeValue} conchas</b>` }),
+        q.err ? el('div', { class: 'c-bad', text: q.err }) : (q.lines.length && !enough ? el('div', { class: 'c-bad', text: `Faltam ${Math.round((q.takeValue - q.giveValue - m.credits) * 100) / 100} conchas.` }) : null),
+        enough && q.giveValue + m.credits - q.takeValue > 0 ? el('div', { class: 'c-ok small', text: `Sobram ${Math.round((q.giveValue + m.credits - q.takeValue) * 100) / 100} conchas: ficam como saldo.` }) : null));
       const foot = [
+        el('button', { class: 'btn', text: all ? 'Ver só o essencial' : 'Ver tudo', onclick: () => { tr.all = !tr.all; this.rerender(true); } }),
         el('button', { class: 'btn', text: 'Limpar', onclick: () => { tr.give = {}; tr.take = {}; this.rerender(true); } }),
         el('button', { class: 'btn', disabled: !enough || d.dead, text: '🤝 Confirmar Troca', onclick: () => { if (E.trade(tr.tid, tr.give, tr.take)) { tr.give = {}; tr.take = {}; } this.refresh(true); this.rerender(true); } }),
         el('button', { class: 'btn', text: 'Fechar', onclick: () => this.closeModal() }),
@@ -1115,6 +1153,127 @@
             el('p', { class: 'small', html: '<b>I</b> Inventário &amp; Sucata · <b>C</b> Engenharia &amp; Criação · <b>M</b> Mapa · <b>J</b> Diário Científico · <b>R</b> Descansar/Dormir · <b>Esc</b> fecha janelas.' }),
             el('p', { class: 'small muted', text: 'O tempo só avança quando você age (andar, coletar, fabricar, descansar). Primeiro passo: vasculhe os Destroços do Balão (lona vermelha e branca) ao lado.' })),
           foot: [el('button', { class: 'btn', text: 'Começar a aventura', onclick: () => this.closeModal() })],
+        }),
+      });
+    },
+
+
+    // ------------------------------------------------------------
+    // Sinal de resgate, resumo do dia, final e retorno (morte leve)
+    // ------------------------------------------------------------
+    renderRescue() {
+      const box = $('rescueBar'); if (!box || !Ilha.Rescue) return;
+      const R = Ilha.Rescue; const pct = R.pct();
+      if (!box.querySelector('.rs-tick')) { // tracinhos nos marcos
+        let acc = 0;
+        R.MILESTONES.slice(0, -1).forEach((m) => { acc += m.pts; box.insertBefore(el('i', { class: 'rs-tick', style: `left:${acc}%` }), box.querySelector('.rs-txt')); });
+      }
+      box.querySelector('.rs-fill').style.width = pct + '%';
+      box.querySelector('.rs-txt').textContent = `📡 Sinal de resgate ${pct}%`;
+      box.title = 'Marcos do resgate:\n' + R.MILESTONES.map((m) => `${m.done() ? '✔' : '○'} ${m.name} (+${m.pts}%)`).join('\n');
+    },
+
+    /** A barra de resgate pulsa quando sobe. */
+    rescueBump() {
+      const box = $('rescueBar'); if (!box) return;
+      box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump');
+      clearTimeout(this._rsT); this._rsT = setTimeout(() => box.classList.remove('bump'), 1600);
+    },
+
+    /** Botão "Novidade do dia" no mundo (só aparece com evento pendente). */
+    renderEvent() {
+      const b = $('evtBtn'); if (!b || !Ilha.Events) return;
+      const cur = !D().dead && Ilha.Events.current(); const e = cur && Ilha.Events.get(cur.id);
+      b.classList.toggle('hidden', !e);
+      if (e) b.textContent = `${e.icon} ${e.title}`;
+    },
+
+    showEvent() {
+      const cur = Ilha.Events && Ilha.Events.current(); if (!cur) return;
+      const e = Ilha.Events.get(cur.id); if (!e) return;
+      const busy = D().dead || D().sleeping;
+      this.open('event', {
+        live: false,
+        build: () => ({
+          title: `${e.icon} ${e.title}`,
+          body: el('div', {}, el('p', { text: e.text }), el('p', { class: 'small muted', text: 'Novidade do dia: só vale hoje.' })),
+          foot: e.choices.map((c, i) => el('button', { class: 'btn' + (c.gives || c.rep ? ' primary' : ''), disabled: busy, text: c.label, onclick: () => { this.closeModal(); Ilha.Events.choose(i); this.refresh(true); } })),
+        }),
+      });
+    },
+
+    showDaySummary(s) {
+      if (!s) return;
+      const sign = (v) => (v > 0 ? '+' + v : String(v));
+      const lines = [];
+      lines.push(`📡 Sinal de resgate: <b>${s.pct}%</b>${s.dPct ? ` (<span class="c-ok">${sign(s.dPct)}%</span>)` : ' (sem mudança)'}`);
+      if (s.dBuilt > 0) lines.push(`🔨 Novas receitas dominadas: <b>${s.dBuilt}</b>`);
+      if (s.dLevel > 0) lines.push(`⭐ Nível de Engenharia: <b>${s.level}</b> (${sign(s.dLevel)})`);
+      if (s.dAch > 0) lines.push(`🏆 Novas conquistas: <b>${s.dAch}</b>`);
+      const st = s.stats;
+      const warn = [];
+      if (st.calories < 800) warn.push('pouca comida');
+      if (st.hydration < 40) warn.push('pouca água');
+      this.open('daysummary', {
+        live: false,
+        build: () => ({
+          title: `Amanhecer do Dia ${s.day}`,
+          body: el('div', {},
+            s.slept ? el('div', { class: 'ds-sleep' },
+              el('div', { class: 'tf-clock tf-run', style: `--dur:1500ms;--mdeg:${s.slept * 360}deg;--hdeg:${s.slept * 30}deg` }, el('i', { class: 'tf-h' }), el('i', { class: 'tf-m' })),
+              el('b', { text: `😴 Você dormiu ${s.slept} h` })) : null,
+            el('p', { class: 'small muted', text: 'Seu ponto de retorno foi salvo: se Cyrus desmaiar, ele volta para cá.' }),
+            el('p', { html: lines[0] }),
+            el('div', { class: 'meter ds-meter', style: '--c:#6aa84a', title: `Sinal de resgate: ${s.pct}%` }, el('i', { style: `width:${s.pct}%` })),
+            ...lines.slice(1).map((l) => el('p', { html: l })),
+            s.highlights && s.highlights.length ? el('div', { class: 'ds-high' }, el('b', { text: 'Destaques desde a última noite' }), ...s.highlights.map((h) => el('div', { class: 'small', text: '• ' + h }))) : null,
+            warn.length ? el('p', { class: 'c-warn', text: '⚠ Atenção: ' + warn.join(' e ') + '. Resolva isso primeiro.' }) : null,
+            el('div', { class: 'quote', html: `<b>Meta de hoje:</b> ${s.goal}<br><b>Próximo marco do resgate:</b> ${s.next}` })),
+          foot: [el('button', { class: 'btn', text: 'Começar o dia', onclick: () => this.closeModal() })],
+        }),
+      });
+    },
+
+    showVictory() {
+      const d = D(); const p = d.player;
+      const txt = `A Ilha Misteriosa — Cyrus Smith foi resgatado no dia ${d.time.day}! Nível ${p.level} (Era ${p.era}) · Civilização ${Math.round(d.score.totalAccumulatedScore)} pts`;
+      this.open('victory', {
+        live: false, closable: false,
+        build: () => ({
+          title: '📡 Resgatado!',
+          body: el('div', {},
+            el('canvas', { class: 'vic-canvas', width: 1160, height: 640 }),
+            el('p', { html: 'O sinal do seu <b>Telégrafo</b> cruzou o oceano. Num fim de tarde, um navio aparece no horizonte e responde com três apitos.' }),
+            el('div', { class: 'quote', text: '“A civilização não é um lugar: é aquilo que carregamos conosco.”' }),
+            el('p', { html: `Dias na ilha: <b>${d.time.day}</b> · Nível: <b>${p.level}</b> · Civilização: <b>${Math.round(d.score.totalAccumulatedScore)}</b> pts` })),
+          foot: [
+            el('button', { class: 'btn', text: '📋 Copiar resumo', onclick: () => { try { navigator.clipboard.writeText(txt).then(() => this.toast('Resumo copiado.')); } catch (e) { this.toast(txt); } } }),
+            el('button', { class: 'btn', text: 'Continuar na ilha', onclick: () => this.closeModal() }),
+            el('button', { class: 'btn danger', text: 'Nova partida', onclick: () => this.confirm('Começar uma nova partida?', () => Ilha.Main.newGame()) }),
+          ],
+        }),
+      });
+      // cena do final: a ilha, o navio chegando e fogos (mesmo diorama da capa)
+      const t0 = performance.now();
+      const loop = (t) => {
+        const cv = document.querySelector('#modalBody .vic-canvas');
+        if (!cv || !this.modal || this.modal.name !== 'victory' || !Ilha.Cover) return;
+        Ilha.Cover.drawScene(cv, t, { n: 9, oy: 60, ship: t0, fireworks: true });
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    },
+
+    showRevive(cause, lostDays) {
+      this.open('revive', {
+        live: false,
+        build: () => ({
+          title: 'Cyrus desmaiou',
+          body: el('div', {},
+            el('p', { html: `Cyrus desmaiou por <b class="c-bad">${cause}</b> e acordou no amanhecer, no último abrigo onde dormiu.` }),
+            el('p', { class: 'small', text: lostDays > 0 ? `O tempo voltou ${lostDays} dia${lostDays > 1 ? 's' : ''}: o que você fez desde então foi perdido.` : 'Você perdeu o que fez desde o último amanhecer.' }),
+            el('div', { class: 'quote', text: 'Dica: durma todo dia [R]. Ao acordar, o jogo guarda seu ponto de retorno. O Modo difícil (morte definitiva) fica em Diário → Sistema.' })),
+          foot: [el('button', { class: 'btn', text: 'Continuar', onclick: () => this.closeModal() })],
         }),
       });
     },

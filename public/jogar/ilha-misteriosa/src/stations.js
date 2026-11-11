@@ -1,7 +1,9 @@
 /* =====================================================================
  * stations.js — Estações com fila/estoque (Forno, Alto-Forno, Serraria,
- * Moinho), baú, torque hidráulico, energia elétrica (kWh) e processamento
- * automático no onHourTick (sem gastar tempo/calorias de Cyrus)
+ * Moinho), baú, força hidráulica, energia elétrica e processamento
+ * automático no onHourTick (sem gastar tempo/calorias de Cyrus).
+ * Modelo simples: a Roda d'Água ao lado alimenta a máquina; o Dínamo
+ * alimentado liga Poste, Estufa, Oficina e Telégrafo a até 5 tiles.
  * ===================================================================== */
 (function () {
   'use strict';
@@ -14,11 +16,9 @@
 
   const FUEL = { log: 3, charcoal: 5, wood_branch: 0.5 };
   const FUEL_CAP = 24;
-  const TORQUE_NEED = { SAWMILL: 4, MILL: 3, DYNAMO: 5 };
-  const WHEEL_TORQUE = 10;
-  const BATTERY_CAP = 10;
-  const DYNAMO_KWH = 2;
-  const DRAW = { LAMP_POST: 0.2, GREENHOUSE: 0.4, TELEGRAPH: 0.3 };
+  const WHEEL_RANGE = 2; // a máquina precisa estar a até 2 tiles de uma Roda d'Água
+  const GRID_RANGE = 5; // o consumidor precisa estar a até 5 tiles de um Dínamo ligado
+  const CONSUMERS = { LAMP_POST: 1, GREENHOUSE: 1, TELEGRAPH: 1, WORKSHOP: 1 };
 
   // Receitas das estações automáticas (fila: uma receita selecionada, repetida enquanto houver insumo)
   const RECIPES = {
@@ -45,7 +45,7 @@
   const NEEDS_FUEL = { kiln: true, blast: true };
 
   const Stations = {
-    RECIPES, FUEL, NEEDS_FUEL, TORQUE_NEED, WHEEL_TORQUE, BATTERY_CAP, DYNAMO_KWH, DRAW,
+    RECIPES, FUEL, NEEDS_FUEL, WHEEL_RANGE, GRID_RANGE, CONSUMERS,
 
     typeOf(objId) { const d = objId && Config.OBJECTS[objId]; return d && d.station ? d.station : null; },
     isBg(type) { return !!RECIPES[type]; },
@@ -81,8 +81,17 @@
       }
       return false;
     },
-    powerStored() { return D().power.stored; },
-    usePower(n) { const pw = D().power; pw.stored = Math.max(0, pw.stored - n); },
+    /** Há um consumidor (ex.: Oficina) ligado ao alcance do jogador? */
+    nearPowered(type, r) {
+      const p = D().player; r = r || 2; const on = D().power.on;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const o = Ilha.World.objectAt(p.x + dx, p.y + dy);
+        if (o && this.typeOf(o) === type && on[key(p.x + dx, p.y + dy)]) return true;
+      }
+      return false;
+    },
+    powerStored() { return 0; }, // legado (kWh removido)
+    usePower() { /* legado: a energia agora é ligada/desligada, sem estoque */ },
 
     // ------------------------------------------------------------
     // Operações de UI
@@ -170,16 +179,15 @@
     // Processamento horário: torque, energia e estações automáticas
     // ------------------------------------------------------------
     _scan() {
-      const w = W(); const wheels = []; const machines = []; const batteries = []; const consumers = [];
+      const w = W(); const wheels = []; const machines = []; const consumers = [];
       for (let y = 0; y < Config.MAP_H; y++) for (let x = 0; x < Config.MAP_W; x++) {
         const o = w.objects[y][x];
         if (!o) continue;
-        if (o === 'WATER_WHEEL') wheels.push({ x, y, k: key(x, y), spare: WHEEL_TORQUE, used: 0 });
+        if (o === 'WATER_WHEEL') wheels.push({ x, y, k: key(x, y), used: 0 });
         else if (o === 'SAWMILL' || o === 'MILL' || o === 'DYNAMO') machines.push({ x, y, k: key(x, y), o });
-        else if (o === 'BATTERY') batteries.push(key(x, y));
-        else if (DRAW[o]) consumers.push({ x, y, k: key(x, y), o });
+        else if (CONSUMERS[o]) consumers.push({ x, y, k: key(x, y), o });
       }
-      return { wheels, machines, batteries, consumers };
+      return { wheels, machines, consumers };
     },
 
     hourly() {
@@ -195,42 +203,33 @@
         st.active = false;
       });
 
-      // 1) alocação de torque (dínamo primeiro, depois serraria e moinho)
-      const order = { DYNAMO: 0, SAWMILL: 1, MILL: 2 };
-      sc.machines.sort((a, b) => order[a.o] - order[b.o]);
+      // 1) força hidráulica: máquina a até 2 tiles de uma Roda d'Água funciona (sem contar torque)
       const fed = {};
       sc.machines.forEach((m) => {
         const st = w.stations[m.k];
         if (m.o !== 'DYNAMO') {
-          // só pede torque quando há trabalho a fazer
+          // só "usa" a roda quando há trabalho a fazer
           if (!st || !st.recipe) return;
           const r = RECIPES[st.type].find((q) => q.id === st.recipe);
           const canStart = st.progress > 0 || (r && Object.keys(r.in).every((id) => (st.in[id] || 0) >= r.in[id]));
           if (!canStart) return;
         }
-        const need = TORQUE_NEED[m.o];
-        const wh = sc.wheels.filter((q) => Math.max(Math.abs(q.x - m.x), Math.abs(q.y - m.y)) <= 2 && q.spare >= need)
-          .sort((a, b) => b.spare - a.spare)[0];
+        const wh = sc.wheels.find((q) => Math.max(Math.abs(q.x - m.x), Math.abs(q.y - m.y)) <= WHEEL_RANGE);
         if (!wh) return;
-        wh.spare -= need; wh.used += need; fed[m.k] = true;
+        wh.used += 1; fed[m.k] = true;
       });
       sc.wheels.forEach((q) => { if (q.used > 0) pw.wheels[q.k] = q.used; });
-      pw.wheelSpare = {}; sc.wheels.forEach((q) => { pw.wheelSpare[q.k] = q.spare; });
 
-      // 2) energia: dínamos geram, baterias armazenam, consumidores descontam
-      let gen = 0;
-      sc.machines.forEach((m) => { if (m.o === 'DYNAMO' && fed[m.k]) { gen += DYNAMO_KWH; pw.on[m.k] = true; } });
-      pw.cap = sc.batteries.length * BATTERY_CAP;
-      let avail = pw.stored + gen; let use = 0;
+      // 2) energia: Dínamo alimentado liga os consumidores a até 5 tiles (sem kWh nem bateria)
+      const dynamos = sc.machines.filter((m) => m.o === 'DYNAMO' && fed[m.k]);
+      dynamos.forEach((m) => { pw.on[m.k] = true; });
       const h = d.time.hour; const night = h >= 18 || h < 6;
+      let use = 0;
       sc.consumers.forEach((c) => {
         if (c.o === 'LAMP_POST' && !night) return;
-        const cost = DRAW[c.o];
-        if (avail >= cost) { avail -= cost; use += cost; pw.on[c.k] = true; }
+        if (dynamos.some((m) => Math.max(Math.abs(m.x - c.x), Math.abs(m.y - c.y)) <= GRID_RANGE)) { pw.on[c.k] = true; use++; }
       });
-      pw.gen = gen; pw.use = Math.round(use * 100) / 100;
-      pw.stored = Math.max(0, Math.min(pw.cap, Math.round(avail * 100) / 100));
-      if (gen > 0 && pw.cap === 0) pw.stored = 0;
+      pw.gen = dynamos.length; pw.use = use; pw.stored = 0; pw.cap = 0;
 
       // 3) estações automáticas (forno, alto-forno, serraria, moinho)
       Object.keys(w.stations).forEach((k) => {
@@ -260,26 +259,27 @@
       Ilha.World.bump(); // sprites ON/OFF e cache civStats
     },
 
-    /** Texto de status para máquinas (roda, dínamo, bateria, poste, estufa, telégrafo). */
+    /** Texto de status para máquinas (roda, dínamo, poste, estufa, oficina, telégrafo). */
     machineInfo(x, y, id) {
       const pw = D().power; const k = key(x, y); const lines = [];
       const on = !!pw.on[k];
       if (id === 'WATER_WHEEL') {
         const used = (pw.wheels && pw.wheels[k]) || 0;
-        lines.push(`Força Hidráulica: ${WHEEL_TORQUE - used} / ${WHEEL_TORQUE} de torque livre (em uso: ${used}).`);
+        lines.push(used ? `Girando: ${used} máquina(s) em uso.` : 'Parada (nenhuma máquina trabalhando agora).');
         lines.push('Alimenta Serraria, Moinho e Dínamo a até 2 tiles de distância.');
       } else if (id === 'DYNAMO') {
-        lines.push(on ? `Gerando ${DYNAMO_KWH} kWh por hora.` : 'Parado: precisa de uma Roda d\'Água com 5 de torque livre a até 2 tiles.');
+        lines.push(on ? 'Ligado: a energia chega a até 5 tiles de distância.' : 'Parado: precisa de uma Roda d\'Água a até 2 tiles.');
       } else if (id === 'BATTERY') {
-        lines.push(`Rede elétrica: ${pw.stored.toFixed(1)} / ${pw.cap} kWh armazenados.`);
+        lines.push('Peça antiga: não é mais necessária. A energia vai direto do Dínamo.');
       } else if (id === 'LAMP_POST') {
-        lines.push(on ? 'Acesa (0,2 kWh/h).' : 'Apagada (de dia, ou sem energia).');
+        lines.push(on ? 'Acesa.' : 'Apagada (de dia, ou sem Dínamo ligado a até 5 tiles).');
       } else if (id === 'GREENHOUSE') {
-        lines.push(on ? 'Energizada: plantações a até 2 tiles crescem 2x e ignoram o clima.' : 'Sem energia: efeito desligado.');
+        lines.push(on ? 'Ligada: plantações a até 2 tiles crescem 2x e ignoram o clima.' : 'Sem energia: efeito desligado (precisa de um Dínamo ligado a até 5 tiles).');
       } else if (id === 'TELEGRAPH') {
-        lines.push(on ? 'Estação ativa e energizada. A rede com as tribos será conectada na Sprint 4.' : 'Sem energia (0,3 kWh/h).');
+        lines.push(on ? 'Estação no ar: você negocia com a tribo sem caravana.' : 'Sem energia (precisa de um Dínamo ligado a até 5 tiles).');
+      } else if (id === 'WORKSHOP') {
+        lines.push(on ? 'Ligada: pode fabricar peças de precisão.' : 'Sem energia (precisa de um Dínamo ligado a até 5 tiles).');
       }
-      lines.push(`Eletricidade: ${pw.stored.toFixed(1)}/${pw.cap} kWh · geração ${pw.gen || 0} kWh/h · consumo ${pw.use || 0} kWh/h.`);
       return lines.join('\n');
     },
   };
