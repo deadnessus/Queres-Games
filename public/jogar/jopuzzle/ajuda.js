@@ -1,0 +1,242 @@
+// "Como jogar":
+// 1) dicas dentro do primeiro puzzle de verdade (uma mãozinha sobre uma peça da bandeja: "Toque para girar",
+//    depois "Segure para espelhar"). Não bloqueiam nada: somem assim que a pessoa mexe, e voltam só se ela
+//    ficar parada um tempo sem ter aprendido.
+// 2) tela de treino opcional, no botão "Como jogar" da tela inicial e da pausa.
+(() => {
+'use strict';
+
+const E = window.JoPuzzleEngine;
+if (!E) return;
+
+const painel = document.getElementById('painel');
+const { norm, rotate, mirror } = E.formas;
+
+// ---------- dicas no jogo ----------
+const CHAVE = 'jopuzzle_dicas';
+const MAX_PARTIDAS = 3;   // quantas partidas mostram a mesma dica sem a pessoa aprender, no máximo
+const PARADO_MS = 8000;   // parada esse tempo (nada tocado), a dica pendente volta
+let est = null;           // { girou, espelhou, g, e } guardado no aparelho
+try {
+  const o = JSON.parse(localStorage.getItem(CHAVE));
+  if (o && typeof o === 'object') est = o;
+  else if (localStorage.getItem('jopuzzle_tutorial_visto') === '1') est = { girou: 1, espelhou: 1, g: 0, e: 0 }; // já viu a versão antiga
+} catch (e) { /* sem armazenamento */ }
+const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(est)); } catch (e) { /* sem armazenamento */ } };
+
+let partida = { girar: false, espelhar: false };
+let timer = null;
+let dica = null;   // { el, passo, peca, raf }
+
+const passoPendente = () => {
+  if (!est) return null;
+  if (!est.girou && est.g < MAX_PARTIDAS) return 'girar';
+  if (!est.espelhou && est.e < MAX_PARTIDAS) return 'espelhar';
+  return null;
+};
+const chave = (cells) => JSON.stringify(norm(cells));
+// uma peça "quiral": o espelho dela não é igual a nenhum giro (é a que só encaixa espelhada)
+const giros = (cells) => { const r = []; let c = norm(cells); for (let i = 0; i < 4; i++) { r.push(chave(c)); c = rotate(c); } return r; };
+const quiral = (cells) => !giros(cells).includes(chave(mirror(cells)));
+const gira = (cells) => chave(rotate(cells)) !== chave(cells);
+
+function escolher(passo) {
+  const bandeja = E.pecasNaBandeja();
+  if (!bandeja.length) return null;
+  const bom = passo === 'espelhar' ? (q) => quiral(q.cells) : (q) => gira(q.cells);
+  return bandeja.find(bom) || bandeja[0];
+}
+
+const TEXTO = { girar: 'Toque para girar', espelhar: 'Segure para espelhar' };
+
+function ocultar() {
+  if (!dica) return;
+  cancelAnimationFrame(dica.raf);
+  dica.el.remove();
+  dica = null;
+}
+
+function seguir() {
+  if (!dica) return;
+  const r = dica.peca.el.getBoundingClientRect();
+  if (!dica.peca.el.isConnected || !r.width || !E.estaJogando() || !E.pecasNaBandeja().some((q) => q.el === dica.peca.el)) return ocultar();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  dica.dedo.style.transform = `translate(${cx - 24}px, ${cy - 24}px)`;
+  const b = dica.balao;
+  const w = b.offsetWidth, hh = b.offsetHeight;
+  const x = Math.max(8, Math.min(innerWidth - w - 8, cx - w / 2));
+  let y = r.top - hh - 14;
+  if (y < 8) y = r.bottom + 14;
+  b.style.transform = `translate(${x}px, ${y}px)`;
+  dica.raf = requestAnimationFrame(seguir);
+}
+
+function mostrarDica() {
+  timer = null;
+  if (dica) return;
+  const passo = passoPendente();
+  if (!passo) return;
+  if (!E.estaJogando()) return agendar(2500);
+  const peca = escolher(passo);
+  if (!peca) return agendar(2500);
+  if (!partida[passo]) { partida[passo] = true; if (passo === 'girar') est.g++; else est.e++; gravar(); }
+  const raiz = h('div', { class: 'aj-dica-voo ' + passo, 'aria-live': 'polite' });
+  const dedo = h('div', { class: 'aj-dedo' });
+  dedo.innerHTML = '<svg viewBox="0 0 48 48" aria-hidden="true"><circle class="o" cx="24" cy="24" r="20"/><circle class="a" cx="24" cy="24" r="20"/><circle class="n" cx="24" cy="24" r="9"/></svg>';
+  const balao = h('div', { class: 'aj-balao' }, TEXTO[passo]);
+  raiz.append(dedo, balao);
+  document.body.append(raiz);
+  dica = { el: raiz, passo, peca, dedo, balao, raf: 0 };
+  seguir();
+}
+
+function agendar(ms) {
+  clearTimeout(timer);
+  timer = null;
+  if (passoPendente()) timer = setTimeout(mostrarDica, ms);
+}
+
+// Chamada quando uma partida começa. Devolve true na primeiríssima partida neste aparelho
+// (o jogo deixa o relógio parado até o primeiro toque numa peça).
+function aoComecar() {
+  ocultar();
+  partida = { girar: false, espelhar: false };
+  let primeira = false;
+  if (!est) { est = { girou: 0, espelhou: 0, g: 0, e: 0 }; primeira = true; gravar(); }
+  agendar(primeira ? 700 : PARADO_MS);
+  return primeira;
+}
+
+E.aoInteragir = () => { ocultar(); agendar(PARADO_MS); };
+E.aoGirar = () => {
+  if (est && !est.girou) { est.girou = 1; gravar(); }
+  ocultar();
+  agendar(1200); // já girou: se faltar espelhar, mostra a próxima dica logo
+};
+E.aoEspelhar = () => {
+  if (est && !est.espelhou) { est.espelhou = 1; gravar(); }
+  ocultar();
+  agendar(PARADO_MS);
+};
+
+function h(tag, attrs = {}, ...filhos) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) n.setAttribute(k, v);
+  }
+  for (const f of filhos.flat()) if (f != null && f !== false) n.append(f instanceof Node ? f : document.createTextNode(f));
+  return n;
+}
+const icone = (svg, extra = '') => { const s = h('span', { class: 'aj-ico ' + extra, 'aria-hidden': 'true' }); s.innerHTML = svg; return s; };
+
+const SVG = {
+  arrastar: '<svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>',
+  girar: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>',
+  espelhar: '<svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 7L3 17h5z"/><path d="M16 7l5 10h-5z"/></svg>',
+  // dedo que toca: um círculo que pulsa
+  toque: '<svg viewBox="0 0 24 24"><circle class="n" cx="12" cy="12" r="3.5"/><circle class="o" cx="12" cy="12" r="8"/></svg>',
+  // dedo que segura: um anel que vai se completando
+  segura: '<svg viewBox="0 0 24 24"><circle class="n" cx="12" cy="12" r="3.5"/><circle class="a" cx="12" cy="12" r="8.5"/></svg>',
+};
+
+// ---------- a peça de treino ----------
+function pecaDeTreino({ aoGirar, aoEspelhar }) {
+  const C = window.innerHeight < 700 ? 28 : 36; // telas baixas: peça menor, para caber tudo sem rolar
+  let cells = norm([[0, 0], [0, 1], [0, 2], [1, 2]]); // um "L": o espelho dele não é igual a nenhum giro
+  const el = h('div', { class: 'piece aj-peca', style: '--col:#38E1FF;left:50%;top:50%', role: 'button', 'aria-label': 'Peça de treino: toque para girar, segure para espelhar' });
+  const animar = (nome) => { el.classList.remove('wiggle', 'flip'); void el.offsetWidth; el.classList.add(nome); };
+  const desenhar = () => {
+    const w = Math.max(...cells.map((c) => c[0])) + 1;
+    const alt = Math.max(...cells.map((c) => c[1])) + 1;
+    el.style.width = w * C + 'px';
+    el.style.height = alt * C + 'px';
+    el.style.marginLeft = -(w * C) / 2 + 'px';
+    el.style.marginTop = -(alt * C) / 2 + 'px';
+    el.replaceChildren(...cells.map(([x, y]) => h('div', { class: 'cell', style: `left:${x * C}px;top:${y * C}px;width:${C}px;height:${C}px` })));
+    el.dataset.forma = JSON.stringify(cells);
+  };
+  desenhar();
+
+  let toque = null;
+  const soltar = (cancelado) => {
+    if (!toque) return;
+    clearTimeout(toque.timer);
+    el.classList.remove('segurando');
+    const t = toque;
+    toque = null;
+    if (!cancelado && !t.segurou && !t.moveu) { cells = rotate(cells); desenhar(); animar('wiggle'); aoGirar(); }
+  };
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (toque) return;
+    toque = { x: e.clientX, y: e.clientY, segurou: false, moveu: false };
+    el.classList.add('segurando');
+    toque.timer = setTimeout(() => {
+      if (!toque) return;
+      toque.segurou = true;
+      el.classList.remove('segurando');
+      cells = mirror(cells); desenhar(); animar('flip'); aoEspelhar();
+    }, E.holdMs);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (toque && Math.hypot(e.clientX - toque.x, e.clientY - toque.y) > 8) {
+      toque.moveu = true;
+      clearTimeout(toque.timer);
+      el.classList.remove('segurando');
+    }
+  });
+  el.addEventListener('pointerup', () => soltar(false));
+  el.addEventListener('pointercancel', () => soltar(true));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+  return el;
+}
+
+// ---------- a tela ----------
+// tela de treino opcional: mostrar({ aoFechar })  ->  botão "Fechar"
+function mostrar({ aoFechar } = {}) {
+  const estado = { girou: false, espelhou: false };
+  const dica = h('p', { class: 'pn-sub aj-dica', 'aria-live': 'polite' });
+  const chipGirar = h('span', { class: 'aj-chip' }, 'Girar');
+  const chipEspelhar = h('span', { class: 'aj-chip' }, 'Espelhar');
+  const atualizar = () => {
+    chipGirar.classList.toggle('feito', estado.girou);
+    chipEspelhar.classList.toggle('feito', estado.espelhou);
+    painel.dataset.girou = estado.girou ? '1' : '0';
+    painel.dataset.espelhou = estado.espelhou ? '1' : '0';
+    dica.textContent = estado.girou && estado.espelhou ? 'Muito bem! Você já sabe girar e espelhar.'
+      : estado.girou ? 'Girou! Agora segure o dedo na peça sem mexer.'
+      : estado.espelhou ? 'Espelhou! Agora dê um toque rápido na peça para girar.'
+      : 'Experimente: dê um toque na peça e depois segure o dedo nela.';
+  };
+  const peca = pecaDeTreino({
+    aoGirar: () => { estado.girou = true; atualizar(); },
+    aoEspelhar: () => { estado.espelhou = true; atualizar(); },
+  });
+  const palco = h('div', { class: 'aj-palco' }, peca);
+
+  const regra = (ico, titulo, texto) => h('li', {}, ico, h('span', {}, h('b', {}, titulo), ' ', texto));
+  const botoes = [h('button', { class: 'pn-btn principal', type: 'button', onclick: () => aoFechar() }, 'Fechar')];
+
+  painel.replaceChildren(
+    h('h2', { class: 'pn-titulo' }, 'Como jogar'),
+    h('p', { class: 'pn-sub' }, 'Encaixe todas as peças na silhueta antes que o tempo acabe.'),
+    palco,
+    h('div', { class: 'aj-chips' }, chipGirar, chipEspelhar),
+    dica,
+    h('ul', { class: 'aj-regras' },
+      regra(icone(SVG.arrastar), 'Arraste', 'a peça até a silhueta. Ela encaixa sozinha quando chega perto.'),
+      regra(icone(SVG.toque, 'toque'), 'Um toque', 'na peça: ela gira.'),
+      regra(icone(SVG.segura, 'segura'), 'Segure o dedo', 'na peça, sem mexer, por um instante: ela espelha (vira como num espelho).')),
+    h('div', { class: 'pn-linha' }, ...botoes),
+  );
+  painel.scrollTop = 0;
+  atualizar();
+  E.mostrar('painel');
+}
+
+document.getElementById('btn-ajuda').addEventListener('click', () => mostrar({ aoFechar: () => E.voltar() }));
+
+window.JoAjuda = { aoComecar, mostrar };
+})();

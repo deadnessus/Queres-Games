@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2026.11.10.1">
+<link rel="stylesheet" href="style.css?v=2026.11.10.3">
 </head>
 <body>
 <main id="app">
@@ -67,8 +67,8 @@
   <section class="tray-panel">
     <div id="tray" class="tray"></div>
     <div class="legend" role="note" aria-label="Um toque na peça gira. Segurar o dedo na peça espelha.">
-      <span class="lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg><i class="dot"></i></span>
-      <span class="lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7L3 17h5z"/><path d="M16 7l5 10h-5z"/></svg><i class="hold"></i></span>
+      <span class="lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg><b>Toque</b> gira</span>
+      <span class="lg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7L3 17h5z"/><path d="M16 7l5 10h-5z"/></svg><b>Segure</b> espelha</span>
     </div>
   </section>
 </main>
@@ -81,6 +81,7 @@
     <button id="btn-play" class="big-btn" aria-label="Jogar">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
     </button>
+    <button id="btn-ajuda" class="entrada ajuda" type="button">Como jogar</button>
     <div id="entradas" class="entradas" hidden>
       <button id="btn-desafio" class="entrada gold" type="button">Desafio do dia</button>
       <button id="btn-ranking" class="entrada" type="button">Ranking</button>
@@ -108,9 +109,10 @@
   </div>
 </div>
 
-<script src="puzzles.js?v=2026.11.10.1"></script>
-<script src="game.js?v=2026.11.10.1"></script>
+<script src="puzzles.js?v=2026.11.10.3"></script>
+<script src="game.js?v=2026.11.10.3"></script>
+<script src="ajuda.js?v=2026.11.10.3"></script>
 <script src="/conta.js?v=2"></script>
-<script src="diario.js?v=2026.11.10.1"></script>
+<script src="diario.js?v=2026.11.10.3"></script>
 </body>
 </html>

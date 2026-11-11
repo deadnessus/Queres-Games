@@ -108,6 +108,7 @@ function montar({ rows, cols, alvo, pecas, aleatorio, rotulo, limite }) {
   S.selected = null;
   S.limit = limite;
   S.remaining = limite;
+  S.esperandoToque = false;
   S.status = 'ready';
   layoutAll();
   select(S.pieces[0]);
@@ -162,6 +163,7 @@ function startDaily(tabuleiro, restanteMs, dia) {
   S.status = 'playing';
   updateHud();
   startClock();
+  if (window.JoAjuda) window.JoAjuda.aoComecar();
 }
 
 /* ---------- layout ---------- */
@@ -287,16 +289,20 @@ function select(p) {
 function onDown(e, p) {
   if (S.status !== 'playing' || S.drag) return;
   e.preventDefault();
+  if (S.esperandoToque) { S.esperandoToque = false; startClock(); } // primeira partida: o relógio começa no primeiro toque
+  if (Engine.aoInteragir) Engine.aoInteragir();
   select(p);
   const d = { p, id: e.pointerId, sx: e.clientX, sy: e.clientY, active: false, held: false };
   d.timer = setTimeout(() => {
-    if (S.drag === d && !d.active) { d.held = true; onHold(p); }
+    if (S.drag === d && !d.active) { d.held = true; p.el.classList.remove('segurando'); onHold(p); }
   }, HOLD_MS);
+  p.el.classList.add('segurando'); // anel que se fecha: mostra que segurar vai espelhar
   S.drag = d;
 }
 
 function startDrag(d) {
   const p = d.p;
+  p.el.classList.remove('segurando');
   d.active = true;
   p.state = 'drag';
   p.el.classList.add('dragging');
@@ -335,6 +341,7 @@ function endDrag(e, cancelled) {
   if (!d || (e && e.pointerId !== d.id)) return;
   S.drag = null;
   clearTimeout(d.timer);
+  d.p.el.classList.remove('segurando');
   showGhost(d.p, null);
   if (!d.active) { select(d.p); if (!cancelled && !d.held) onTap(d.p); return; }
   if (d.snap && !cancelled) {
@@ -402,6 +409,7 @@ function onTap(p) {
   if (transform(p, rotate, 3)) {
     vibrate(6);
     p.el.classList.remove('wiggle'); void p.el.offsetWidth; p.el.classList.add('wiggle');
+    if (Engine.aoGirar) Engine.aoGirar();
   } else shake(p);
 }
 
@@ -410,6 +418,7 @@ function onHold(p) {
   if (transform(p, mirror, 1)) {
     vibrate([10, 30, 10]);
     p.el.classList.remove('flip'); void p.el.offsetWidth; p.el.classList.add('flip');
+    if (Engine.aoEspelhar) Engine.aoEspelhar();
   } else shake(p);
 }
 
@@ -502,8 +511,11 @@ function showOverlay(kind) {
 function play() {
   el.overlay.hidden = true;
   if (S.status === 'ready' || S.status === 'paused') {
+    const novo = S.status === 'ready';
     S.status = 'playing';
-    startClock();
+    // na primeiríssima partida a pessoa ainda não sabe girar nem espelhar: o relógio só começa no primeiro toque
+    if (novo && window.JoAjuda && window.JoAjuda.aoComecar()) S.esperandoToque = true;
+    else startClock();
   }
 }
 
@@ -511,6 +523,7 @@ function pause() {
   if (S.status !== 'playing' || S.daily) return;
   if (S.drag) endDrag(null, true);
   S.status = 'paused';
+  S.esperandoToque = false;
   stopClock();
   showOverlay('pause');
 }
@@ -577,6 +590,14 @@ const Engine = window.JoPuzzleEngine = {
     else if (S.status === 'paused') showOverlay('pause');
     else el.overlay.hidden = true;
   },
+  // ganchos usados pelas dicas de "como jogar" (ajuda.js)
+  aoGirar: null,      // uma peça foi girada
+  aoEspelhar: null,   // uma peça foi espelhada
+  aoInteragir: null,  // a pessoa encostou numa peça
+  estaJogando: () => S.status === 'playing' && el.overlay.hidden,
+  pecasNaBandeja: () => S.pieces.filter((p) => p.state === 'tray').map((p) => ({ el: p.el, cells: p.cells })),
+  formas: { norm, rotate, mirror }, // usadas pelas dicas e pela peça de treino do "Como jogar"
+  holdMs: HOLD_MS,
   mostrar: (kind) => showOverlay(kind),
   esconder: () => { el.overlay.hidden = true; },
   emDiario: () => !!S.daily,
