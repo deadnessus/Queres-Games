@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Invasão Estelar</title>
+<meta name="theme-color" content="#04061a">
+<meta name="description" content="Pilote sua nave, derrube ondas de naves alienígenas e entre no ranking.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<!-- login do queres.games: só existe quando o jogo está no site; sem ele, os botões de conta somem -->
+<script src="/conta.js?v=2"></script>
+</head>
+<body>
+<canvas id="fundo" aria-hidden="true"></canvas>
+<main id="app">
+
+  <section id="tela-inicio" class="tela">
+    <div class="topo">
+      <p class="kicker">Defenda a galáxia</p>
+      <h1><span>Invasão</span><span>Estelar</span></h1>
+    </div>
+    <canvas id="nave-menu" class="nave-menu" width="320" height="260" aria-hidden="true"></canvas>
+    <p id="aviso-inicio" class="aviso" role="status"></p>
+    <div class="botoes">
+      <button id="btn-jogar" class="btn principal" type="button">Jogar</button>
+      <button id="btn-ranking" class="btn" type="button" hidden>Ranking</button>
+      <button id="btn-conta" class="btn suave" type="button" hidden>Entrar</button>
+      <button id="btn-som" class="btn suave" type="button">Som: ligado</button>
+    </div>
+    <p class="ajuda">Segure a metade esquerda ou direita da tela para pilotar. A nave atira sozinha.</p>
+  </section>
+
+  <section id="tela-ranking" class="tela" hidden>
+    <h2>Ranking</h2>
+    <div class="abas">
+      <button class="aba on" type="button" data-escopo="geral">Geral</button>
+      <button class="aba" type="button" data-escopo="mes">Do mês</button>
+    </div>
+    <ol id="lista-ranking" class="ranking"></ol>
+    <p id="status-ranking" class="ajuda" role="status"></p>
+    <button id="btn-voltar-ranking" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-jogo" class="tela tela-jogo" hidden>
+    <canvas id="campo" aria-label="Partida"></canvas>
+    <div id="pausa" class="sobre" hidden>
+      <h2>Pausado</h2>
+      <button id="btn-continuar" class="btn principal" type="button">Continuar</button>
+      <button id="btn-sair" class="btn suave" type="button">Sair para o início</button>
+    </div>
+  </section>
+
+  <section id="tela-fim" class="tela" hidden>
+    <h2>Fim de jogo</h2>
+    <p class="placar"><span id="fim-pontos">0</span> pontos</p>
+    <p id="fim-detalhe" class="ajuda"></p>
+    <p id="fim-recorde" class="ajuda"></p>
+    <p id="fim-ranking" class="ajuda aviso-ranking" role="status"></p>
+    <div class="botoes">
+      <button id="btn-de-novo" class="btn principal" type="button">Jogar de novo</button>
+      <button id="btn-inicio-fim" class="btn suave" type="button">Início</button>
+    </div>
+  </section>
+
+</main>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

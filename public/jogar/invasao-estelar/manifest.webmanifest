@@ -1,0 +1,18 @@
+{
+  "name": "Invasão Estelar",
+  "short_name": "Invasão Estelar",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#04061a",
+  "theme_color": "#04061a",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icone.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
