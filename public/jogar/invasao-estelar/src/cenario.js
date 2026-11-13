@@ -3,7 +3,7 @@
 // Tudo fica escuro e sem contraste de propósito: o que importa na tela são as naves e os tiros.
 // O cenário cobre mais que o campo do jogo (de TOPO a BASE), porque em celulares compridos
 // a tela mostra um pedaço acima e abaixo do campo.
-import { LARGURA } from './logica.js';
+import { LARGURA } from './logica.js?v=3';
 
 const TAU = Math.PI * 2;
 const W = LARGURA;

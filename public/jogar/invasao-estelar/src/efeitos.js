@@ -1,6 +1,6 @@
 // Efeitos visuais (só desenho): faíscas, ondas de choque, tremor de tela e rastro do motor.
 // Ficam separados do motor da partida: o motor diz o que aconteceu (eventos), aqui se decide como mostrar.
-import { TIPOS } from './naves.js';
+import { TIPOS } from './naves.js?v=3';
 
 const TAU = Math.PI * 2;
 
