@@ -1,5 +1,5 @@
 // Motor da partida: estado e atualização a cada quadro. Não desenha nada (quem desenha é desenho.js).
-import * as L from './logica.js';
+import * as L from './logica.js?v=3';
 
 export function novaPartida({ rand = Math.random } = {}) {
   const p = {

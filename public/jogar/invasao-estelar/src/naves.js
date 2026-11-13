@@ -1,7 +1,7 @@
 // Desenho das naves (canvas): 10 tipos de inimigo, cada um com 2 quadros de animação, e a nave do jogador.
 // Os inimigos são naves de guerra e criaturas alienígenas: escuros, com garras, presas e olhos acesos.
 // Os sprites são desenhados uma vez e guardados; o tamanho acompanha a resolução da tela.
-import { clamp } from './logica.js';
+import { clamp } from './logica.js?v=3';
 
 const TAU = Math.PI * 2;
 const LARG_INIMIGO = 60;

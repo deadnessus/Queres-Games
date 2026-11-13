@@ -1,11 +1,11 @@
 // Invasão Estelar: telas, entrada (toque e teclado), laço do jogo e fluxo de conta/ranking.
-import * as L from './logica.js';
-import { novaPartida, atualizar, resultado } from './motor.js';
-import { desenharPartida, pintarFundo } from './desenho.js';
-import { desenharJogador, definirResolucao } from './naves.js';
-import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js';
-import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js';
-import { liberarSom, tocar, vibrar, alternarSom, somLigado } from './som.js';
+import * as L from './logica.js?v=3';
+import { novaPartida, atualizar, resultado } from './motor.js?v=3';
+import { desenharPartida, pintarFundo } from './desenho.js?v=3';
+import { desenharJogador, definirResolucao } from './naves.js?v=3';
+import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js?v=3';
+import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js?v=3';
+import { liberarSom, tocar, vibrar, alternarSom, somLigado } from './som.js?v=3';
 
 const $ = (id) => document.getElementById(id);
 const LS_RECORDE = 'invasao_estelar_recorde';
