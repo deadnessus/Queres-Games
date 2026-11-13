@@ -1,83 +1,60 @@
-// Desenho da partida no canvas (coordenadas lógicas 360 x 640).
+// Desenho da partida no canvas. O campo do jogo é 360 x 640; em celulares compridos a tela mostra
+// também um pedaço acima e abaixo dele (o cenário cobre essa sobra e o painel sobe para o topo).
 import * as L from './logica.js';
-import { TIPOS, spriteInimigo, desenharJogador, LARG_INIMIGO, ALT_INIMIGO } from './naves.js';
+import { TIPOS, desenharInimigo, desenharJogador } from './naves.js';
 import { desenharEfeitos, deslocamentoDoTremor } from './efeitos.js';
+import { CENARIOS, desenharCenario, TOPO, BASE } from './cenario.js';
 
 const TAU = Math.PI * 2;
+const ESCURO = '#02030c';
 
-/* ---------- fundo: nebulosa e estrelas em camadas ---------- */
+// vista: quanto da tela sobra além do campo, em unidades do jogo.
+// ex = sobra de cada lado; ey = sobra em cima e embaixo; topo = área do celular que o painel deve evitar.
+export const VISTA_PADRAO = { ex: 0, ey: 0, topo: 0 };
 
-function gerarEstrelas(n, vMin, vMax, rMin, rMax, semente) {
-  const estrelas = [];
-  let s = semente;
-  const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < n; i++) {
-    estrelas.push({ x: rnd() * L.LARGURA, y: rnd() * L.ALTURA, v: vMin + rnd() * (vMax - vMin), r: rMin + rnd() * (rMax - rMin), f: rnd() * TAU });
-  }
-  return estrelas;
-}
-const CAMADAS = [
-  { estrelas: gerarEstrelas(55, 5, 9, 0.4, 0.9, 11), alfa: 0.55, risco: 0 },
-  { estrelas: gerarEstrelas(28, 16, 26, 0.7, 1.3, 23), alfa: 0.85, risco: 0 },
-  { estrelas: gerarEstrelas(12, 50, 80, 0.9, 1.6, 37), alfa: 1, risco: 1 },
-];
+/* ---------- fundo ---------- */
 
-let nebulosa = null;
-function criarNebulosa() {
-  const c = document.createElement('canvas');
-  c.width = L.LARGURA;
-  c.height = L.ALTURA;
-  const g = c.getContext('2d');
-  const manchas = [
-    [70, 110, 210, '110,70,255', 0.32], [310, 290, 230, '0,190,255', 0.2],
-    [90, 470, 250, '255,60,170', 0.17], [300, 600, 200, '120,80,255', 0.22],
-  ];
-  // cada mancha é repetida acima e abaixo para a rolagem não mostrar emenda
-  for (const [x, y, r, rgb, a] of manchas) {
-    for (const dy of [-L.ALTURA, 0, L.ALTURA]) {
-      const gr = g.createRadialGradient(x, y + dy, 0, x, y + dy, r);
-      gr.addColorStop(0, `rgba(${rgb},${a})`);
-      gr.addColorStop(1, `rgba(${rgb},0)`);
+// Pinta o cenário `indice` no campo. Em telas largas, os lados ficam escuros com a borda suave.
+export function pintarFundo(g, t, vista, indice, mov = 1) {
+  const { ex, ey } = vista;
+  g.fillStyle = ESCURO;
+  g.fillRect(-ex, -ey, L.LARGURA + 2 * ex, L.ALTURA + 2 * ey);
+  const y0 = Math.max(-ey, TOPO);
+  const y1 = Math.min(L.ALTURA + ey, BASE);
+  g.save();
+  g.beginPath();
+  g.rect(0, y0, L.LARGURA, y1 - y0);
+  g.clip();
+  desenharCenario(g, t, indice, mov);
+  g.restore();
+  if (ex > 0.5) {
+    for (const [de, ate] of [[0, 28], [L.LARGURA, L.LARGURA - 28]]) {
+      const gr = g.createLinearGradient(de, 0, ate, 0);
+      gr.addColorStop(0, ESCURO);
+      gr.addColorStop(1, 'rgba(2,3,12,0)');
       g.fillStyle = gr;
-      g.fillRect(0, 0, L.LARGURA, L.ALTURA);
+      g.fillRect(Math.min(de, ate), y0, 28, y1 - y0);
     }
   }
-  return c;
 }
 
-export function desenharFundo(g, t, movimento = 1) {
-  const grad = g.createLinearGradient(0, 0, 0, L.ALTURA);
-  grad.addColorStop(0, '#04061a');
-  grad.addColorStop(0.55, '#0a0b32');
-  grad.addColorStop(1, '#170f45');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, L.LARGURA, L.ALTURA);
+// Na partida o cenário acompanha a onda. Na troca, a tela escurece e volta com o cenário novo.
+const troca = { atual: -1, anterior: -1, t0: 0 };
+const DURACAO_TROCA = 1.4;
 
-  if (!nebulosa) nebulosa = criarNebulosa();
-  const desl = (t * 7 * movimento) % L.ALTURA;
-  g.drawImage(nebulosa, 0, desl);
-  g.drawImage(nebulosa, 0, desl - L.ALTURA);
-
-  g.fillStyle = '#fff';
-  g.strokeStyle = '#cfe6ff';
-  for (const camada of CAMADAS) {
-    for (const e of camada.estrelas) {
-      const y = (e.y + t * e.v * movimento) % L.ALTURA;
-      g.globalAlpha = camada.alfa * (0.55 + 0.45 * Math.sin(t * 2 + e.f));
-      if (camada.risco && movimento > 0) {
-        g.lineWidth = e.r;
-        g.beginPath();
-        g.moveTo(e.x, y - e.v * 0.05);
-        g.lineTo(e.x, y);
-        g.stroke();
-      } else {
-        g.beginPath();
-        g.arc(e.x, y, e.r, 0, TAU);
-        g.fill();
-      }
-    }
+function pintarFundoDaOnda(g, t, vista, fase) {
+  const c = L.cenarioDaFase(fase);
+  if (c !== troca.atual) {
+    troca.anterior = troca.atual;
+    troca.atual = c;
+    troca.t0 = t;
   }
-  g.globalAlpha = 1;
+  const k = troca.anterior < 0 ? 1 : (t - troca.t0) / DURACAO_TROCA;
+  pintarFundo(g, t, vista, k < 0.5 ? troca.anterior : c);
+  if (k < 1) {
+    g.fillStyle = `rgba(2,3,12,${1 - Math.abs(2 * k - 1)})`;
+    g.fillRect(0, -vista.ey, L.LARGURA, L.ALTURA + 2 * vista.ey);
+  }
 }
 
 /* ---------- tiros ---------- */
@@ -102,20 +79,21 @@ function desenharLaser(g, tiro) {
   g.fill();
 }
 
+// tiro dos inimigos: plasma verde ácido (bem diferente do fogo dos cenários)
 function desenharPlasma(g, s, t) {
   g.save();
   g.globalCompositeOperation = 'lighter';
   const cauda = g.createLinearGradient(0, s.y, 0, s.y - 26);
-  cauda.addColorStop(0, 'rgba(255,110,60,.7)');
-  cauda.addColorStop(1, 'rgba(255,110,60,0)');
+  cauda.addColorStop(0, 'rgba(150,255,60,.7)');
+  cauda.addColorStop(1, 'rgba(150,255,60,0)');
   g.fillStyle = cauda;
   g.fillRect(s.x - 2.5, s.y - 26, 5, 26);
   const pulsa = 1 + 0.15 * Math.sin(t * 30 + s.x);
-  const r = 9 * pulsa;
+  const r = 9.5 * pulsa;
   const orbe = g.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
-  orbe.addColorStop(0, 'rgba(255,255,220,1)');
-  orbe.addColorStop(0.35, 'rgba(255,150,60,.95)');
-  orbe.addColorStop(1, 'rgba(255,50,60,0)');
+  orbe.addColorStop(0, 'rgba(255,255,235,1)');
+  orbe.addColorStop(0.35, 'rgba(170,255,60,.95)');
+  orbe.addColorStop(1, 'rgba(40,190,40,0)');
   g.fillStyle = orbe;
   g.beginPath(); g.arc(s.x, s.y, r, 0, TAU); g.fill();
   g.restore();
@@ -137,12 +115,13 @@ function textoEsp(g, texto, x, y, esp, alinha = 'left') {
 
 const FONTE = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
-function desenharHud(g, p, t) {
+// o painel é desenhado com o topo em y = 0; `acima` é quanto ele precisa cobrir para cima (área do celular)
+function desenharHud(g, p, t, acima) {
   const painel = g.createLinearGradient(0, 0, 0, 72);
-  painel.addColorStop(0, 'rgba(6,9,36,.92)');
-  painel.addColorStop(1, 'rgba(6,9,36,.55)');
+  painel.addColorStop(0, 'rgba(5,7,28,.96)');
+  painel.addColorStop(1, 'rgba(5,7,28,.78)');
   g.fillStyle = painel;
-  g.fillRect(0, 0, L.LARGURA, 72);
+  g.fillRect(0, -acima, L.LARGURA, 72 + acima);
   g.fillStyle = 'rgba(94,242,255,.5)';
   g.fillRect(0, 71, L.LARGURA, 1);
 
@@ -228,13 +207,13 @@ function desenharFaixa(g, p) {
   const tipo = TIPOS[p.tipo];
   g.save();
   g.globalAlpha = alfa;
-  const fundo = g.createLinearGradient(0, 255, 0, 395);
+  const fundo = g.createLinearGradient(0, 255, 0, 410);
   fundo.addColorStop(0, 'rgba(4,6,26,0)');
   fundo.addColorStop(0.25, 'rgba(4,6,26,.78)');
   fundo.addColorStop(0.75, 'rgba(4,6,26,.78)');
   fundo.addColorStop(1, 'rgba(4,6,26,0)');
   g.fillStyle = fundo;
-  g.fillRect(0, 255, L.LARGURA, 140);
+  g.fillRect(0, 255, L.LARGURA, 155);
   g.textAlign = 'center';
   g.shadowColor = '#ffd45e';
   g.shadowBlur = 16;
@@ -246,26 +225,35 @@ function desenharFaixa(g, p) {
   g.fillStyle = tipo.cor;
   g.font = `800 20px ${FONTE}`;
   textoEsp(g, tipo.nome.toUpperCase(), L.LARGURA / 2, 350, 2.4, 'center');
+  g.shadowBlur = 0;
+  g.fillStyle = 'rgba(225,232,255,.8)';
+  g.font = `700 11px ${FONTE}`;
+  textoEsp(g, CENARIOS[L.cenarioDaFase(p.fase)].nome.toUpperCase(), L.LARGURA / 2, 374, 2.2, 'center');
   g.restore();
 }
 
 /* ---------- partida inteira ---------- */
 
-export function desenharPartida(g, p, ef, t) {
-  desenharFundo(g, t, 1);
+export function desenharPartida(g, p, ef, t, vista = VISTA_PADRAO) {
+  pintarFundoDaOnda(g, t, vista, p.fase);
 
   const tr = deslocamentoDoTremor(ef);
   g.save();
+  if (vista.ex > 0.5) {
+    // em tela larga, nada do jogo aparece fora do campo
+    g.beginPath();
+    g.rect(0, -vista.ey, L.LARGURA, L.ALTURA + 2 * vista.ey);
+    g.clip();
+  }
   g.translate(tr.x, tr.y);
 
-  // inimigos: batem as asas (2 quadros), inclinam ao andar de lado e brilham de leve
+  // inimigos: dois quadros de animação e inclinação ao andar de lado
   for (const n of p.naves) {
     if (!n.vivo) continue;
-    const quadro = Math.floor(t * 5 + n.i) % 2;
     g.save();
     g.translate(n.x, n.y);
     g.rotate(n.inclina);
-    g.drawImage(spriteInimigo(p.tipo, quadro), -LARG_INIMIGO / 2, -ALT_INIMIGO / 2, LARG_INIMIGO, ALT_INIMIGO);
+    desenharInimigo(g, p.tipo, Math.floor(t * 5 + n.i) % 2);
     g.restore();
   }
 
@@ -282,9 +270,13 @@ export function desenharPartida(g, p, ef, t) {
 
   if (ef.clarao > 0) {
     g.fillStyle = `rgba(255,120,60,${ef.clarao * 0.55})`;
-    g.fillRect(0, 0, L.LARGURA, L.ALTURA);
+    g.fillRect(-vista.ex, -vista.ey, L.LARGURA + 2 * vista.ex, L.ALTURA + 2 * vista.ey);
   }
 
-  desenharHud(g, p, t);
+  // o painel fica no topo da tela, abaixo da área que o celular reserva
+  g.save();
+  g.translate(0, -vista.ey + vista.topo);
+  desenharHud(g, p, t, vista.topo);
+  g.restore();
   if (p.abertura > 0) desenharFaixa(g, p);
 }

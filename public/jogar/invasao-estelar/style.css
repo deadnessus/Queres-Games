@@ -24,6 +24,8 @@ body {
 }
 #fundo { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #app { position: fixed; inset: 0; }
+/* mede a área do topo que o celular reserva (entalhe, barra de status) */
+#sonda-topo { position: fixed; top: 0; left: 0; width: 1px; height: env(safe-area-inset-top, 0px); visibility: hidden; pointer-events: none; }
 
 .tela {
   position: absolute;
@@ -130,7 +132,7 @@ h1 span + span { font-size: 0.8em; letter-spacing: 0.16em; }
 
 /* partida */
 .tela-jogo { padding: 0; justify-content: center; }
-#campo { display: block; touch-action: none; }
+#campo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .sobre {
   position: absolute;
   inset: 0;

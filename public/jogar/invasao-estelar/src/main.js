@@ -1,7 +1,7 @@
 // Invasão Estelar: telas, entrada (toque e teclado), laço do jogo e fluxo de conta/ranking.
 import * as L from './logica.js';
 import { novaPartida, atualizar, resultado } from './motor.js';
-import { desenharPartida, desenharFundo } from './desenho.js';
+import { desenharPartida, pintarFundo } from './desenho.js';
 import { desenharJogador, definirResolucao } from './naves.js';
 import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js';
 import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js';
@@ -54,24 +54,38 @@ function elemento(tag, attrs = {}, ...filhos) {
 }
 
 /* ---------- tamanho das telas ---------- */
+// O campo do jogo é sempre 360 x 640. A tela inteira é usada: o que sobra acima e abaixo (celular comprido)
+// mostra mais cenário; o que sobra dos lados (computador) fica escuro.
+const vista = { escala: 1, ex: 0, ey: 0, topo: 0 };
+const CENARIO_DO_MENU = 1;
+
+function medirVista() {
+  const larg = window.innerWidth;
+  const alt = window.innerHeight;
+  vista.escala = Math.min(larg / L.LARGURA, alt / L.ALTURA);
+  vista.ex = (larg / vista.escala - L.LARGURA) / 2;
+  vista.ey = (alt / vista.escala - L.ALTURA) / 2;
+  // área do topo que o celular reserva (entalhe, barra): o painel fica abaixo dela
+  vista.topo = $('sonda-topo').offsetHeight / vista.escala;
+}
+
+function ajustarTela(tela, contexto, densidadeMax) {
+  const dpr = Math.min(densidadeMax, window.devicePixelRatio || 1);
+  tela.width = Math.round(window.innerWidth * dpr);
+  tela.height = Math.round(window.innerHeight * dpr);
+  const e = vista.escala * dpr;
+  contexto.setTransform(e, 0, 0, e, vista.ex * e, vista.ey * e);
+  return e;
+}
+
 function ajustarCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  const escala = Math.min(window.innerWidth / L.LARGURA, window.innerHeight / L.ALTURA);
-  canvas.style.width = `${Math.floor(L.LARGURA * escala)}px`;
-  canvas.style.height = `${Math.floor(L.ALTURA * escala)}px`;
-  canvas.width = Math.round(L.LARGURA * escala * dpr);
-  canvas.height = Math.round(L.ALTURA * escala * dpr);
-  g.setTransform(canvas.width / L.LARGURA, 0, 0, canvas.height / L.ALTURA, 0, 0);
-  definirResolucao(escala * dpr);
+  medirVista();
+  definirResolucao(ajustarTela(canvas, g, 2));
 }
 
 function ajustarFundo() {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  fundo.width = Math.round(window.innerWidth * dpr);
-  fundo.height = Math.round(window.innerHeight * dpr);
-  // o desenho do fundo é 360 x 640: cobre a tela toda, cortando o que sobra
-  const escala = Math.max(fundo.width / L.LARGURA, fundo.height / L.ALTURA);
-  gf.setTransform(escala, 0, 0, escala, (fundo.width - L.LARGURA * escala) / 2, (fundo.height - L.ALTURA * escala) / 2);
+  medirVista();
+  ajustarTela(fundo, gf, 1.5);
 }
 
 function ajustarMenu() {
@@ -91,7 +105,10 @@ function quadroMenu(t) {
   if (!menuRodando) return;
   if (!menuInicio) menuInicio = t;
   const s = (t - menuInicio) / 1000;
-  desenharFundo(gf, s, 0.5);
+  pintarFundo(gf, s, vista, CENARIO_DO_MENU, 0.5);
+  // nos menus o cenário fica mais apagado, para o texto e os botões lerem bem
+  gf.fillStyle = 'rgba(2,3,12,.45)';
+  gf.fillRect(-vista.ex, -vista.ey, L.LARGURA + 2 * vista.ex, L.ALTURA + 2 * vista.ey);
   if (!$('tela-inicio').hidden) {
     gn.clearRect(0, 0, 200, 163);
     desenharJogador(gn, 100, 74 + Math.sin(s * 2) * 4, s, Math.sin(s * 1.3) * 90, 1.7);
@@ -110,8 +127,7 @@ function desligarMenu() {
 
 /* ---------- entrada ---------- */
 function ladoDoToque(e) {
-  const r = canvas.getBoundingClientRect();
-  return e.clientX < r.left + r.width / 2 ? -1 : 1;
+  return e.clientX < window.innerWidth / 2 ? -1 : 1;
 }
 
 function direcaoDaEntrada() {
@@ -124,9 +140,9 @@ function direcaoDaEntrada() {
 
 // o toque no botão de pausa do painel não vale como movimento
 function noBotaoDePausa(e) {
-  const r = canvas.getBoundingClientRect();
-  const x = ((e.clientX - r.left) / r.width) * L.LARGURA;
-  const y = ((e.clientY - r.top) / r.height) * L.ALTURA;
+  // o painel fica no topo da tela: a posição do toque é medida a partir dele
+  const x = e.clientX / vista.escala - vista.ex;
+  const y = e.clientY / vista.escala - vista.topo;
   const a = L.AREA_PAUSA;
   return x >= a.x && x <= a.x + a.w && y >= a.y && y <= a.y + a.h;
 }
@@ -188,7 +204,7 @@ function quadro(t) {
     atualizarEfeitos(efeitos, Math.min(dt, 0.05));
     if (partida.estado === 'jogando') rastroDoMotor(efeitos, partida.jx, L.Y_JOGADOR, Math.min(dt, 0.05));
   }
-  desenharPartida(g, partida, efeitos, t / 1000);
+  desenharPartida(g, partida, efeitos, t / 1000, vista);
   if (partida.estado === 'fim') {
     terminar();
     return;
@@ -207,7 +223,6 @@ function comecarPartida() {
   partida = novaPartida();
   efeitos = novosEfeitos();
   desligarMenu();
-  desenharFundo(gf, 0, 0); // céu parado nas faixas ao lado e acima do campo, que não é do tamanho da tela
   mostrar('tela-jogo');
   ajustarCanvas();
   rodando = true;
