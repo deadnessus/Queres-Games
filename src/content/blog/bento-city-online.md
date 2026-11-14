@@ -25,6 +25,10 @@ O **Bento City** agora tem **modo online**: você e seus amigos podem jogar na *
 
 Sim. Peça para um amigo abrir o jogo, crie uma partida e mande o código. Se algo parecer antigo, recarregue a página sem cache ou abra numa aba anônima.
 
+## Atualização: a conta agora aparece no próprio jogo
+
+Ao tocar em **Jogar Online**, o jogo já mostra ali mesmo as telas para criar uma conta ou entrar numa que você já tem. Depois de entrar, aparece "Você está como ___" e os botões para criar uma partida ou digitar um código.
+
 ## O que vem a seguir
 
 O jogo continua recebendo novidades, e cada uma vai ser contada aqui no blog.

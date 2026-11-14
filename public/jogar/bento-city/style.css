@@ -113,3 +113,10 @@ label input { display: block; width: 100%; margin-top: 4px; padding: 10px 12px; 
   .menu-card h1 { font-size: 34px; }
   .sub { margin-bottom: 8px; }
 }
+
+/* Conta do queres.games dentro do painel online */
+#conta-area { margin: 10px 0 6px; }
+#conta-area .conta-box { background: #10153a; color: #fff; border-radius: 16px; padding: 14px 12px; margin-top: 8px; text-align: center; }
+.conta-logada { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #eef6ff; border-radius: 12px; padding: 8px 12px; text-align: left; font-size: 15px; }
+.conta-logada b { color: #ff7043; }
+.conta-logada button { background: none; border: 0; color: #1976d2; font-weight: 700; text-decoration: underline; cursor: pointer; font-size: 14px; padding: 6px 0; }

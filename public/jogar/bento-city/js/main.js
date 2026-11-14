@@ -1043,20 +1043,46 @@ function onlineBase() {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/online/bento-city`;
 }
 const httpDe = (u) => u.replace(/^ws/, 'http');
-// Apelido da conta; se ainda não entrou, abre a janela de entrar/criar conta do site.
-async function apelidoDaConta() {
-  const eu = await window.QGConta.me();
-  if (eu && eu.logado && eu.apelido) return eu.apelido;
-  const r = await window.QGConta.entrar();
-  return r && r.apelido ? r.apelido : null;
+// Conta do site dentro do painel online: quem não entrou vê ali mesmo as telas de criar conta / entrar
+// (o fluxo oficial do queres.games, QGConta.montar). Quem já entrou vê "Você está como ___".
+let apelidoAtual = null;
+async function atualizarConta() {
+  const area = $('#conta-area'), acoes = $('#online-acoes');
+  acoes.classList.add('hidden');
+  if (!window.QGConta) { area.innerHTML = '<p class="small muted">O modo online só funciona no site queres.games.</p>'; return null; }
+  area.innerHTML = '<p class="small muted">Verificando sua conta...</p>';
+  let eu = null;
+  try { eu = await window.QGConta.me(); } catch (e) { eu = null; }
+  if (!eu) { area.innerHTML = '<p class="small muted">Não consegui falar com o servidor de contas. Confira a internet e tente de novo.</p>'; return null; }
+  if (eu.logado) {
+    apelidoAtual = eu.apelido;
+    area.innerHTML = `<div class="conta-logada"><span>Você está como <b>${esc(eu.apelido)}</b></span><button type="button" id="btn-conta">minha conta</button></div>`;
+    $('#btn-conta').onclick = async () => { await window.QGConta.perfil(); atualizarConta(); };
+    acoes.classList.remove('hidden');
+    return eu.apelido;
+  }
+  apelidoAtual = null;
+  area.innerHTML = '<p class="small"><b>Para jogar online, entre na sua conta do queres.games.</b><br><span class="muted">Seu nome na cidade vai ser o apelido da conta.</span></p><div class="conta-box"></div>';
+  window.QGConta.montar(area.querySelector('.conta-box'), {
+    aba: 'criar',
+    rotuloFechar: 'Voltar',
+    aoConcluir: () => atualizarConta(),
+    aoFechar: () => { $('#online-panel').classList.add('hidden'); },
+  });
+  return null;
+}
+if (window.QGConta && window.QGConta.aoMudar) {
+  // Enquanto as telas de conta estão no painel, quem avisa é o aoConcluir (senão a tela "Conta criada!" com o código sumiria).
+  window.QGConta.aoMudar(() => {
+    if ($('#online-panel').classList.contains('hidden') || $('#conta-area .conta-box')) return;
+    atualizarConta();
+  });
 }
 async function connectOnline(opts) {
   const status = (t) => { $('#net-status').textContent = t; };
   if (!window.QGConta) { status('O modo online só funciona no site queres.games.'); return; }
-  status('Verificando sua conta...');
-  let apelido;
-  try { apelido = await apelidoDaConta(); } catch (e) { apelido = null; }
-  if (!apelido) { status('Para jogar online, entre na sua conta.'); return; }
+  const apelido = apelidoAtual || (await atualizarConta());
+  if (!apelido) { status('Entre na sua conta (acima) para jogar online.'); return; }
   const base = onlineBase();
   try {
     let codigo = opts.room;
@@ -1099,8 +1125,10 @@ $('#code-pill').onclick = (e) => { e.stopPropagation(); openInvite(); };
 
 $('#btn-offline').onclick = () => startGame('offline');
 $('#btn-online').onclick = () => {
-  $('#online-panel').classList.toggle('hidden');
-  if (!window.QGConta) $('#net-status').textContent = 'O modo online só funciona no site queres.games.';
+  const painel = $('#online-panel');
+  painel.classList.toggle('hidden');
+  $('#net-status').textContent = '';
+  if (!painel.classList.contains('hidden')) atualizarConta();
 };
 $('#btn-create').onclick = () => connectOnline({ mode: 'create' });
 $('#btn-join').onclick = () => {
