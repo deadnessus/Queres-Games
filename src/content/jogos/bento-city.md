@@ -1,7 +1,7 @@
 ---
 titulo: Bento City
 descricao: "Sandbox 3D de mundo aberto: dirija, pilote aviões, faça empregos e viaje até a Lua."
-status: em-desenvolvimento
+status: jogavel
 autores: [bento]
 ordem: 12
 capa: /capas/bento-city.webp
