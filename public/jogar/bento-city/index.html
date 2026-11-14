@@ -69,11 +69,13 @@
       <button id="btn-online" class="btn">🌐 Jogar Online</button>
     </div>
     <div id="online-panel" class="hidden">
-      <p class="small muted">Para jogar online você entra na sua conta do queres.games. Seu nome na cidade é o apelido da conta.</p>
-      <button id="btn-create" class="btn primary wide">➕ Criar partida (gera um código)</button>
-      <div class="join-row">
-        <input id="code-input" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false">
-        <button id="btn-join" class="btn green">Entrar</button>
+      <div id="conta-area"></div>
+      <div id="online-acoes" class="hidden">
+        <button id="btn-create" class="btn primary wide">➕ Criar partida (gera um código)</button>
+        <div class="join-row">
+          <input id="code-input" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button id="btn-join" class="btn green">Entrar</button>
+        </div>
       </div>
       <p id="net-status" class="small"></p>
     </div>
