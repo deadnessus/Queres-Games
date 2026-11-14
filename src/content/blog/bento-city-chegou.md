@@ -32,3 +32,7 @@ Sim. Comece pelo emprego de entregador de pizza, ou procure o aeroporto a oeste 
 ## O que vem a seguir
 
 O jogo continua recebendo novidades, e cada uma vai ser contada aqui no blog.
+
+## Atualização
+
+O Bento City agora também tem **modo online**, por código de 4 letras e sem chat. Veja em [Bento City ganhou o modo online, sem chat](/blog/bento-city-online/).

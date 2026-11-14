@@ -528,7 +528,7 @@ function openPause() {
   openPanel(`<h2>⏸️ Pausa</h2>
     ${net.connected ? `<p>🌐 Online · código <b style="letter-spacing:3px">${esc(net.room)}</b> · Jogadores: <b>${remotes.size + 1}</b>${others ? '<br><span class="small">' + others + '</span>' : ''}</p><button class="btn blue" id="invite">🔑 Convidar amigos</button>` : '<p>🏠 Modo offline</p>'}
     <p class="small"><b>Controles:</b><br>WASD/setas: mover · Shift: correr · Espaço: pular / freio de mão<br>Mouse: câmera (clique para travar) · Roda: zoom<br>
-    E: entrar/sair de veículos e interagir · F ou clique: pegar/soltar · G ou botão direito: arremessar<br>Q: cair (ragdoll) · H: buzina · R: voltar para casa<br>J: empregos · M: mapa · V: chamar veículo favorito · T: chat online · Espaço no ar: jetpack</p>
+    E: entrar/sair de veículos e interagir · F ou clique: pegar/soltar · G ou botão direito: arremessar<br>Q: cair (ragdoll) · H: buzina · R: voltar para casa<br>J: empregos · M: mapa · V: chamar veículo favorito · Espaço no ar: jetpack</p>
     <div class="row"><button class="btn primary" id="resume">Continuar</button><button class="btn" id="garage2">Garagem</button><button class="btn" id="tohome">Voltar p/ casa</button><button class="btn" id="tomenu">Menu principal</button></div>`, (el) => {
     el.querySelector('#resume').onclick = closePanel;
     el.querySelector('#invite')?.addEventListener('click', openInvite);
@@ -656,28 +656,8 @@ function drawMinimap() {
   drawArrow(g, W / 2, W / 2, camYaw - player.ry - Math.PI / 2, 10, '#ff1744');
 }
 
-// ---------------- Chat ----------------
-const chatInput = $('#chat-input');
-function addChat(name, text) {
-  const d = document.createElement('div');
-  d.innerHTML = name ? `<b>${esc(name)}:</b> ${esc(text)}` : `<i>${esc(text)}</i>`;
-  $('#chat-log').appendChild(d);
-  while ($('#chat-log').children.length > 8) $('#chat-log').firstChild.remove();
-  setTimeout(() => { d.style.opacity = 0; }, 12000);
-  setTimeout(() => d.remove(), 13000);
-}
-function openChat() {
-  if (!net.connected) { toast('Neste site o jogo é só offline'); return; }
-  chatInput.classList.remove('hidden'); chatInput.focus(); input.enabled = false; document.exitPointerLock?.();
-}
-chatInput.addEventListener('keydown', (e) => {
-  e.stopPropagation();
-  if (e.key === 'Enter') {
-    const t = chatInput.value.trim();
-    if (t) { net.send({ t: 'c', text: t }); addChat(save.name, t); }
-    chatInput.value = ''; chatInput.classList.add('hidden'); chatInput.blur(); input.enabled = true; input.keys.clear();
-  } else if (e.key === 'Escape') { chatInput.classList.add('hidden'); chatInput.blur(); input.enabled = true; }
-});
+// ---------------- Sem chat online ----------------
+// Os jogadores só se veem (posição, veículos, buzina, visual); não existe texto entre eles.
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && (panelOpen)) { closePanel(); e.preventDefault(); }
 });
@@ -696,11 +676,10 @@ function removeRemote(id) {
   for (const v of [...vehicles]) if (v.owner === id && v.tag !== 'parked') removeVehicle(v);
   for (const v of vehicles) if (v.remote && v.remote.by === id) { v.remote = null; v.driver = null; }
 }
-net.on('welcome', (m) => { for (const p of m.players) addRemote(p); addChat(null, m.players.length ? `Você entrou na partida ${m.room} de ${m.host}. Jogadores: ${m.players.length + 1}` : `Partida ${m.room} criada! Passe o código para seus amigos.`); });
-net.on('join', (m) => { addRemote(m); addChat(null, `${m.name} entrou na cidade 👋`); sfx.chat(); });
-net.on('leave', (m) => { const r = remotes.get(m.id); if (r) addChat(null, `${r.name} saiu.`); removeRemote(m.id); });
+net.on('welcome', (m) => { for (const p of m.players) addRemote(p); toast(m.players.length ? `Você entrou na partida ${m.room}. Jogadores: ${m.players.length + 1}` : `Partida ${m.room} criada! Passe o código para seus amigos.`); });
+net.on('join', (m) => { addRemote(m); toast(`${m.name} entrou na cidade 👋`); sfx.chat(); });
+net.on('leave', (m) => { const r = remotes.get(m.id); if (r) toast(`${r.name} saiu.`); removeRemote(m.id); });
 net.on('look', (m) => { const r = remotes.get(m.id); if (r) r.char.setLook(m.look); });
-net.on('c', (m) => { const r = remotes.get(m.id); addChat(r ? r.name : '???', m.text); sfx.chat(); });
 net.on('s', (m) => {
   const r = remotes.get(m.id); if (!r) return;
   r.tgt.set(m.x, m.y, m.z); r.tRy = m.ry; r.mode = m.m; r.sp = m.sp; r.veh = m.v; r.rr = m.rr || [0, 0, 0]; r.last = performance.now();
@@ -724,7 +703,7 @@ net.on('v', (m) => {
 });
 net.on('vdel', (m) => { const v = netVehicles.get(m.n); if (v && v.driver !== 'local') removeVehicle(v); });
 net.on('honk', (m) => { const r = remotes.get(m.id); if (r && r.pos.distanceTo(player.pos) < 60) sfx.horn(); });
-net.on('close', () => { if (started && mode === 'online') { addChat(null, 'Conexão perdida com o servidor. Continuando offline.'); $('#online-pill').classList.add('hidden'); $('#code-pill').classList.add('hidden'); for (const id of [...remotes.keys()]) removeRemote(id); } });
+net.on('close', () => { if (started && mode === 'online') { toast('Conexão perdida com o servidor. Continuando offline.'); $('#online-pill').classList.add('hidden'); $('#code-pill').classList.add('hidden'); for (const id of [...remotes.keys()]) removeRemote(id); } });
 
 function updateRemotes(dt) {
   const now = performance.now();
@@ -800,7 +779,6 @@ function handlePlayer(dt) {
   if (input.pressed('KeyJ')) openJobsList();
   if (input.pressed('KeyM')) openMap();
   if (input.pressed('KeyV')) callFavorite(false);
-  if (input.pressed('KeyT') || input.pressed('Enter')) openChat();
   if (input.pressed('Escape') && !panelOpen) openPause();
   if (panelOpen) return;
   if (v) {
@@ -1039,119 +1017,80 @@ function frame(now) {
 
 // ---------------- Main menu ----------------
 $('#name-input').value = save.name || '';
-const defaultServer = location.protocol === 'https:' ? `wss://${location.host}` : location.protocol === 'http:' ? `ws://${location.host}` : '';
-let savedServer = ''; try { savedServer = localStorage.getItem('bentocity_server') || ''; } catch (e) { /* ignore */ }
-$('#server-input').value = defaultServer || savedServer;
-// Inside the claude.ai link the page talks through the shared room; on a local server it uses WebSockets.
-const servedByOwnServer = /^wss?:\/\/(localhost|127\.|\d+\.\d+\.\d+\.\d+)/.test(defaultServer) || (location.protocol === 'http:' && !location.search.includes('viewer=1'));
-let viewerMode = !servedByOwnServer && Net.inViewer();
-function updateViewerMode() {
-  viewerMode = !servedByOwnServer && Net.inViewer();
-  $('#adv').classList.toggle('hidden', viewerMode);
-  if (!viewerMode && !defaultServer) $('#adv').open = true;
-}
-updateViewerMode();
-if (!servedByOwnServer) Net.waitViewer().then(() => { updateViewerMode(); if (viewerMode) net.getLobby(); });
-setInterval(() => { const d = $('#net-diag'); if (d && !$('#online-panel').classList.contains('hidden')) d.textContent = viewerMode ? net.diagText() : (servedByOwnServer ? '🖥️ Servidor local: ' + serverUrl() : ''); }, 500);
 $('#loading').textContent = 'Cidade pronta! 🏙️';
 
-const serverUrl = () => $('#server-input').value.trim();
-const httpBase = () => serverUrl().replace(/^ws(s?):\/\//, 'http$1://').replace(/\/$/, '');
-const playerName = () => {
-  const n = ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
-  $('#name-input').value = n; return n;
-};
-
-function startGame(m) {
-  save.name = ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
-  persist();
+function startGame(m, nomeOnline) {
+  // Online: o nome é o apelido da conta e não substitui o nome salvo do jogo offline.
+  const nome = nomeOnline || ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
+  if (!nomeOnline) { save.name = nome; persist(); }
   mode = m; started = true;
   sfx.init();
   $('#menu').classList.add('hidden'); $('#hud').classList.remove('hidden');
   if (input.isTouch) $('#touch').style.display = 'block';
   camTarget.copy(player.pos);
   player.hasJetpack = save.look.back === 'jetpack';
-  toast(`Bem-vindo(a) a Bento City, ${save.name}! 🏙️`);
+  toast(`Bem-vindo(a) a Bento City, ${nome}! 🏙️`);
   setTimeout(() => toast('Aperte J para ver os empregos · M para o mapa'), 1500);
   if (!save.stats.tutorial) { setTimeout(() => toast('Dica: há 40 presentes 🎁 escondidos pela cidade!'), 4500); save.stats.tutorial = 1; }
 }
 
-let roomTimer = null;
-async function refreshRooms() {
-  const el = $('#room-list');
-  if (viewerMode) {
-    const list = await net.lobbyMatches();
-    if (list === null) { el.textContent = 'O online precisa do link do claude.ai aberto com sua conta.'; return; }
-    renderRooms(el, list);
-    return;
-  }
-  if (!serverUrl()) { el.textContent = 'Abra o jogo pelo endereço do servidor (veja abaixo) para ver as partidas.'; return; }
-  try {
-    const r = await fetch(httpBase() + '/api/rooms', { cache: 'no-store' });
-    const list = await r.json();
-    renderRooms(el, list);
-  } catch (e) {
-    el.textContent = 'Não encontrei o servidor. Para jogar online, um computador no Wi-Fi precisa rodar o servidor do jogo (npm start).';
-  }
+// ---------------- Online (queres.games) ----------------
+// Usa a conta do site (o nome na cidade é o apelido) e as salas do Cloudflare. Quem tem o código entra na mesma cidade.
+// Em testes locais dá para apontar para outro servidor: ?online=ws://localhost:8787/online/bento-city
+function onlineBase() {
+  const q = new URLSearchParams(location.search).get('online');
+  if (q && /^wss?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(q)) return q.replace(/\/$/, '');
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/online/bento-city`;
 }
-function renderRooms(el, list) {
-    if (!list.length) { el.innerHTML = 'Nenhuma partida aberta ainda. Crie uma e passe o código para seus amigos!'; return; }
-    el.innerHTML = list.map((x) => `<div class="room"><div><span class="code">${esc(x.code)}</span> · ${esc(x.host)}<br><span class="small muted">${x.players}/${x.max} jogadores</span></div><button class="btn green" data-room="${esc(x.code)}">Entrar</button></div>`).join('');
-    el.querySelectorAll('[data-room]').forEach((btn) => btn.onclick = () => connectOnline({ mode: 'join', room: btn.dataset.room }));
+const httpDe = (u) => u.replace(/^ws/, 'http');
+// Apelido da conta; se ainda não entrou, abre a janela de entrar/criar conta do site.
+async function apelidoDaConta() {
+  const eu = await window.QGConta.me();
+  if (eu && eu.logado && eu.apelido) return eu.apelido;
+  const r = await window.QGConta.entrar();
+  return r && r.apelido ? r.apelido : null;
 }
 async function connectOnline(opts) {
-  const url = serverUrl();
-  if (viewerMode) {
-    $('#net-status').textContent = opts.mode === 'create' ? 'Criando partida...' : `Entrando na partida ${opts.room}...`;
-    try {
-      await net.connectRoom(opts, playerName(), save.look);
-      clearInterval(roomTimer);
-      $('#online-pill').classList.remove('hidden');
-      $('#code-pill').classList.remove('hidden'); $('#code-text').textContent = net.room;
-      startGame('online');
-      if (opts.mode === 'create') setTimeout(openInvite, 600);
-    } catch (e) { $('#net-status').textContent = '❌ ' + e.message; }
-    return;
-  }
-  if (!url) { $('#net-status').textContent = 'Informe o endereço do servidor (ex: ws://192.168.0.10:3000).'; $('#adv').open = true; return; }
-  try { localStorage.setItem('bentocity_server', url); } catch (e) { /* ignore */ }
-  $('#net-status').textContent = opts.mode === 'create' ? 'Criando partida...' : `Entrando na partida ${opts.room}...`;
+  const status = (t) => { $('#net-status').textContent = t; };
+  if (!window.QGConta) { status('O modo online só funciona no site queres.games.'); return; }
+  status('Verificando sua conta...');
+  let apelido;
+  try { apelido = await apelidoDaConta(); } catch (e) { apelido = null; }
+  if (!apelido) { status('Para jogar online, entre na sua conta.'); return; }
+  const base = onlineBase();
   try {
-    await net.connect(url, opts, playerName(), save.look);
-    clearInterval(roomTimer);
+    let codigo = opts.room;
+    if (opts.mode === 'create') {
+      status('Criando partida...');
+      const r = await fetch(httpDe(base) + '/nova', { method: 'POST', credentials: 'include' });
+      if (r.status === 401) throw new Error('Sua conta saiu. Entre de novo para jogar online.');
+      if (!r.ok) throw new Error('Não consegui criar a partida agora. Tente de novo.');
+      codigo = (await r.json()).codigo;
+    } else status(`Entrando na partida ${codigo}...`);
+    await net.connect(`${base}/sala/${codigo}?modo=${opts.mode === 'create' ? 'criar' : 'entrar'}`, { mode: opts.mode, room: codigo }, apelido, save.look);
     $('#online-pill').classList.remove('hidden');
     $('#code-pill').classList.remove('hidden'); $('#code-text').textContent = net.room;
-    startGame('online');
+    startGame('online', apelido);
     if (opts.mode === 'create') setTimeout(openInvite, 600);
   } catch (e) {
-    $('#net-status').textContent = '❌ ' + e.message;
+    status('❌ ' + e.message);
   }
 }
-function inviteAddresses() {
-  const port = net.port || location.port || 3000;
-  const ips = (net.ips || []).map((ip) => `http://${ip}:${port}`);
-  if (!ips.length && location.protocol.startsWith('http')) ips.push(location.origin);
-  return ips;
-}
 function openInvite() {
-  const addrs = inviteAddresses();
+  const link = location.origin + location.pathname;
   openPanel(`<h2>🔑 Convide seus amigos</h2>
     <p>Código da partida:</p><div class="bigcode">${esc(net.room)}</div>
-    ${net.mode === 'room' ? `<p><b>Como seu amigo entra:</b></p>
+    <p><b>Como seu amigo entra:</b></p>
     <ol class="small">
-      <li>Compartilhe este jogo com ele pelo botão <b>Compartilhar</b> do claude.ai (ele precisa ter uma conta Claude).</li>
-      <li>Ele abre o link, clica em <b>🌐 Jogar Online</b>.</li>
-      <li>Digita o código <b>${esc(net.room)}</b> ou toca na partida na lista.</li>
-    </ol>` : `<p><b>Como entrar (mesmo Wi-Fi):</b></p>
-    <ol class="small">
-      <li>No celular ou PC do amigo, abra o navegador e digite:<br>${addrs.map((x) => `<span class="addr">${esc(x)}</span>`).join('<br>') || '<i>o endereço deste servidor</i>'}</li>
-      <li>Clique em <b>🌐 Jogar Online</b>.</li>
-      <li>Digite o código <b>${esc(net.room)}</b> ou toque na partida na lista "Partidas no mesmo Wi-Fi".</li>
-    </ol>`}
+      <li>Abre <span class="addr">${esc(link)}</span> no navegador.</li>
+      <li>Entra na conta dele do queres.games.</li>
+      <li>Clica em <b>🌐 Jogar Online</b>, digita o código <b>${esc(net.room)}</b> e toca em <b>Entrar</b>.</li>
+    </ol>
+    <p class="small muted">Não existe chat: vocês se veem na cidade, com os apelidos das contas.</p>
     <div class="row"><button class="btn primary" id="copycode">📋 Copiar convite</button><button class="btn" id="closeinv">Jogar</button></div>`, (el) => {
     el.querySelector('#closeinv').onclick = closePanel;
     el.querySelector('#copycode').onclick = async () => {
-      const txt = net.mode === 'room' ? `Vem jogar Bento City comigo! Abra o link do jogo, clique em Jogar Online e use o código ${net.room}` : `Vem jogar Bento City comigo! Abra ${addrs[0] || ''} e entre com o código ${net.room}`;
+      const txt = `Vem jogar Bento City comigo! Abra ${link}, entre na sua conta, toque em Jogar Online e use o código ${net.room}`;
       try { await navigator.clipboard.writeText(txt); toast('Convite copiado! 📋'); } catch (e) { toast('Código: ' + net.room); }
     };
   });
@@ -1160,21 +1099,17 @@ $('#code-pill').onclick = (e) => { e.stopPropagation(); openInvite(); };
 
 $('#btn-offline').onclick = () => startGame('offline');
 $('#btn-online').onclick = () => {
-  const p = $('#online-panel');
-  p.classList.toggle('hidden');
-  clearInterval(roomTimer);
-  if (!p.classList.contains('hidden')) { refreshRooms(); roomTimer = setInterval(refreshRooms, 3000); }
+  $('#online-panel').classList.toggle('hidden');
+  if (!window.QGConta) $('#net-status').textContent = 'O modo online só funciona no site queres.games.';
 };
-$('#btn-refresh').onclick = refreshRooms;
 $('#btn-create').onclick = () => connectOnline({ mode: 'create' });
 $('#btn-join').onclick = () => {
   const code = $('#code-input').value.trim().toUpperCase();
-  if (!code) { $('#net-status').textContent = 'Digite o código que seu amigo recebeu ao criar a partida.'; $('#code-input').focus(); return; }
+  if (code.length !== 4) { $('#net-status').textContent = 'Digite o código de 4 letras que seu amigo recebeu.'; $('#code-input').focus(); return; }
   connectOnline({ mode: 'join', room: code });
 };
 $('#code-input').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
 $('#code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-join').click(); });
-$('#server-input').addEventListener('change', refreshRooms);
 // Block keyboard shortcuts from reaching the game while typing in the menu
 for (const el of document.querySelectorAll('#menu input')) el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') $('#btn-offline').focus(); });
 
