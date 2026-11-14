@@ -47,11 +47,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1026; fon
 .toast.money { border-color: #9cff6b; color: #9cff6b; font-size: 20px; }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 #crosshair { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 20px; opacity: .5; pointer-events: none; z-index: 4; }
-#chat { position: fixed; left: 12px; bottom: 40px; width: min(380px, 70vw); z-index: 5; }
-#chat-log { display: flex; flex-direction: column; gap: 2px; font-size: 14px; text-shadow: 0 1px 3px #000; max-height: 180px; overflow: hidden; }
-#chat-log div { background: rgba(0,0,0,.35); padding: 2px 8px; border-radius: 6px; transition: opacity 1s; }
-#chat-log b { color: #ffeb3b; }
-#chat-input { width: 100%; margin-top: 4px; padding: 8px; border-radius: 8px; border: 0; font-size: 15px; }
 #hints { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 12px; opacity: .75; white-space: nowrap; text-shadow: 0 1px 3px #000; z-index: 4; }
 
 .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,10,30,.55); z-index: 20; padding: 16px; }
@@ -114,9 +109,7 @@ label input { display: block; width: 100%; margin-top: 4px; padding: 10px 12px; 
   #toasts { top: 40%; width: min(60vw, 420px); }
   .toast { font-size: 13px; padding: 5px 10px; }
   .toast.money { font-size: 15px; }
-  #chat { bottom: 8px; width: 40vw; }
-  #chat-log { font-size: 12px; max-height: 90px; }
-  .card { padding: 16px; border-radius: 16px; }
+      .card { padding: 16px; border-radius: 16px; }
   .menu-card h1 { font-size: 34px; }
   .sub { margin-bottom: 8px; }
 }
