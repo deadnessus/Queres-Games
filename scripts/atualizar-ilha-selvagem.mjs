@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gravarVersao } from './gravar-versao.mjs';
 
 const ilha = resolve(process.argv[2] || '');
 if (!process.argv[2] || !existsSync(join(ilha, 'tools/build-solo.mjs'))) {
@@ -76,3 +77,6 @@ varrer(destino);
 for (const u of usados) copiar(`examples/jsm/${u}`);
 if (!importmap.imports['three/addons/']) throw new Error('importmap sem three/addons/');
 console.log(`[ilha-selvagem] Three.js ${versao}: ${copiados.size} arquivos em vendor/three; addons usados: ${[...usados].join(', ')}`);
+
+// Grava de qual commit veio esta cópia (a pasta inteira foi apagada acima, então isso vem depois). Ver scripts/gravar-versao.mjs.
+try { gravarVersao('ilha-selvagem', ilha, { origem: 'deadnessus/jojo-game-2' }); } catch (e) { console.warn('[aviso] não gravei versao.json:', e.message); }

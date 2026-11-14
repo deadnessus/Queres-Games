@@ -21,7 +21,11 @@ Leia antes o `CLAUDE.md` da raiz do repositório `queres-games` (mapa do site, t
 - **Não copie**: `README.md`, `tools/`, `__pycache__/`, `.git`, pastas de teste, arquivos soltos fora do lugar (ex.: houve um `undefined/disc.png` por engano), nem `manual/` (PDFs vão em `public/manuais/`, passo 3).
 - Ao atualizar, apague a pasta de código antiga antes de copiar (ex.: `rm -rf public/jogar/<slug>/src`) para não sobrar arquivo removido no original.
 - **Ilha Selvagem não é cópia simples**: use `node scripts/atualizar-ilha-selvagem.mjs <ilha/>` (ver CLAUDE.md). Jogos 3D que importam bibliotecas de CDN devem ter a biblioteca guardada no próprio site (`vendor/`), sem sites externos.
-- Não é preciso acrescentar contador no jogo: o `npm run build` injeta sozinho (`scripts/pos-build.mjs`). Cada pasta em `public/jogar/<slug>/` precisa ter `index.html`.
+- Não é preciso acrescentar contador nem telemetria no jogo: o `npm run build` injeta sozinho (`scripts/pos-build.mjs`; ver a seção **Telemetria** do CLAUDE.md). **Não** crie analytics próprio nem coloque `/telemetria.js` à mão. Cada pasta em `public/jogar/<slug>/` precisa ter `index.html`.
+- **Grave a versão do jogo em TODA publicação (jogo novo ou atualização)**, depois de copiar os arquivos e com o repositório do jogo no commit certo:
+  `node scripts/gravar-versao.mjs <slug> <pasta-do-jogo-dentro-do-repo-de-origem> --origem dono/repositorio`
+  (ex.: `node scripts/gravar-versao.mjs invasao-estelar ../Jojo-5/invasao-estelar --origem deadnessus/Jojo-5`). Cria `public/jogar/<slug>/versao.json` com o commit, e é essa versão que marca os números da telemetria (comparar antes e depois). Se o repositório do jogo tiver `qg-eventos.json` na raiz, a lista de eventos vai junto. **Não apague** o `versao.json` ao recopiar: apagar a pasta do jogo e copiar de novo exige rodar o comando de novo. Ilha Selvagem e Ginga já chamam esse comando dentro dos scripts `atualizar-*`. Se der aviso de "mudanças não commitadas", commite/estacione no jogo antes.
+- Se você mexer em `public/telemetria.js`, aumente `VERSAO_TEL` em `scripts/pos-build.mjs`.
 - Confira caminhos: precisam ser **relativos** (`src/x.js`, `./assets/...`), porque o jogo roda em `/jogar/<slug>/`.
 - Confira `<meta charset="utf-8">` no começo do `index.html`; sem ele os acentos quebram ("BrasileirÃ£o"). O Brasileirão FIFA precisa dessa linha acrescentada.
 - Se o script novo do jogo (ex.: `src/sites.js`) não estiver referenciado no `index.html` copiado, algo está errado.
@@ -82,6 +86,7 @@ jogo: <slug-do-jogo>
 - Seções: `## O que mudou`, `## Bug` (se houver), `## Dá para fazer agora?` (o que o jogador pode testar já; lembrar de recarregar sem cache se for atualização), `## O que vem a seguir` (só planos reais: README/roadmap; não prometa nada).
 - Use só fatos de commits, README e telas do jogo. Se um post antigo ficou desatualizado, não reescreva: acrescente `## Atualização de <data>` com link para o post novo.
 - Não conte bastidores (build que falhou, configuração do Cloudflare).
+- Mudou o que se mede ou guarda sobre quem joga? Isso exige post claro, e confirmação do dono **antes do merge** (regra do público infantil).
 
 ## 5. Build, commit, PR e merge
 
@@ -101,3 +106,4 @@ Para mudanças de layout, rode `dist/` num servidor local e tire screenshots em 
 
 - Diga ao usuário: PR e merge feitos, o que entrou, o que foi testado e o que não foi, e que o Cloudflare publica em alguns minutos (se aparecer a versão antiga, recarregar sem cache ou aba anônima).
 - Se publicou um jogo novo ou mudou a origem de um jogo, atualize a tabela de jogos no `CLAUDE.md`.
+- Confira que `dist/telemetria-jogos.json` (gerado no build) mostra a versão nova do jogo (o log do build imprime `[pos-build] versões: ...`). Se aparecer `sem-versao` num jogo que você acabou de publicar, faltou gravar o `versao.json`.

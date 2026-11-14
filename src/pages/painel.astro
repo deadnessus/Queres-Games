@@ -1,0 +1,159 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base titulo="Painel" descricao="Números anônimos de uso dos jogos (só para o dono do site)." semIndexar>
+  <div class="pagina">
+    <header class="pagina-titulo">
+      <h1>Painel</h1>
+      <p>Números somados de uso dos jogos. Nada aqui identifica uma pessoa.</p>
+    </header>
+
+    <section class="secao painel" style="padding-top:0">
+      <form id="painel-entrar" class="painel-bloco">
+        <label for="painel-chave"><b>Chave do painel</b></label>
+        <p class="painel-ajuda">É a chave secreta que você guardou ao criar o segredo <code>PAINEL_CHAVE</code> no Cloudflare. Ela fica só nesta aba e é esquecida ao fechá-la.</p>
+        <div class="painel-linha">
+          <input id="painel-chave" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+          <button class="btn" type="submit">Ver números</button>
+        </div>
+      </form>
+      <p id="painel-aviso" role="status" class="painel-aviso" hidden></p>
+
+      <div id="painel-conteudo" hidden>
+        <div class="painel-linha painel-barra">
+          <label for="painel-dias">Período:</label>
+          <select id="painel-dias">
+            <option value="7">últimos 7 dias</option>
+            <option value="14" selected>últimos 14 dias</option>
+            <option value="30">últimos 30 dias</option>
+            <option value="90">últimos 90 dias</option>
+          </select>
+          <button class="btn btn-vazado" id="painel-sair" type="button">Sair</button>
+          <span id="painel-gerado" class="painel-ajuda"></span>
+        </div>
+        <div id="painel-jogos"></div>
+        <details class="painel-bloco">
+          <summary>Como ler estes números</summary>
+          <ul id="painel-notas"></ul>
+        </details>
+      </div>
+    </section>
+  </div>
+
+  <style is:global>
+    .painel code { background: var(--painel-2); padding: 1px 6px; border-radius: 4px; }
+    .painel-bloco { background: var(--painel); border: 3px solid var(--painel-2); padding: 20px; margin-bottom: 20px; max-width: 760px; }
+    .painel-ajuda { color: var(--texto-fraco); font-size: 15px; margin: 6px 0 12px; }
+    .painel-linha { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .painel-barra { margin-bottom: 20px; }
+    .painel input, .painel select { font: inherit; padding: 12px 14px; background: var(--fundo); color: var(--texto); border: 3px solid var(--borda-suave); min-width: 0; flex: 1 1 220px; }
+    .painel select { flex: 0 0 auto; }
+    .painel-aviso { padding: 12px 16px; border: 3px solid var(--rosa); max-width: 760px; }
+    .painel-aviso.ok { border-color: var(--ciano); }
+    .painel-jogo { background: var(--painel); border: 3px solid var(--painel-2); margin-bottom: 16px; }
+    .painel-jogo > summary { cursor: pointer; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: baseline; }
+    .painel-jogo > summary b { font-family: var(--pixel); font-size: 13px; color: var(--amarelo); }
+    .painel-jogo > div { padding: 0 18px 18px; overflow-x: auto; }
+    .painel-jogo h3 { font-size: 12px; color: var(--ciano); margin: 22px 0 10px; }
+    .painel table { border-collapse: collapse; font-size: 15px; width: 100%; min-width: 520px; }
+    .painel th, .painel td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--painel-2); white-space: nowrap; }
+    .painel th:first-child, .painel td:first-child { text-align: left; }
+    .painel td.texto { text-align: left; white-space: normal; word-break: break-word; }
+    .painel .fraca { color: var(--texto-fraco); }
+    .painel .alerta { color: var(--rosa); font-weight: 800; }
+  </style>
+
+  <script is:inline>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var CHAVE = 'qg-painel-chave';
+      function aviso(texto, ok) { var a = $('painel-aviso'); a.textContent = texto || ''; a.hidden = !texto; a.className = 'painel-aviso' + (ok ? ' ok' : ''); }
+      function el(tag, texto, cls) { var e = document.createElement(tag); if (texto != null) e.textContent = texto; if (cls) e.className = cls; return e; }
+      var fmt = function (n) { return n == null ? '–' : Number(n).toLocaleString('pt-BR'); };
+      var seg = function (s) { return s == null ? '–' : s >= 120 ? Math.round(s / 60) + ' min' : Math.round(s) + ' s'; };
+
+      function tabela(cabecalho, linhas) {
+        var t = document.createElement('table'), h = t.createTHead().insertRow();
+        cabecalho.forEach(function (c) { h.appendChild(el('th', c)); });
+        var corpo = t.createTBody();
+        linhas.forEach(function (l) { var r = corpo.insertRow(); l.forEach(function (c, i) { var td = el('td', c); r.appendChild(td); }); });
+        return t;
+      }
+
+      function resumoLinha(r) {
+        var v = r.voltaram;
+        return [fmt(r.sessoes), fmt(r.aparelhos_dia), seg(r.tempo_ativo_medio_por_sessao_s),
+          r.saida_rapida_pct == null ? '–' : r.saida_rapida_pct + '%', fmt(r.erros), fmt(v.depois_de_1_dia + v.depois_de_2_a_7_dias + v.depois_de_8_ou_mais_dias)];
+      }
+      var CAB = ['', 'Sessões', 'Aparelhos/dia', 'Tempo médio', 'Saída rápida', 'Erros', 'Voltaram'];
+
+      function desenhar(d) {
+        $('painel-gerado').textContent = 'De ' + d.periodo.de + ' a ' + d.periodo.ate + ' (horário de Brasília).';
+        var nl = $('painel-notas'); nl.textContent = ''; d.notas.forEach(function (n) { nl.appendChild(el('li', n)); });
+        var raiz = $('painel-jogos'); raiz.textContent = '';
+        Object.keys(d.jogos).forEach(function (slug) {
+          var j = d.jogos[slug], p = j.total_do_periodo;
+          var det = el('details', null, 'painel-jogo');
+          var sum = el('summary'); sum.appendChild(el('b', slug));
+          sum.appendChild(el('span', fmt(p.sessoes) + ' sessões'));
+          sum.appendChild(el('span', seg(p.tempo_ativo_medio_por_sessao_s) + ' por sessão', 'fraca'));
+          sum.appendChild(el('span', 'versão publicada: ' + (j.versao_publicada || '?'), 'fraca'));
+          if (p.erros) sum.appendChild(el('span', p.erros + ' erros', 'alerta'));
+          if (p.sessoes && p.amostra_pequena) sum.appendChild(el('span', 'poucos dados', 'fraca'));
+          det.appendChild(sum);
+          var corpo = document.createElement('div');
+          if (!p.sessoes) corpo.appendChild(el('p', 'Sem dados neste período.', 'fraca'));
+          else {
+            corpo.appendChild(el('h3', 'Por versão'));
+            corpo.appendChild(tabela(['Versão'].concat(CAB.slice(1)), j.por_versao.map(function (v) { return [v.versao + (v.amostra_pequena ? ' *' : '')].concat(resumoLinha(v)); })));
+            corpo.appendChild(el('h3', 'Por dia'));
+            corpo.appendChild(tabela(['Dia / versão'].concat(CAB.slice(1)), j.por_dia.map(function (v) { return [v.dia + ' · ' + v.versao].concat(resumoLinha(v)); })));
+            corpo.appendChild(el('h3', 'Aparelho e tela (período)'));
+            var t = p.tela_largura;
+            corpo.appendChild(el('p', 'Celular: ' + fmt(p.aparelho.celular) + ' · Computador: ' + fmt(p.aparelho.computador) +
+              ' · Largura: <360 ' + fmt(t.menos_de_360) + ', 360–413 ' + fmt(t.de_360_a_413) + ', 414–599 ' + fmt(t.de_414_a_599) +
+              ', 600–899 ' + fmt(t.de_600_a_899) + ', 900–1279 ' + fmt(t.de_900_a_1279) + ', 1280+ ' + fmt(t.de_1280_ou_mais), 'fraca'));
+            corpo.appendChild(el('p', 'Chegaram a 10 s: ' + fmt(p.alcancaram_10s) + ' · 1 min: ' + fmt(p.alcancaram_60s) + ' · 5 min: ' + fmt(p.alcancaram_300s) + ' · 15 min: ' + fmt(p.alcancaram_900s), 'fraca'));
+          }
+          if (j.erros_mais_frequentes.length) {
+            corpo.appendChild(el('h3', 'Erros mais frequentes'));
+            var te = tabela(['Vezes', 'Versão', 'Dia', 'Arquivo:linha', 'Mensagem'], j.erros_mais_frequentes.map(function (e) { return [fmt(e.vezes), e.versao, e.dia, (e.arquivo || '?') + ':' + e.linha, e.mensagem]; }));
+            Array.prototype.forEach.call(te.tBodies[0].rows, function (r) { r.cells[4].className = 'texto'; r.cells[4].style.textAlign = 'left'; });
+            corpo.appendChild(te);
+          }
+          if (j.eventos.length) {
+            corpo.appendChild(el('h3', 'Eventos do jogo'));
+            corpo.appendChild(tabela(['Evento', 'Valor', 'Versão', 'Vezes', 'Sessões'], j.eventos.map(function (e) { return [e.nome, e.valor || '–', e.versao, fmt(e.vezes), fmt(e.sessoes)]; })));
+          }
+          det.appendChild(corpo);
+          raiz.appendChild(det);
+        });
+      }
+
+      function carregar(chave) {
+        aviso('Carregando…', true);
+        return fetch('/api/painel/resumo?dias=' + $('painel-dias').value, { headers: { authorization: 'Bearer ' + chave }, cache: 'no-store' })
+          .then(function (r) {
+            if (r.status === 503) { aviso('O painel ainda não está ligado: falta criar o segredo PAINEL_CHAVE no Cloudflare (ou o banco de dados).'); return null; }
+            if (r.status === 401) { try { sessionStorage.removeItem(CHAVE); } catch (e) {} aviso('Chave incorreta.'); return null; }
+            if (!r.ok) { aviso('Não deu certo agora (erro ' + r.status + '). Tente de novo daqui a pouco.'); return null; }
+            return r.json();
+          })
+          .then(function (d) {
+            if (!d) { $('painel-conteudo').hidden = true; return; }
+            aviso('');
+            try { sessionStorage.setItem(CHAVE, chave); } catch (e) {}
+            $('painel-entrar').hidden = true; $('painel-conteudo').hidden = false;
+            desenhar(d);
+          })
+          .catch(function () { aviso('Sem conexão com o site.'); });
+      }
+
+      $('painel-entrar').addEventListener('submit', function (ev) { ev.preventDefault(); carregar($('painel-chave').value.trim()); $('painel-chave').value = ''; });
+      $('painel-dias').addEventListener('change', function () { var c = null; try { c = sessionStorage.getItem(CHAVE); } catch (e) {} if (c) carregar(c); });
+      $('painel-sair').addEventListener('click', function () { try { sessionStorage.removeItem(CHAVE); } catch (e) {} location.reload(); });
+      var guardada = null; try { guardada = sessionStorage.getItem(CHAVE); } catch (e) {}
+      if (guardada) carregar(guardada);
+    })();
+  </script>
+</Base>
