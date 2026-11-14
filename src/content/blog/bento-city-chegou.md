@@ -4,7 +4,7 @@ resumo: "Um sandbox 3D de mundo aberto com cidade, empregos, veículos, aviões 
 data: 2026-11-14T18:26:00-03:00
 jogo: bento-city
 ---
-O novo jogo do site é o **Bento City**, feito pelo Bento. Ele ainda está **em desenvolvimento**, mas já dá para jogar.
+O novo jogo do site é o **Bento City**, feito pelo Bento. Ele já está **jogável**.
 
 ## O que é
 
@@ -31,4 +31,4 @@ Sim. Comece pelo emprego de entregador de pizza, ou procure o aeroporto a oeste 
 
 ## O que vem a seguir
 
-O jogo continua em desenvolvimento, e cada novidade vai ser contada aqui no blog.
+O jogo continua recebendo novidades, e cada uma vai ser contada aqui no blog.
