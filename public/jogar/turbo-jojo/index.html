@@ -939,7 +939,10 @@ function renderShop(){
 
 /* ===================== CONTROLES ===================== */
 const KEYMAP={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'gas',KeyW:'gas',ArrowDown:'brake',KeyS:'brake',Space:'brake'};
+// Quem está digitando (código da conta, código da corrida) não pode ter as letras A, D, W, S, P, E e o espaço roubadas pelo jogo.
+const digitando=e=>{const t=e.target;return !!(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)));};
 addEventListener('keydown',e=>{
+  if(digitando(e))return;
   if(KEYMAP[e.code]){keys[KEYMAP[e.code]]=1;e.preventDefault();}
   if((e.code==='KeyP'||e.code==='Escape')&&!e.repeat)togglePause();
   if((e.code==='KeyE'||e.code==='ShiftLeft'||e.code==='ShiftRight')&&!e.repeat)useItem();
