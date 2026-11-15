@@ -42,7 +42,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | `collatz-rocket` | Collatz Rocket | Jojô e Bento | não registrado (build Vite colocado direto aqui) | — |
 | `ilha-misteriosa` | A Ilha Misteriosa | Jojô e Bento | `deadnessus/queres-games---mystery-island` | `master` |
 | `ascendia-penaltys` | Ascendia Penaltys | Bento | `deadnessus/ascendia-penalty` | `main` (cópia do original com 3 diferenças: pasta `js/` renomeada para `app/` e `css/style.css` para `css/jogo-v2.css` (para furar cache de navegador), etiqueta "versão 2" no fim do `index.html`, e um bloco de CSS para telas baixas no fim do CSS. Ao recopiar, repita isso) |
-| `turbo-jojo` | Turbo Jojo | Jojô | `deadnessus/Jojo-1` | `claude/fervent-goldberg-xz80zn` |
+| `turbo-jojo` | Turbo Jojo (corrida online por código, sala de espera, sem chat) | Jojô | `deadnessus/Jojo-1` (copiar `index.html` e `lib/`; a conta vem de `/conta.js` e o servidor é o `worker-turbo-jojo/`) | `claude/fervent-goldberg-xz80zn` |
 | `ginga` | Ginga (Dribble Game) | Jojô e Bento | `deadnessus/Dribble-Game` | `claude/football-mobile-game-td9nex` |
 | `ilha-selvagem` | Ilha Selvagem (só a versão **solo**) | Jojô | `deadnessus/jojo-game-2`, pasta `ilha/` | `claude/3d-building-game-animals-b49gqr` |
 | `furia` | Fúria: Arena & Guerra | Bento | `deadnessus/Bento-1` (copiar `index.html`, `style.css`, `js/` e `lib/`; o Three.js já vem guardado em `lib/`, sem sites externos; não copiar `jogar.html`, `tools/` nem README) | `claude/kind-davinci-3p5s5s` |
