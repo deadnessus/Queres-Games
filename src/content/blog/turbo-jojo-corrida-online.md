@@ -22,3 +22,7 @@ O **Turbo Jojo** agora tem **corrida online**: você corre contra amigos de verd
 - **Não existe chat.** O nome de cada corredor é o **apelido da conta**. Nada é digitado.
 
 Se algo parecer antigo, recarregue a página sem cache ou abra numa aba anônima.
+
+## Atualização: letras que não funcionavam
+
+Quem tentava entrar numa conta dentro do Turbo Jojo percebia que algumas letras (como **A**, **D**, **W** e **S**) não apareciam no campo do código. Era o jogo guardando essas teclas para dirigir. Já corrigimos: nos campos de texto, todas as letras funcionam, e no volante as teclas continuam iguais.
