@@ -9,6 +9,7 @@
 import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gravarVersao } from './gravar-versao.mjs';
 
 const origem = resolve(process.argv[2] || '');
 if (!process.argv[2] || !existsSync(join(origem, 'index.html')) || !existsSync(join(origem, 'src/main.js'))) {
@@ -30,3 +31,6 @@ const externos = html.match(/https?:\/\/(?!www\.w3\.org)[^"'\s)]+/g);
 if (externos) console.warn('[aviso] ainda há endereços externos no index.html:', externos);
 writeFileSync(join(destino, 'index.html'), html);
 console.log('[ginga] jogo copiado para', destino);
+
+// Grava de qual commit veio esta cópia. Ver scripts/gravar-versao.mjs.
+try { gravarVersao('ginga', origem, { origem: 'deadnessus/Dribble-Game' }); } catch (e) { console.warn('[aviso] não gravei versao.json:', e.message); }

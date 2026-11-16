@@ -12,6 +12,7 @@
 import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gravarVersao } from './gravar-versao.mjs';
 
 const origem = resolve(process.argv[2] || '');
 if (!process.argv[2] || !existsSync(join(origem, 'public/index.html')) || !existsSync(join(origem, 'public/js/main.js'))) {
@@ -33,3 +34,6 @@ const externos = html.match(/https?:\/\/(?!www\.w3\.org)[^"'\s)]+/g);
 if (externos) console.warn('[aviso] ainda há endereços externos no index.html:', externos);
 writeFileSync(join(destino, 'index.html'), html);
 console.log('[bento-city] jogo copiado para', destino);
+
+// Grava de qual commit veio esta cópia. Ver scripts/gravar-versao.mjs.
+try { gravarVersao('bento-city', origem, { origem: 'deadnessus/Bento-2' }); } catch (e) { console.warn('[aviso] não gravei versao.json:', e.message); }
