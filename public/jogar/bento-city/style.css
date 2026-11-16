@@ -37,6 +37,17 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1026; fon
 #job-obj { font-size: 14px; margin-top: 2px; }
 #job-timer { font-size: 22px; font-weight: 800; margin-top: 4px; }
 #job-timer.late { color: #ff5252; }
+#job-career { margin-top: 6px; font-size: 13px; font-weight: 700; }
+.bar { height: 8px; background: rgba(255,255,255,.2); border-radius: 99px; overflow: hidden; margin-top: 4px; }
+.bar > div { height: 100%; background: linear-gradient(90deg, #ffd54f, #ff7043); border-radius: 99px; transition: width .4s; }
+.career { background: #fff8e1; border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.career .bar { background: #ffe0b2; }
+.lv-on { font-weight: 800; } .lv-off { opacity: .45; }
+.lvtag { font-size: 12px; background: #fff3e0; color: #e65100; border-radius: 99px; padding: 2px 8px; margin-left: 4px; white-space: nowrap; }
+#promo { position: fixed; top: 18%; left: 50%; transform: translateX(-50%); z-index: 30; background: #fff; color: #222; border-radius: 20px; padding: 18px 22px; text-align: center; width: min(420px, 90vw); box-shadow: 0 20px 60px rgba(0,0,0,.45); animation: pop .35s ease-out; }
+.promo-t { font-size: 34px; font-weight: 900; color: #ff7043; letter-spacing: 1px; }
+.promo-l { font-size: 20px; font-weight: 800; margin: 4px 0; }
+#confetti { position: fixed; inset: 0; pointer-events: none; z-index: 29; }
 #speedo { position: fixed; right: 24px; bottom: 26px; font-size: 44px; font-weight: 900; text-shadow: 0 3px 8px #000; z-index: 5; }
 #speedo small { font-size: 16px; margin-left: 4px; }
 #alt { font-size: 15px; font-weight: 800; text-align: right; }

@@ -13,7 +13,7 @@ export class Player extends Actor {
     this.spraying = false;
     this.lastAccel = 0;
     this.swimming = false;
-    this.hasJetpack = false; this.fuel = 2.5; this.jetting = false;
+    this.hasJetpack = false; this.maxFuel = 2.5; this.fuel = 2.5; this.jetting = false;
   }
   get actor() { return this; }
 
@@ -96,7 +96,7 @@ export class Player extends Actor {
     if (this.hasJetpack && !this.grounded && !water && input.down('Space') && this.fuel > 0 && !input.pressed('Space')) {
       this.vel.y = Math.min(this.vel.y + 40 * dt, 9); this.fuel -= dt; this.jetting = true;
     }
-    if (this.grounded) this.fuel = Math.min(2.5, this.fuel + dt * 1.2);
+    if (this.grounded) this.fuel = Math.min(this.maxFuel, this.fuel + dt * 1.2);
     this.pos.addScaledVector(this.vel, dt);
     const g = world.groundAt(this.pos.x, this.pos.z, this.pos.y);
     const floor = water ? -1.1 : g;

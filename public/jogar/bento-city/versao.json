@@ -1,10 +1,9 @@
 {
-  "commit": "d980015",
-  "data_do_commit": "2026-11-16T01:27:52+00:00",
-  "branch": "claude/bento-city-eventos",
+  "commit": "62b33df",
+  "data_do_commit": "2026-11-16T13:48:24+00:00",
+  "branch": "claude/sandwich-box-open-world-game-b0ymc2",
   "origem": "deadnessus/Bento-2",
-  "pasta": "public",
-  "gravado_em": "2026-11-16T01:28:01.654Z",
+  "gravado_em": "2026-11-16T13:48:38.491Z",
   "eventos": [
     "jogo_iniciado",
     "emprego_iniciado",

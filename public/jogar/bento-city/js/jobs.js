@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { canvasTexture, dist2, clamp } from './util.js';
 import { TrafficAI } from './vehicles.js';
 import { BEACH_Z } from './world.js';
+import { PERKS } from './levels.js';
 
 // Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
 const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
@@ -93,6 +94,8 @@ export class Fire {
 class Job {
   constructor(g, key) { this.g = g; this.key = key; this.def = JOBS[key]; this.target = null; this.objective = ''; this.timer = null; this.marker = new Marker(g.scene, 0xffeb3b); this.extraMarkers = []; }
   loc() { return this.g.world.locations[this.def.place]; }
+  level() { return this.g.jobLevel ? this.g.jobLevel(this.key) : 0; }
+  perk() { const p = PERKS[this.key]; return !!p && this.level() >= p.lvl; }
   near(obj, p, r) { return dist2(obj.x, obj.z, p.x, p.z) < r; }
   setTarget(p) { this.target = p; if (p) this.marker.set(p.x, p.z, p.y || 0); else this.marker.hide(); }
   farHouse(from, min = 90, max = 320) {
@@ -148,7 +151,7 @@ class PizzaJob extends Job {
 }
 
 class TaxiJob extends Job {
-  start() { this.vehicle = this.g.spawnJobVehicle('taxi', this.loc().spawn); this.newPassenger(); }
+  start() { this.vehicle = this.g.spawnJobVehicle('taxi', this.loc().spawn); if (this.perk()) this.vehicle.boost = 1.4; this.newPassenger(); }
   newPassenger() {
     const p = this.g.player;
     let pt;
@@ -210,6 +213,7 @@ class CarryJob extends Job {
   }
   intoTruck(items, v) {
     const r = v.rearPoint(); let n = 0;
+    if (this.perk() && this.key !== 'spacemission') this.magnet(items, r, 14);
     for (const it of items) {
       if (!it.alive) continue;
       if (dist2(it.pos.x, it.pos.z, r.x, r.z) < 3.4 && it.pos.y < v.y + v.def.h + 2) {
@@ -217,6 +221,15 @@ class CarryJob extends Job {
       }
     }
     return n;
+  }
+  magnet(items, to, radius) {
+    for (const it of items) {
+      if (!it.alive || it.held) continue;
+      const dx = to.x - it.pos.x, dz = to.z - it.pos.z, d = Math.hypot(dx, dz);
+      if (d > radius || d < 0.5) continue;
+      it.vel.x = dx / d * 10; it.vel.z = dz / d * 10;
+      if (it.grounded) it.vel.y = 3;
+    }
   }
   end() { super.end(); for (const it of this.items || []) if (it.alive) this.g.props.remove(it); this.truckMarker?.removeFromParent(); }
   showRear(v) {
@@ -332,7 +345,8 @@ class FireJob extends Job {
   }
   waterHit(x, y, z) {
     for (const f of this.fires) {
-      if (Math.abs(f.x - x) < 2.3 && Math.abs(f.z - z) < 2.3 && y > f.y - 1 && y < f.y + 3.5) { f.hp -= 1.1; return true; }
+      const big = this.perk(), r = big ? 3.6 : 2.3;
+      if (Math.abs(f.x - x) < r && Math.abs(f.z - z) < r && y > f.y - 1.5 && y < f.y + 4.5) { f.hp -= big ? 3.3 : 1.1; return true; }
     }
     return false;
   }
@@ -367,6 +381,7 @@ class MiningJob extends CarryJob {
   update(dt, t) {
     super.update(dt, t);
     const p = this.g.player, ref = this.g.world.locations.refinery;
+    if (this.perk()) this.magnet(this.items, ref, 15);
     for (const it of this.items) if (it.alive && dist2(it.pos.x, it.pos.z, ref.x, ref.z) < 4.5) { this.g.props.remove(it); this.done++; this.g.sfx.coin(); }
     // crystals loaded into the rover also count, they get driven to the refinery
     this.done += this.intoTruck(this.items, this.vehicle);
@@ -423,8 +438,9 @@ class RepairJob extends Job {
     a.lamp.visible = Math.floor(t * 4) % 2 === 0;
     const close = !p.vehicle && dist2(p.pos.x, p.pos.z, a.x, a.z) < 4.5;
     if (close) this.prog += dt; else this.prog = Math.max(0, this.prog - dt);
-    this.objective = close ? `Consertando... ${Math.min(100, Math.round(this.prog / 3 * 100))}%` : `Vá até a antena e fique perto dela a pé (${this.i}/3)`;
-    if (this.prog >= 3) {
+    const need = this.perk() ? 1 : 3;
+    this.objective = close ? `Consertando... ${Math.min(100, Math.round(this.prog / need * 100))}%` : `Vá até a antena e fique perto dela a pé (${this.i}/3)`;
+    if (this.prog >= need) {
       a.lamp.visible = true; this.g.sfx.success(); this.i++; this.prog = 0;
       if (this.i >= 3) { this.g.payStars(10, 'Antenas consertadas! 📡'); this.g.stats('antenas'); this.round(); }
     }
@@ -454,7 +470,7 @@ class SpaceMissionJob extends CarryJob {
 // ---------- New earth jobs ----------
 const _rv = new THREE.Vector3();
 class PilotJob extends Job {
-  start() { this.vehicle = this.g.spawnJobVehicle('cargo', this.loc().spawn); this.rings = []; this.round(); }
+  start() { this.vehicle = this.g.spawnJobVehicle('cargo', this.loc().spawn); if (this.perk()) this.vehicle.boost = 1.4; this.rings = []; this.round(); }
   round() {
     this.clearRings();
     const n = 4, start = Math.random() * Math.PI * 2;
@@ -516,7 +532,9 @@ class HeliRescueJob extends Job {
     if (this.state === 'find') {
       this.setTarget(this.spot);
       this.objective = p.vehicle === v ? `Pouse perto da pessoa (altura ${Math.round(this.spot.y)} m)` : 'Entre no helicóptero de resgate (E)';
-      if (p.vehicle === v && dist2(v.pos.x, v.pos.z, this.spot.x, this.spot.z) < 12 && Math.abs(v.y - this.spot.y) < 3.5 && Math.hypot(v.vel.x, v.vel.z) < 5) {
+      const winch = this.perk();
+      if (winch && p.vehicle === v) this.objective = 'Paire perto da pessoa: o guincho puxa ela para dentro 🪝';
+      if (p.vehicle === v && dist2(v.pos.x, v.pos.z, this.spot.x, this.spot.z) < (winch ? 22 : 12) && Math.abs(v.y - this.spot.y) < (winch ? 16 : 3.5) && Math.hypot(v.vel.x, v.vel.z) < (winch ? 9 : 5)) {
         this.g.peds.remove(this.npc); this.npc = null; this.state = 'deliver'; this.g.sfx.door();
         this.g.toast('Pessoa a bordo! Leve ao heliponto do hospital 🏥');
       }
@@ -532,7 +550,7 @@ class HeliRescueJob extends Job {
 }
 
 class ParamedicJob extends CarryJob {
-  start() { this.vehicle = this.g.spawnJobVehicle('ambulance', this.loc().spawn); this.next(); }
+  start() { this.vehicle = this.g.spawnJobVehicle('ambulance', this.loc().spawn); if (this.perk()) this.vehicle.boost = 1.4; this.next(); }
   next() {
     const p = this.g.player;
     let pt;
@@ -571,7 +589,7 @@ class ParamedicJob extends CarryJob {
 }
 
 class PoliceJob extends Job {
-  start() { this.vehicle = this.g.spawnJobVehicle('police', this.loc().spawn); this.next(); }
+  start() { this.vehicle = this.g.spawnJobVehicle('police', this.loc().spawn); if (this.perk()) this.vehicle.boost = 1.35; this.next(); }
   next() {
     const v = this.g.spawnVehicle('sport', 0, 0, 0, { color: 0x212121 });
     const p = this.g.player;
@@ -590,8 +608,9 @@ class PoliceJob extends Job {
     const close = p.vehicle === v && dist2(v.pos.x, v.pos.z, s.pos.x, s.pos.z) < 13;
     this.prog = close ? this.prog + dt : Math.max(0, this.prog - dt * 0.5);
     if (s.ai && close) s.ai.cruise = 21;
-    this.objective = p.vehicle === v ? `Fique colado no fugitivo! Cerco: ${Math.min(100, Math.round(this.prog / 4 * 100))}%` : 'Entre na viatura (E) e persiga o fugitivo';
-    if (this.prog >= 4) {
+    const need = this.perk() ? 2 : 4;
+    this.objective = p.vehicle === v ? `Fique colado no fugitivo! Cerco: ${Math.min(100, Math.round(this.prog / need * 100))}%` : 'Entre na viatura (E) e persiga o fugitivo';
+    if (this.prog >= need) {
       s.ai = null; s.driver = null; s.vel.set(0, 0, 0); this.state = 'caught'; this.wait = 5;
       this.g.pay(Math.round(200 + Math.max(0, this.timer)), 'Fugitivo preso! 🚓'); this.g.stats('prisoes');
     } else if (this.timer <= 0) {
@@ -605,6 +624,7 @@ const FISH = [
   { name: 'Sardinha', color: 0x90a4ae, pay: 20, w: 50 }, { name: 'Tilápia', color: 0x8d6e63, pay: 30, w: 30 },
   { name: 'Peixe-Palhaço', color: 0xff7043, pay: 45, w: 12 }, { name: 'Atum', color: 0x1565c0, pay: 70, w: 6 }, { name: 'Peixe Dourado', color: 0xffd54f, pay: 150, w: 2 },
 ];
+const SHARK = { name: 'Tubarão Lendário', color: 0x607d8b, pay: 600, w: 7 };
 class FisherJob extends Job {
   start() {
     this.state = 'go'; this.fish = null;
@@ -628,23 +648,25 @@ class FisherJob extends Job {
     }
     this.setTarget(F.spot);
     if (!atSpot) { this.state = 'go'; this.bob.visible = false; this.objective = 'Vá até a ponta do píer para pescar'; return; }
-    if (this.state === 'go') { this.state = 'wait'; this.wait = 2 + Math.random() * 4; this.g.sfx.splash(); }
+    if (this.state === 'go') { this.state = 'wait'; this.wait = this.level() >= 2 ? 1 + Math.random() * 2 : 2 + Math.random() * 4; this.g.sfx.splash(); }
     this.bob.visible = true;
     const bx = F.spot.x, bz = F.spot.z + 6;
     p.ry = 0;
     if (this.state === 'wait') {
       this.wait -= dt; this.bob.position.set(bx, -0.25 + Math.sin(t * 3) * 0.05, bz);
       this.objective = 'Esperando o peixe morder... 🎣';
-      if (this.wait <= 0) { this.state = 'bite'; this.window = 1.3; this.g.toast('🐟 Mordeu! Aperte F (ou ✋) agora!'); this.g.sfx.tone(880, 0.15, 'square', 0.2); }
+      if (this.wait <= 0) { this.state = 'bite'; this.window = this.level() >= 2 ? 2 : 1.3; this.g.toast('🐟 Mordeu! Aperte F (ou ✋) agora!'); this.g.sfx.tone(880, 0.15, 'square', 0.2); }
     } else if (this.state === 'bite') {
       this.window -= dt; this.bob.position.set(bx, -0.6 + Math.sin(t * 30) * 0.15, bz);
       this.objective = 'APERTE F AGORA!';
       if (inp.pressed('KeyF') || inp.pressed('Mouse0')) {
-        let roll = Math.random() * 100; this.fishDef = FISH[0];
-        for (const f of FISH) { if (roll < f.w) { this.fishDef = f; break; } roll -= f.w; }
+        const pool = this.perk() ? [...FISH, SHARK] : FISH;
+        let roll = Math.random() * pool.reduce((a, f) => a + f.w, 0); this.fishDef = pool[0];
+        for (const f of pool) { if (roll < f.w) { this.fishDef = f; break; } roll -= f.w; }
         this.fish = this.g.props.spawn('fish', p.pos.x, p.pos.y + 1.3, p.pos.z, 'job');
         this.fish.mesh.material.color.set(this.fishDef.color);
-        if (this.fishDef.pay >= 150) this.fish.mesh.material.emissive = new THREE.Color(0x6d4c00);
+        if (this.fishDef.pay >= 150 && this.fishDef !== SHARK) this.fish.mesh.material.emissive = new THREE.Color(0x6d4c00);
+        if (this.fishDef === SHARK) { this.fish.mesh.scale.multiplyScalar(3); this.fish.r = 0.9; this.g.celebrate?.(); }
         if (p.held) p.release(false, null);
         p.grab(this.fish); this.bob.visible = false; this.state = 'sell';
         this.g.toast(`Você pescou: ${this.fishDef.name}! 🎉`); this.g.sfx.success();
@@ -672,6 +694,7 @@ export class JobManager {
     const key = this.current.key;
     this.current.end();
     this.current = null;
+    this.g.onJobEnd?.();
     if (!silent) { evento('emprego_abandonado', { emprego: key }); this.g.toast('Você saiu do emprego.'); }
   }
   update(dt, t) { this.current?.update(dt, t); }

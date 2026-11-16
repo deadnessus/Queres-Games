@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { World, EDGE, WATER_Z, BEACH_Z, MX, MZ, isSpace, AX } from './world.js';
-import { ITEMS, SLOT_NAMES } from './outfits.js';
+import { ITEMS, SLOT_NAMES, registerUniforms, uniformId } from './outfits.js';
+import { LEVELS, STAT_JOB, PERKS, levelOf, progressInfo } from './levels.js';
 import { Character, HATS, SKINS, makeHat } from './character.js';
 import { Player } from './player.js';
 import { Props, PTYPES, makePropMesh } from './props.js';
@@ -18,15 +19,18 @@ const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) windo
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const mobile = matchMedia('(pointer: coarse)').matches;
+registerUniforms(JOBS);
 
 // ---------------- Save data ----------------
 const SAVE_KEY = 'bentocity_save_v1';
 const defaultSave = () => ({
   name: '', money: 150, look: { shirt: 0x1e88e5, pants: 0x37474f, skin: 0xffdbac, hat: 'none', hatColor: 0xe53935 },
-  hats: ['none'], vehicles: [], stats: {}, gifts: [], items: [], stars: 0, fav: null, favSpace: null, spaceUnlocked: false,
+  hats: ['none'], vehicles: [], stats: {}, jobXP: null, gifts: [], items: [], stars: 0, fav: null, favSpace: null, spaceUnlocked: false,
 });
 let save = defaultSave();
 try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = { ...save, ...s, look: { ...save.look, ...s.look } }; } catch (e) { /* no storage */ }
+// Career XP: earlier work (from stats) counts the first time
+if (!save.jobXP) { save.jobXP = {}; for (const [k, j] of Object.entries(STAT_JOB)) if (save.stats[k]) save.jobXP[j] = save.stats[k]; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } }
 
 // ---------------- Three setup ----------------
@@ -63,11 +67,25 @@ player.ry = 0;
 const G = {
   scene, world, props, peds, player, vehicles, sfx, input, camPitch: 0.3,
   jobVehicle: null,
-  toast, pay, stats: (k) => { save.stats[k] = (save.stats[k] || 0) + 1; persist(); },
+  toast, pay,
+  stats: (k) => {
+    save.stats[k] = (save.stats[k] || 0) + 1;
+    const job = STAT_JOB[k];
+    if (job) {
+      const before = levelOf(save.jobXP[job] || 0);
+      save.jobXP[job] = (save.jobXP[job] || 0) + 1;
+      const after = levelOf(save.jobXP[job]);
+      if (after > before) promote(job, after);
+    }
+    persist();
+  },
+  jobLevel: (k) => levelOf(save.jobXP[k] || 0),
+  celebrate: () => { confetti(); sfx.fanfare(); },
+  onJobEnd: () => refreshJobGear(),
   spawnJobVehicle,
   spawnVehicle: (...a) => spawnVehicle(...a), removeVehicle: (v) => removeVehicle(v),
   payStars: (n, reason) => { servicoConcluido(); save.stars += n; persist(); toast(`+${n} ⭐  ${reason || ''}`, 'money'); sfx.coin(); },
-  onJobStart: () => setTimeout(() => callFavorite(true), 300),
+  onJobStart: () => { refreshJobGear(); setTimeout(() => callFavorite(true), 300); },
   finishSpaceMission: () => {
     save.spaceUnlocked = true; persist(); jobs.quit(true);
     toast('Foguete abastecido! 🚀 Vá até o ponto da Missão Espacial para decolar.'); sfx.success();
@@ -352,8 +370,16 @@ function servicoConcluido() {
   const emprego = jobs.current && jobs.current.key;
   if (emprego) evento('servico_concluido', { emprego });
 }
-function pay(amount, reason) {
-  servicoConcluido();
+// raw = dinheiro que não vem de um serviço (ex.: presentes): sem bônus de nível e sem evento
+function pay(amount, reason, raw) {
+  const job = jobs.current;
+  if (!raw) {
+    servicoConcluido();
+    if (job && !job.def.hidden) {
+      const lvl = levelOf(save.jobXP[job.key] || 0);
+      if (lvl > 0) { amount = Math.round(amount * LEVELS[lvl].mult); reason = `${reason || ''} (bônus ${LEVELS[lvl].name})`; }
+    }
+  }
   save.money += amount; persist();
   toast(`+$${amount}  ${reason || ''}`, 'money');
   sfx.coin();
@@ -392,12 +418,20 @@ function itemCard(id, def, slot) {
 function openShop(cur = '$', tab) {
   const space = cur === '⭐';
   tab = tab || (space ? 'suit' : 'colors');
-  const tabs = space ? ['suit', 'hat', 'face', 'back', 'vehicles'] : ['colors', 'suit', 'hat', 'face', 'neck', 'back'];
-  const tabName = (t) => t === 'colors' ? 'Cores' : t === 'vehicles' ? 'Veículos' : SLOT_NAMES[t];
+  const tabs = space ? ['suit', 'hat', 'face', 'back', 'vehicles', 'uniforms'] : ['colors', 'uniforms', 'suit', 'hat', 'face', 'neck', 'back'];
+  const tabName = (t) => t === 'colors' ? 'Cores' : t === 'vehicles' ? 'Veículos' : t === 'uniforms' ? '🏅 Uniformes' : SLOT_NAMES[t];
   let body = '';
   if (tab === 'colors') {
     body = `<b>Camisa</b>${swatchRow('shirt', CLOTH)}<b>Calça</b>${swatchRow('pants', CLOTH)}<b>Pele</b>${swatchRow('skin', SKINS)}<b>Cor dos acessórios</b>${swatchRow('hatColor', CLOTH)}
       <p class="small muted">Fantasias trocam as cores da camisa e da calça enquanto estiverem vestidas.</p>`;
+  } else if (tab === 'uniforms') {
+    const cards = Object.entries(ITEMS).filter(([, it]) => it.cur === 'job' && !!JOBS[it.job].space === space).map(([id, it]) => {
+      const owned = save.items.includes(id), on = save.look.suit === id;
+      return `<div class="item ${on ? 'on' : ''}"><div class="t">${it.name}</div>
+        <div class="p">${owned ? 'Desbloqueado' : `🔒 vire ${LEVELS[it.lvl].name}`}</div>
+        <button class="btn ${owned ? 'blue' : ''}" data-uni="${id}" ${owned ? '' : 'disabled'}>${on ? 'Tirar' : owned ? 'Vestir' : 'Bloqueado'}</button></div>`;
+    }).join('');
+    body = `<p class="small muted">Uniformes exclusivos: ganhe sendo promovido nos empregos (Profissional, Chefe e Lenda).</p><div class="grid">${cards}</div>`;
   } else if (tab === 'vehicles') {
     body = `<div class="grid">${Object.entries(VTYPES).filter(([, d]) => d.stars).map(([k, d]) => {
       const owned = save.vehicles.includes(k);
@@ -426,6 +460,10 @@ function openShop(cur = '$', tab) {
       } else if (save.look[slot] === id && id !== 'none') { save.look[slot] = slot === 'hat' ? 'none' : null; applyLook(); openShop(cur, tab); return; }
       save.look[slot] = id; applyLook(); openShop(cur, tab);
     });
+    el.querySelectorAll('[data-uni]').forEach((b) => b.onclick = () => {
+      const id = b.dataset.uni; if (!save.items.includes(id)) return;
+      save.look.suit = save.look.suit === id ? null : id; applyLook(); openShop(cur, tab);
+    });
     el.querySelectorAll('[data-veh]').forEach((b) => b.onclick = () => {
       const k = b.dataset.veh;
       if (!save.vehicles.includes(k)) { if (save.stars < VTYPES[k].stars) return; save.stars -= VTYPES[k].stars; save.vehicles.push(k); sfx.success(); toast(`Você comprou: ${VTYPES[k].name}! 🎉`); }
@@ -433,7 +471,7 @@ function openShop(cur = '$', tab) {
     });
   }, true);
 }
-function applyLook() { player.char.setLook(save.look); player.hasJetpack = save.look.back === 'jetpack'; persist(); if (net.connected) net.send({ t: 'look', look: save.look }); }
+function applyLook() { refreshJobGear(); }
 
 function openDealer() {
   const list = Object.entries(VTYPES).filter(([, d]) => d.price && !d.air).map(([k, d]) => {
@@ -507,7 +545,7 @@ function openGarage() {
 }
 function openJob(key) {
   const j = JOBS[key], cur = jobs.current?.key === key;
-  openPanel(`<h2>${j.icon} ${j.name}</h2><p>${j.desc}</p>${cur ? '<p><b>Você já está trabalhando aqui.</b></p>' : ''}
+  openPanel(`<h2>${j.icon} ${j.name}</h2><p>${j.desc}</p>${careerHtml(key)}${cur ? '<p><b>Você já está trabalhando aqui.</b></p>' : ''}
     <div class="row"><button class="btn ${cur ? '' : 'primary'}" id="jb">${cur ? 'Sair do emprego' : 'Começar a trabalhar'}</button></div>`, (el) => {
     el.querySelector('#jb').onclick = () => { if (cur) jobs.quit(); else jobs.start(key); closePanel(); };
   });
@@ -516,7 +554,7 @@ let waypoint = null;
 function openJobsList() {
   const s = save.stats;
   openPanel(`<h2>💼 Empregos</h2><p class="small muted">Vá até o local marcado para começar. Estatísticas: 🍕${s.pizzas || 0} 🚕${s.corridas || 0} 🗑️${s.lixo || 0} 📦${s.mudancas || 0} 🚒${s.incendios || 0} 💎${s.cristais || 0} 🛰️${s.entregasEspaciais || 0} 📡${s.antenas || 0} ✈️${s.voos || 0} 🚁${s.resgates || 0} 🚑${s.pacientes || 0} 🚓${s.prisoes || 0} 🎣${s.peixes || 0}${save.spaceUnlocked ? '' : '<br>🚀 Complete a Missão Espacial no Centro Espacial para desbloquear empregos na Lua!'}</p>
-    <div class="joblist">${Object.entries(JOBS).filter(([, j]) => !j.hidden && (!j.space || save.spaceUnlocked)).map(([k, j]) => `<div class="item" style="margin:8px 0"><div class="ico">${j.icon}</div><div style="flex:1"><div class="t">${j.name}</div><div class="small">${j.desc}</div></div><button class="btn blue" data-go="${k}" ${!!j.space !== isSpace(player.pos.x) ? 'disabled title="Fica em outro planeta"' : ''}>Marcar</button></div>`).join('')}</div>
+    <div class="joblist">${Object.entries(JOBS).filter(([, j]) => !j.hidden && (!j.space || save.spaceUnlocked)).map(([k, j]) => `<div class="item" style="margin:8px 0"><div class="ico">${j.icon}</div><div style="flex:1"><div class="t">${j.name} <span class="lvtag">${LEVELS[levelOf(save.jobXP[k] || 0)].icon} ${LEVELS[levelOf(save.jobXP[k] || 0)].name}</span></div><div class="small">${j.desc}</div></div><button class="btn blue" data-go="${k}" ${!!j.space !== isSpace(player.pos.x) ? 'disabled title="Fica em outro planeta"' : ''}>Marcar</button></div>`).join('')}</div>
     ${jobs.current ? '<button class="btn" id="quitjob">Sair do emprego atual</button>' : ''}`, (el) => {
     el.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const z = world.locations[JOBS[b.dataset.go].place].zone; waypoint = { x: z.x, z: z.z }; toast('Local marcado no mapa! Siga a seta.'); closePanel(); });
     el.querySelector('#quitjob')?.addEventListener('click', () => { jobs.quit(); closePanel(); });
@@ -552,6 +590,60 @@ function respawn() {
   player.ragdoll = false; player.char.spin.rotation.set(0, 0, 0);
   if (isSpace(player.pos.x)) { const m = world.locations.moonPad; player.pos.set(m.x, 1, m.z); } else player.pos.set(home.x, 1, home.z + 3.5);
   player.vel.set(0, 0, 0);
+}
+
+// ---------------- Careers: gear, promotions, confetti ----------------
+function careerHtml(key) {
+  const xp = save.jobXP[key] || 0, pi = progressInfo(key, xp), perk = PERKS[key];
+  const has = perk && pi.level >= perk.lvl;
+  return `<div class="career"><div><b>${pi.text}</b></div><div class="bar"><div style="width:${Math.round(pi.frac * 100)}%"></div></div>
+    <div class="small">Ganho: <b>x${LEVELS[pi.level].mult}</b> · ${LEVELS.map((l, i) => `<span class="${i <= pi.level ? 'lv-on' : 'lv-off'}">${l.icon} ${l.name}</span>`).join(' → ')}</div>
+    ${perk ? `<div class="small">${has ? '✅' : '🔒'} <b>${perk.name}</b> ${has ? '' : `(vira ${LEVELS[perk.lvl].name})`}: ${perk.desc}</div>` : ''}</div>`;
+}
+// Job tools that change the character (delivery jetpacks)
+function refreshJobGear() {
+  const job = jobs.current;
+  const jet = job && (job.key === 'pizza' || job.key === 'spacedelivery') && job.perk();
+  player.char.setLook({ ...save.look, back: jet ? 'jetpack' : (save.look.back ?? null), suit: save.look.suit ?? null, face: save.look.face ?? null, neck: save.look.neck ?? null });
+  player.hasJetpack = jet || save.look.back === 'jetpack';
+  player.maxFuel = jet ? 5 : 2.5;
+  persist();
+  if (net.connected) net.send({ t: 'look', look: player.char.look });
+}
+let promoTimer = null;
+function promote(job, lvl) {
+  const id = uniformId(job, lvl);
+  if (ITEMS[id] && !save.items.includes(id)) save.items.push(id);
+  persist();
+  const L = LEVELS[lvl], perk = PERKS[job];
+  confetti(); sfx.fanfare();
+  const el = $('#promo');
+  el.innerHTML = `<div class="promo-t">🎉 PROMOÇÃO!</div><div class="promo-l">${JOBS[job].icon} ${esc(JOBS[job].name)} · ${L.icon} ${L.name}</div>
+    <div class="small">Ganhos x${L.mult} · Novo uniforme exclusivo${perk && perk.lvl === lvl ? ` · Nova ferramenta: <b>${perk.name}</b>` : ''}</div>
+    <div class="row"><button class="btn primary" id="wear">👕 Vestir uniforme</button><button class="btn" id="promo-close">Depois</button></div>`;
+  el.classList.remove('hidden');
+  el.querySelector('#wear').onclick = () => { save.look.suit = id; applyLook(); el.classList.add('hidden'); toast('Uniforme novo vestido! 😎'); };
+  el.querySelector('#promo-close').onclick = () => el.classList.add('hidden');
+  clearTimeout(promoTimer); promoTimer = setTimeout(() => el.classList.add('hidden'), 12000);
+  if (jobs.current?.key === job) refreshJobGear();
+}
+function confetti() {
+  let c = $('#confetti');
+  if (!c) { c = document.createElement('canvas'); c.id = 'confetti'; document.body.appendChild(c); }
+  c.width = innerWidth; c.height = innerHeight;
+  const g = c.getContext('2d'), cols = ['#ff7043', '#ffd54f', '#66bb6a', '#42a5f5', '#ab47bc', '#ec407a', '#ffffff'];
+  const parts = Array.from({ length: 220 }, () => ({ x: Math.random() * c.width, y: -20 - Math.random() * c.height * 0.6, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 4, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, w: 6 + Math.random() * 6, h: 4 + Math.random() * 6, col: cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  const step = (now) => {
+    const t = (now - t0) / 1000;
+    g.clearRect(0, 0, c.width, c.height);
+    for (const p of parts) {
+      p.x += p.vx + Math.sin(t * 3 + p.r) * 0.8; p.y += p.vy; p.r += p.vr;
+      g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.globalAlpha = Math.max(0, 1 - Math.max(0, t - 3)); g.fillStyle = p.col; g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore();
+    }
+    if (t < 4) requestAnimationFrame(step); else g.clearRect(0, 0, c.width, c.height);
+  };
+  requestAnimationFrame(step);
 }
 
 // ---------------- Rocket / space travel ----------------
@@ -857,9 +949,11 @@ function emitWater(dt, fromTruck) {
   let o;
   if (fromTruck) o = player.vehicle.toWorld(0, player.vehicle.def.h + 0.8, player.vehicle.def.len * 0.3, _v1);
   else { player.ry = angLerp(player.ry, camYaw, Math.min(1, dt * 15)); o = player.holdPoint(_v1); }
-  for (let k = 0; k < 6; k++) {
+  const big = jobs.current?.key === 'fire' && jobs.current.perk();
+  water.material.size = big ? 0.8 : 0.35;
+  for (let k = 0; k < (big ? 12 : 6); k++) {
     const p = wp[wpi]; wpi = (wpi + 1) % MAXP;
-    const s = 24 + Math.random() * 4;
+    const s = (big ? 34 : 24) + Math.random() * 4;
     p.x = o.x; p.y = o.y; p.z = o.z;
     p.vx = dx * s + (Math.random() - 0.5) * 1.5; p.vy = dy * s + 2 + (Math.random() - 0.5) * 1.5; p.vz = dz * s + (Math.random() - 0.5) * 1.5;
     p.life = 1.6;
@@ -908,7 +1002,7 @@ function updateGifts(dt, t) {
     g.rotation.y += dt * 1.5; g.position.y += Math.sin(t * 2 + i) * 0.004;
     if (Math.abs(g.position.x - player.pos.x) < 1.8 && Math.abs(g.position.z - player.pos.z) < 1.8 && Math.abs(g.position.y - 1 - player.pos.y) < 2.5) {
       scene.remove(g); giftMeshes.splice(i, 1); save.gifts.push(g.userData.i);
-      pay(25, `Presente encontrado! 🎁 (${save.gifts.length}/${world.gifts.length})`);
+      pay(25, `Presente encontrado! 🎁 (${save.gifts.length}/${world.gifts.length})`, true);
     }
   }
 }
@@ -927,6 +1021,11 @@ function updateHud(dt) {
     $('#jobpanel').classList.remove('hidden');
     $('#job-title').textContent = `${job.def.icon} ${job.def.name}`;
     $('#job-obj').textContent = job.objective;
+    if (!job.def.hidden) {
+      const pi = progressInfo(job.key, save.jobXP[job.key] || 0);
+      $('#job-level').textContent = pi.text; $('#job-bar').style.width = Math.round(pi.frac * 100) + '%';
+      $('#job-career').classList.remove('hidden');
+    } else $('#job-career').classList.add('hidden');
     const tm = $('#job-timer');
     if (job.timer != null) { const s = Math.max(0, Math.ceil(job.timer)); tm.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; tm.classList.toggle('late', s <= 10); }
     else tm.textContent = '';
