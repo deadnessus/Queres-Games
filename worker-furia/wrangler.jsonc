@@ -1,0 +1,12 @@
+{
+  // Servidor online do Fúria: partidas por código de 4 letras, só para quem está logado na conta do site.
+  // É um deploy SEPARADO do site (o site é o projeto Pages `queres-games`). Passo a passo: worker-furia/LEIA-ME.md
+  "name": "furia-online",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "durable_objects": { "bindings": [{ "name": "SALAS", "class_name": "Sala" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sala"] }],
+  // Mesmo banco do site: este Worker só LÊ as tabelas `sessoes` e `contas` para saber quem está logado.
+  "d1_databases": [{ "binding": "DB", "database_name": "queres-games", "database_id": "c820ac18-262f-4815-9f28-4a63ea712a91" }],
+  "routes": [{ "pattern": "queres.games/online/furia/*", "zone_name": "queres.games" }]
+}
