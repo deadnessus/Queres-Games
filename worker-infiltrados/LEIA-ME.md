@@ -1,5 +1,7 @@
 # Servidor online do Infiltrados na Órbita
 
+> **Hoje este servidor roda dentro do Worker do Fúria** (`worker-furia/src/infiltrados.js`), que já está publicado e se atualiza sozinho a cada merge na `main`. Assim não foi preciso criar outro projeto na Cloudflare. Esta pasta guarda a mesma lógica como Worker separado: se um dia o dono quiser um projeto próprio (`infiltrados-online`), siga o passo a passo abaixo e depois tire do Fúria a rota `/online/infiltrados/*` e o `import` de `infiltrados.js`.
+
 Um Worker do Cloudflare com Durable Objects (uma "sala" por código de 4 letras). É um **deploy separado do site** (o site é o projeto Pages `queres-games`). Segue o mesmo modelo do Fúria, do Bento City e do Turbo Jojo, mas é outro projeto.
 
 ## O que ele faz
