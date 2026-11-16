@@ -362,6 +362,7 @@ input[type=range]{width:100%;accent-color:var(--gold);min-height:32px;padding:0;
       </div>
     </div>
     <p class="hint shop-foot">Toque num item para comprar. Toque de novo para vestir ou tirar. Cada vitória rende 100 créditos, mais 5 por tarefa feita ou 20 por eliminação (no treino com robôs, metade).</p>
+    <p class="hint shop-foot" id="shopConta" hidden></p>
   </div>
 </div>
 
@@ -488,12 +489,43 @@ const localDone=new Set(); // `${gid}:${k}` já feitos localmente
 let seen={gid:null,mt:null,ph:null,dead:false};
 let mgOpenState=null,camX=BTN.x,camY=BTN.y,tNow=0;
 let myDisg=null,disgReady=0; // metamorfo: {as, until}
-function loadWallet(){let w=null;try{w=JSON.parse(localStorage.getItem('inf_wallet')||'null');}catch(e){}
+function loadWallet(key='inf_wallet'){let w=null;try{w=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}
   if(!w||typeof w!=='object')w={};
   const owned=Array.isArray(w.owned)?w.owned.filter(id=>SHOP_ID[id]):[];
   return{coins:Math.max(0,typeof w.coins==='number'&&isFinite(w.coins)?w.coins|0:150),owned,eq:cleanOutfit(w.eq).map(v=>owned.includes(v)?v:''),paid:Array.isArray(w.paid)?w.paid.slice(-30):[]};}
 let WALLET=loadWallet();
-function saveWallet(){lsSet('inf_wallet',JSON.stringify(WALLET));const hc=$('homeCoins');if(hc)hc.textContent=WALLET.coins+' créditos';}
+// No queres.games, com a conta ligada, o personagem (cor, roupas, créditos) fica guardado na conta do site.
+// Sem conta, fica só no aparelho ('inf_wallet'). Com conta, o aparelho guarda só uma cópia ('inf_wallet_conta').
+let CONTA_ON=false,WALLET_KEY='inf_wallet',salvarT=0,salvando=false,salvarDeNovo=false,CONTA_DE='';
+function coinsUI(){const hc=$('homeCoins');if(hc)hc.textContent=WALLET.coins+' créditos';if(!$('shop').hidden){shopKey='';renderShop();}}
+function saveWallet(){lsSet(WALLET_KEY,JSON.stringify(WALLET));coinsUI();if(CONTA_ON)agendarSalvar();}
+function aplicarPersonagem(p){
+  if(!p)return;const paid=WALLET.paid||[];const owned=(p.roupas||[]).filter(id=>SHOP_ID[id]);
+  WALLET={coins:Math.max(0,p.creditos|0),owned,eq:cleanOutfit(p.vestindo).map(v=>owned.includes(v)?v:''),paid};
+  me.c=clamp(p.cor|0,0,NCOL-1);lsSet('inf_color',me.c);lsSet(WALLET_KEY,JSON.stringify(WALLET));
+  lastPresJSON='';try{lobbyKey='';}catch(e){}coinsUI();
+}
+function agendarSalvar(){clearTimeout(salvarT);salvarT=setTimeout(salvarConta,1200);}
+async function salvarConta(){
+  if(!CONTA_ON)return;if(salvando){salvarDeNovo=true;return;}salvando=true;
+  try{const r=await fetch('/api/infiltrados/personagem',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+      body:JSON.stringify({cor:me.c,creditos:WALLET.coins,roupas:WALLET.owned,vestindo:WALLET.eq})});
+    const j=await r.json().catch(()=>null);
+    if(r.status===401){sairDaConta();}
+    else if(j&&j.personagem){if(j.erro)toast('Não deu para salvar: '+j.erro+'.');aplicarPersonagem(j.personagem);}
+  }catch(e){}
+  salvando=false;if(salvarDeNovo){salvarDeNovo=false;agendarSalvar();}
+}
+async function carregarPersonagem(){
+  try{const r=await fetch('/api/infiltrados/personagem',{credentials:'same-origin',cache:'no-store'});
+    if(r.status!==200)return false;const j=await r.json();
+    CONTA_ON=true;WALLET_KEY='inf_wallet_conta';
+    if(j.personagem)aplicarPersonagem(j.personagem);
+    else{WALLET=loadWallet('inf_wallet');lsSet(WALLET_KEY,JSON.stringify(WALLET));await salvarConta();} // primeira vez: leva o que já tinha no aparelho
+    return true;
+  }catch(e){return false;}
+}
+function sairDaConta(){if(!CONTA_ON)return;CONTA_ON=false;WALLET_KEY='inf_wallet';WALLET=loadWallet('inf_wallet');coinsUI();}
 function randomOutfit(){const by=c=>SHOP.filter(i=>i.cat===c);return[Math.random()<.6?pick(by('hat')).id:'',Math.random()<.4?pick(by('fit')).id:'',Math.random()<.3?pick(by('eye')).id:''];}
 const disgActive=()=>!!(myDisg&&myDisg.until>tNow);
 
@@ -547,7 +579,11 @@ async function siteConta(abrir){
   let eu=null;try{eu=await window.QGConta.me();}catch(e){}
   if(eu&&!eu.logado&&abrir){try{const r=await window.QGConta.entrar();if(r&&r.apelido)eu={logado:true,apelido:r.apelido};}catch(e){}}
   SITE_NAME=eu&&eu.logado?eu.apelido:'';
-  if(SITE){$('acctTxt').textContent=SITE_NAME?'Você é '+SITE_NAME:'Entre na conta do site para jogar online';$('bConta').textContent=SITE_NAME?'Minha conta':'Entrar na conta';}
+  if(SITE){
+    if(SITE_NAME&&SITE_NAME!==CONTA_DE){CONTA_DE=SITE_NAME;const ok=await carregarPersonagem();if(ok)toast('Personagem de '+SITE_NAME+' carregado');}
+    else if(!SITE_NAME&&CONTA_DE){CONTA_DE='';sairDaConta();}
+    $('acctTxt').textContent=SITE_NAME?'Você é '+SITE_NAME+(CONTA_ON?' · personagem salvo na conta':''):'Entre na conta do site para salvar seu personagem e jogar online';
+    $('bConta').textContent=SITE_NAME?'Minha conta':'Entrar na conta';}
   return eu;
 }
 function onlineBase(){
@@ -1372,7 +1408,7 @@ function renderLobbyPanel(){
   const P=presentPlayers();const nb=G.nb||0;const total=P.size+(isHost?Object.keys(G.bn).length:nb);
   const used=new Set();for(const[id,p]of P)if(id!==myId)used.add(clamp(num(p.c)|0,0,NCOL-1));
   const k=[me.c,[...used].join(','),isHost,nb,G.set.ni,G.set.kcd,G.set.roles,total].join('|');if(k===lobbyKey)return;lobbyKey=k;
-  const sw=$('swatches');if(!sw.children.length){COLORS.forEach(([n,h],i)=>{const b=document.createElement('button');b.className='sw';b.style.background=h;b.title=n;b.setAttribute('aria-label',n);b.onclick=()=>{me.c=i;lsSet('inf_color',i);snd('click');lobbyKey='';};sw.append(b);});}
+  const sw=$('swatches');if(!sw.children.length){COLORS.forEach(([n,h],i)=>{const b=document.createElement('button');b.className='sw';b.style.background=h;b.title=n;b.setAttribute('aria-label',n);b.onclick=()=>{me.c=i;lsSet('inf_color',i);if(CONTA_ON)agendarSalvar();snd('click');lobbyKey='';};sw.append(b);});}
   [...sw.children].forEach((b,i)=>{b.setAttribute('aria-pressed',i===me.c?'true':'false');b.disabled=used.has(i);});
   $('hostRow1').hidden=$('hostRow2').hidden=!isHost;$('bStart').hidden=!isHost;
   setT($('botN'),String(nb));
@@ -1678,6 +1714,7 @@ function openShop(){if(MODE==='game'&&G&&G.ph!=='lobby')return;$('shop').hidden=
 function closeShop(){$('shop').hidden=true;}
 function renderShop(){
   setT($('shopCoins'),WALLET.coins+' créditos');
+  if(SITE){const sc=$('shopConta');sc.hidden=false;setT(sc,CONTA_ON?'Seu personagem fica guardado na conta '+SITE_NAME+': entre com ela em qualquer aparelho e ele estará lá.':'Entre na conta do site (tela inicial) para guardar seu personagem e usar em qualquer aparelho.');}
   const eqN=WALLET.eq.filter(Boolean).map(id=>SHOP_ID[id].n);setT($('shopEq'),eqN.length?'Vestindo: '+eqN.join(', '):'Sem roupas ainda');
   [...$('shopTabs').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.cat===shopCat?'true':'false'));
   const key=shopCat+WALLET.coins+WALLET.owned.join()+WALLET.eq.join()+me.c;if(key===shopKey)return;shopKey=key;
