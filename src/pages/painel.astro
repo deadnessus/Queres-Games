@@ -115,6 +115,18 @@ import Base from '../layouts/Base.astro';
               ', 600–899 ' + fmt(t.de_600_a_899) + ', 900–1279 ' + fmt(t.de_900_a_1279) + ', 1280+ ' + fmt(t.de_1280_ou_mais), 'fraca'));
             corpo.appendChild(el('p', 'Chegaram a 10 s: ' + fmt(p.alcancaram_10s) + ' · 1 min: ' + fmt(p.alcancaram_60s) + ' · 5 min: ' + fmt(p.alcancaram_300s) + ' · 15 min: ' + fmt(p.alcancaram_900s), 'fraca'));
           }
+          var bt = j.cliques;
+          if (bt && (bt.por_versao.length || bt.botoes_no_html)) {
+            corpo.appendChild(el('h3', 'Botões usados'));
+            bt.por_versao.forEach(function (v) {
+              corpo.appendChild(el('p', 'Versão ' + v.versao + ' · ' + fmt(v.sessoes) + ' sessões · ' + fmt(v.total_de_cliques) + ' toques/cliques', 'fraca'));
+              corpo.appendChild(tabela(['Botão (nome técnico)', 'Cliques', 'Por 100 sessões'], v.itens.map(function (i) { return [i.nome, fmt(i.cliques), i.por_100_sessoes == null ? '–' : fmt(i.por_100_sessoes)]; })));
+            });
+            if (bt.botoes_no_html) {
+              var nun = bt.nunca_clicados_versao_atual;
+              corpo.appendChild(el('p', 'Nunca clicados na versão publicada (' + nun.length + ' de ' + bt.botoes_no_html + ' botões do HTML)' + (bt.amostra_pequena ? ' · poucas sessões: ainda não dá para concluir' : '') + ': ' + (nun.length ? nun.join(', ') : 'nenhum'), bt.amostra_pequena ? 'fraca' : ''));
+            }
+          }
           if (j.erros_mais_frequentes.length) {
             corpo.appendChild(el('h3', 'Erros mais frequentes'));
             var te = tabela(['Vezes', 'Versão', 'Dia', 'Arquivo:linha', 'Mensagem'], j.erros_mais_frequentes.map(function (e) { return [fmt(e.vezes), e.versao, e.dia, (e.arquivo || '?') + ':' + e.linha, e.mensagem]; }));

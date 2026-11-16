@@ -2,7 +2,8 @@
 // (scripts/pos-build.mjs); não precisa (e não deve) ser incluído à mão nos jogos.
 //
 // O que mede: sessões, tempo ativo, erros de JavaScript, celular/computador, faixa de largura da tela,
-// aparelho que volta em outro dia e a versão do jogo. Mais os eventos opcionais de QG.evento().
+// aparelho que volta em outro dia e a versão do jogo. Mais os eventos opcionais de QG.evento() e QUANTAS VEZES
+// cada botão (ou link/menu) foi usado, só pelo NOME técnico do elemento (id ou data-...), nunca pelo texto.
 // O que NÃO faz: não manda IP, nome, e-mail, texto livre nem identificador de aparelho ou de conta.
 // A "memória" do aparelho (já visitou? quando?) fica só no navegador, em localStorage, e nunca é enviada:
 // o que vai para o servidor são só contagens ("1 aparelho voltou depois de 2 a 7 dias").
@@ -38,13 +39,13 @@
   function diasEntre(a, b) { return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000); }
 
   // ---------- estado desta página ----------
-  var pendente = { inicio: null, erros: [], eventos: {}, vistosNaPagina: {} };
+  var pendente = { inicio: null, erros: [], eventos: {}, vistosNaPagina: {}, cliques: {} };
   var acumMs = 0;                 // tempo ativo ainda não enviado
   var ultInteracao = Date.now();
   var ultTick = Date.now();
   var chaveSessao = 'qg_t_s_' + jogo;
   var sessao = null;              // { t: último movimento, c: segundos ativos da sessão, m: marcos já enviados }
-  var errosEstaPagina = 0, eventosEstaPagina = 0, timerErro = null, timerEvento = null;
+  var errosEstaPagina = 0, eventosEstaPagina = 0, timerErro = null, timerEvento = null, timerClique = null;
 
   function iniciarSessao() {
     var agora = Date.now();
@@ -117,6 +118,7 @@
         pendente.eventos = {};
         algo = true;
       }
+      if (Object.keys(pendente.cliques).length) { lote.c = pendente.cliques; pendente.cliques = {}; algo = true; }
       if (sessao) { sessao.t = Date.now(); gravarJson('sessionStorage', chaveSessao, sessao); }
       if (algo) enviar(lote);
     });
@@ -132,6 +134,48 @@
   function interagiu() { ultInteracao = Date.now(); }
   ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'wheel', 'scroll', 'click'].forEach(function (nome) {
     seguro(function () { window.addEventListener(nome, interagiu, { capture: true, passive: true }); });
+  });
+
+  // ---------- uso de botões (só o NOME do elemento, nunca o texto) ----------
+  // Conta quantas vezes cada botão/link/menu foi tocado ou clicado. O nome vem do "id" ou do primeiro "data-..." do
+  // elemento (ex.: btn-skip, key:KeyE, mode:fight1v1); sem nenhum dos dois, vira "<id do pai>><tag>". Nunca lê o texto
+  // do botão, o que a pessoa digita, a posição na tela, nem a ordem ou a hora dos toques: só somas por nome.
+  // As mesmas regras de nome estão em scripts/pos-build.mjs (lista de botões de cada jogo); mexeu aqui? Mexa lá.
+  var MAX_NOMES_POR_LOTE = 30;
+  var TIPOS_DE_TEXTO = /^(text|search|email|password|tel|url|number|date|datetime-local|month|week|time)$/i;
+  function limparNome(t) {
+    return String(t == null ? '' : t).replace(/\d{3,}/g, '#').replace(/[^A-Za-z0-9_.:#>-]/g, '').slice(0, 32);
+  }
+  function nomeDoElemento(el) {
+    var n = el.id;
+    if (!n) {
+      for (var i = 0; i < el.attributes.length; i++) {
+        var a = el.attributes[i];
+        if (a.name.indexOf('data-') === 0 && a.value && a.name !== 'data-jogo') { n = a.name.slice(5) + ':' + a.value; break; }
+      }
+    }
+    if (!n) {
+      var pai = el.parentElement && el.parentElement.closest('[id]');
+      n = (pai ? pai.id + '>' : '') + el.tagName.toLowerCase();
+    }
+    return limparNome(n) || 'sem-nome';
+  }
+  function registrarClique(alvo) {
+    if (respeitarPrivacidade || !alvo || !alvo.closest) return;
+    var el = alvo.closest('button, a[href], summary, select, input, textarea, [role="button"]');
+    if (!el) return;
+    var tag = el.tagName.toLowerCase();
+    if (tag === 'textarea' || (tag === 'input' && (!el.type || TIPOS_DE_TEXTO.test(el.type)))) return; // campos de escrever: nunca
+    if (el.disabled || el.getAttribute('aria-disabled') === 'true') return;
+    var nome = nomeDoElemento(el);
+    if (!(nome in pendente.cliques) && Object.keys(pendente.cliques).length >= MAX_NOMES_POR_LOTE) nome = 'outros';
+    pendente.cliques[nome] = Math.min(999, (pendente.cliques[nome] || 0) + 1);
+    if (!timerClique) timerClique = setTimeout(function () { timerClique = null; descarregar(); }, 20000);
+  }
+  seguro(function () {
+    // pointerdown pega o toque mesmo quando o jogo cancela o "click"; o "click" sem ponteiro (teclado) cobre Enter/Espaço.
+    window.addEventListener('pointerdown', function (ev) { seguro(function () { if (ev.isTrusted) registrarClique(ev.target); }); }, { capture: true, passive: true });
+    window.addEventListener('click', function (ev) { seguro(function () { if (ev.isTrusted && ev.detail === 0) registrarClique(ev.target); }); }, { capture: true, passive: true });
   });
 
   // ---------- erros de JavaScript ----------
