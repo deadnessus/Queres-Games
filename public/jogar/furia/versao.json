@@ -1,0 +1,14 @@
+{
+  "commit": "64fd75b",
+  "data_do_commit": "2026-11-16T01:27:49+00:00",
+  "branch": "claude/furia-eventos",
+  "origem": "deadnessus/Bento-1",
+  "gravado_em": "2026-11-16T01:28:01.569Z",
+  "eventos": [
+    "partida_iniciada",
+    "partida_terminada",
+    "partida_abandonada",
+    "reiniciou",
+    "personagem_salvo"
+  ]
+}

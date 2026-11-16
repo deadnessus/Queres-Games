@@ -1,13 +1,15 @@
 // Invasão Estelar: telas, entrada (toque e teclado), laço do jogo e fluxo de conta/ranking.
-import * as L from './logica.js?v=4';
-import { novaPartida, atualizar, resultado } from './motor.js?v=4';
-import { desenharPartida, pintarFundo } from './desenho.js?v=4';
-import { desenharJogador, definirResolucao } from './naves.js?v=4';
-import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js?v=4';
-import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js?v=4';
-import { liberarSom, tocar, vibrar, alternarSom, somLigado } from './som.js?v=4';
+import * as L from './logica.js?v=5';
+import { novaPartida, atualizar, resultado } from './motor.js?v=5';
+import { desenharPartida, pintarFundo } from './desenho.js?v=5';
+import { desenharJogador, definirResolucao } from './naves.js?v=5';
+import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js?v=5';
+import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js?v=5';
+import { liberarSom, tocar, vibrar, alternarSom, somLigado } from './som.js?v=5';
 
 const $ = (id) => document.getElementById(id);
+// Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
+const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
 const LS_RECORDE = 'invasao_estelar_recorde';
 const TELAS = ['tela-inicio', 'tela-ranking', 'tela-jogo', 'tela-fim'];
 
@@ -215,12 +217,14 @@ function quadro(t) {
 function alternarPausa() {
   if (!rodando) return;
   pausado = !pausado;
+  if (pausado) evento('partida_pausada');
   $('pausa').hidden = !pausado;
   ultimoQuadro = 0; // não cobra o tempo da pausa
 }
 
 function comecarPartida() {
   partida = novaPartida();
+  evento('partida_iniciada');
   efeitos = novosEfeitos();
   desligarMenu();
   mostrar('tela-jogo');
@@ -239,6 +243,7 @@ async function terminar() {
   tocar('fim');
   vibrar(200);
   const res = resultado(partida);
+  evento('partida_terminada', { onda: res.fase });
   partida = null;
   mostrar('tela-fim');
   ligarMenu();
@@ -285,6 +290,7 @@ function abrirInicio() {
 
 async function abrirRanking(escopo = escopoRanking) {
   escopoRanking = escopo;
+  evento('ranking_aberto', { escopo });
   mostrar('tela-ranking');
   ligarMenu();
   for (const b of document.querySelectorAll('[data-escopo]')) b.classList.toggle('on', b.dataset.escopo === escopo);
@@ -341,6 +347,7 @@ async function jogar() {
 }
 
 function sairParaInicio() {
+  if (partida && rodando) evento('saiu_da_partida', { onda: partida.fase });
   rodando = false;
   pausado = false;
   partida = null;

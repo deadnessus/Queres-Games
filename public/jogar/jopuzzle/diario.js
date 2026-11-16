@@ -148,6 +148,7 @@ async function comecar() {
 E.aoConcluir = async function enviar(colocacoes) {
   mostrar(h('p', { class: 'pn-sub' }, 'Conferindo...'));
   const r = await api('/api/jopuzzle/enviar', { metodo: 'POST', corpo: { colocacoes } });
+  if (r.status === 200 && window.QG && window.QG.evento) window.QG.evento('puzzle_vencido', { modo: 'daily' });
   if (r.status === 200 || r.status === 409 || r.status === 410) return abrirDiario();
   const msg = r.status === 0 ? 'Sem conexão. Seu relógio continua correndo: tente enviar de novo.'
     : r.status === 401 ? 'Você saiu da conta. Entre de novo para enviar.'

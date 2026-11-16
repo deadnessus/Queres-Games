@@ -12,6 +12,9 @@ import { Sfx } from './audio.js';
 import { Net } from './net.js';
 import { clamp, angLerp, mulberry32, dist2, wrapAngle, canvasTexture } from './util.js';
 
+// Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
+const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
+
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const mobile = matchMedia('(pointer: coarse)').matches;
@@ -63,7 +66,7 @@ const G = {
   toast, pay, stats: (k) => { save.stats[k] = (save.stats[k] || 0) + 1; persist(); },
   spawnJobVehicle,
   spawnVehicle: (...a) => spawnVehicle(...a), removeVehicle: (v) => removeVehicle(v),
-  payStars: (n, reason) => { save.stars += n; persist(); toast(`+${n} ⭐  ${reason || ''}`, 'money'); sfx.coin(); },
+  payStars: (n, reason) => { servicoConcluido(); save.stars += n; persist(); toast(`+${n} ⭐  ${reason || ''}`, 'money'); sfx.coin(); },
   onJobStart: () => setTimeout(() => callFavorite(true), 300),
   finishSpaceMission: () => {
     save.spaceUnlocked = true; persist(); jobs.quit(true);
@@ -344,7 +347,13 @@ function toast(msg, cls = '') {
   setTimeout(() => d.remove(), 3800);
   while ($('#toasts').children.length > (mobile ? 2 : 4)) $('#toasts').firstChild.remove();
 }
+// Serviço concluído = pagamento de um emprego em andamento (pay e payStars passam por aqui).
+function servicoConcluido() {
+  const emprego = jobs.current && jobs.current.key;
+  if (emprego) evento('servico_concluido', { emprego });
+}
 function pay(amount, reason) {
+  servicoConcluido();
   save.money += amount; persist();
   toast(`+$${amount}  ${reason || ''}`, 'money');
   sfx.coin();
@@ -562,6 +571,7 @@ function openRocket() {
 }
 let travel = null;
 function startTravel(to) {
+  evento('viagem_espaco', { destino: to });
   closePanel();
   if (player.vehicle) exitVehicle();
   if (player.held) player.release(false, G);
@@ -1024,6 +1034,7 @@ function startGame(m, nomeOnline) {
   const nome = nomeOnline || ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
   if (!nomeOnline) { save.name = nome; persist(); }
   mode = m; started = true;
+  evento('jogo_iniciado', { modo: m });
   sfx.init();
   $('#menu').classList.add('hidden'); $('#hud').classList.remove('hidden');
   if (input.isTouch) $('#touch').style.display = 'block';

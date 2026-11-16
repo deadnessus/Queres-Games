@@ -6,6 +6,9 @@ const VERSION = (() => {
   try { return new URL(document.currentScript.src).searchParams.get('v'); } catch (e) { return null; }
 })() || window.JOPUZZLE_VERSION || 'dev';
 
+// Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
+const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
+
 const TIME_LIMIT = 45;                  // segundos por puzzle nos modos normais
 const DAILY_LIMIT = 600;                // segundos no desafio do dia
 const COLORS = ['#FF4DA6', '#38E1FF', '#FFD93D', '#8CFF6B', '#FF9F43', '#B58CFF'];
@@ -158,6 +161,7 @@ function startDaily(tabuleiro, restanteMs, dia) {
     limite: DAILY_LIMIT,
   });
   S.daily = { dia, endAt: Date.now() + restanteMs };
+  evento('puzzle_iniciado', { modo: 'daily' });
   S.remaining = restanteMs / 1000;
   el.overlay.hidden = true;
   S.status = 'playing';
@@ -482,6 +486,7 @@ function checkWin() {
   S.status = 'won';
   const elapsed = Math.round(S.limit - S.remaining);
   const n = starsFor(S.limit - S.remaining);
+  evento('puzzle_vencido', { modo: S.mode, estrelas: n });
   S.pieces.forEach((p) => p.el.classList.add('win'));
   vibrate([30, 40, 60]);
   setTimeout(() => {
@@ -495,6 +500,7 @@ function lose() {
   S.status = 'lost';
   stopClock();
   if (S.drag) { const d = S.drag; clearTimeout(d.timer); S.drag = null; showGhost(d.p, null); if (d.active) placeInTray(d.p); }
+  evento('puzzle_perdido', { modo: S.daily ? 'daily' : S.mode });
   if (S.daily) { if (Engine.aoEsgotar) Engine.aoEsgotar(); return; }
   el.endStars.forEach((s) => s.classList.remove('on'));
   el.endTime.textContent = String(S.limit);
@@ -512,6 +518,7 @@ function play() {
   el.overlay.hidden = true;
   if (S.status === 'ready' || S.status === 'paused') {
     const novo = S.status === 'ready';
+    if (novo) evento('puzzle_iniciado', { modo: S.mode });
     S.status = 'playing';
     // na primeiríssima partida a pessoa ainda não sabe girar nem espelhar: o relógio só começa no primeiro toque
     if (novo && window.JoAjuda && window.JoAjuda.aoComecar()) S.esperandoToque = true;
@@ -544,6 +551,7 @@ $('mode-super').addEventListener('click', () => setMode('super'));
 // Desistir: abandona o puzzle atual e começa o próximo já valendo.
 function giveUp() {
   if (S.daily || (S.status !== 'playing' && S.status !== 'paused')) return;
+  evento('puzzle_desistiu', { modo: S.mode });
   stopClock();
   if (S.drag) clearTimeout(S.drag.timer);
   S.drag = null;
