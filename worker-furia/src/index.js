@@ -19,6 +19,9 @@
 //   POST /nova                      -> { codigo }              (precisa de login)
 //   GET  /sala/<CODIGO>?modo=criar|entrar   (WebSocket)        (precisa de login)
 
+import { fetchInfiltrados, SalaInfiltrados } from './infiltrados.js';
+export { SalaInfiltrados };
+
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem 0/O/1/I
 const CODIGO_RE = /^[A-HJ-NP-Z2-9]{4}$/;
 const MAX_SALA = 8;
@@ -81,6 +84,8 @@ function codigoNovo() {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // Infiltrados na Órbita: outro jogo, mesmo Worker (ver infiltrados.js).
+    if (url.pathname.startsWith('/online/infiltrados/')) return fetchInfiltrados(req, env);
     if (!url.pathname.startsWith(BASE + '/')) return new Response('Not found', { status: 404 });
     const rota = url.pathname.slice(BASE.length);
 

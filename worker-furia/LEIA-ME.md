@@ -2,6 +2,10 @@
 
 Um Worker do Cloudflare com Durable Objects (uma "sala" por código de 4 letras). É um **deploy separado do site** (o site é o projeto Pages `queres-games`). Segue o mesmo modelo do Bento City e do Turbo Jojo, mas é outro projeto.
 
+## Também atende o Infiltrados na Órbita
+
+Este Worker também serve `queres.games/online/infiltrados/*`, com o código em `src/infiltrados.js`. As salas do Infiltrados são outro Durable Object (`SalaInfiltrados`, ligação `SALAS_INF`, migração `v2`) e não se misturam com as do Fúria. O `index.js` só repassa esse caminho. Detalhes do Infiltrados: `worker-infiltrados/LEIA-ME.md`.
+
 ## O que ele faz
 
 - Só entra quem está **logado** na conta do site (cookie `qg_sessao`). O servidor lê, no mesmo banco D1 do site, as tabelas `sessoes` e `contas` (só leitura) para saber o apelido.
