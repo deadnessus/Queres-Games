@@ -1,9 +1,9 @@
 // Desenho da partida no canvas. O campo do jogo é 360 x 640; em celulares compridos a tela mostra
 // também um pedaço acima e abaixo dele (o cenário cobre essa sobra e o painel sobe para o topo).
-import * as L from './logica.js?v=3';
-import { TIPOS, desenharInimigo, desenharJogador } from './naves.js?v=3';
-import { desenharEfeitos, deslocamentoDoTremor } from './efeitos.js?v=3';
-import { CENARIOS, desenharCenario, TOPO, BASE } from './cenario.js?v=3';
+import * as L from './logica.js?v=4';
+import { TIPOS, desenharInimigo, desenharJogador } from './naves.js?v=4';
+import { desenharEfeitos, deslocamentoDoTremor } from './efeitos.js?v=4';
+import { CENARIOS, desenharCenario, TOPO, BASE } from './cenario.js?v=4';
 
 const TAU = Math.PI * 2;
 const ESCURO = '#02030c';
