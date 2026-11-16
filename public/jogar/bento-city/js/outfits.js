@@ -111,3 +111,46 @@ export const ITEMS = {
     mesh(b, new THREE.OctahedronGeometry(0.1), M(0xffffff, { emissive: 0xffffff, emissiveIntensity: 1.5 }), 0, 0.65, 0.44); return { body: b }; } },
 };
 export const SLOT_NAMES = { hat: 'Chapéus', face: 'Rosto', neck: 'Pescoço', back: 'Costas', suit: 'Fantasias' };
+
+// ---------- Career uniforms (unlocked by promotions, never sold) ----------
+// [shirt, pants, accent] per job
+const JOB_COLORS = {
+  pizza: [0xd32f2f, 0xfafafa, 0x2e7d32], taxi: [0xfdd835, 0x212121, 0x212121], garbage: [0x2e7d32, 0x33691e, 0xff9100],
+  moving: [0x1565c0, 0x5d4037, 0xffb300], fire: [0xb71c1c, 0x263238, 0xffea00], pilot: [0x0d1b4a, 0x0d1b4a, 0xffffff],
+  helirescue: [0xff6f00, 0x37474f, 0xffffff], paramedic: [0xfafafa, 0x1565c0, 0xe53935], police: [0x0d47a1, 0x1a237e, 0xeceff1],
+  fisher: [0xffd600, 0x1565c0, 0xff6d00], mining: [0xef6c00, 0x4e342e, 0xb388ff], spacedelivery: [0x1e88e5, 0xb0bec5, 0xeceff1],
+  repair: [0x43a047, 0x546e7a, 0xffeb3b],
+};
+const TIER_NAMES = ['', 'Profissional', 'Chefe', 'Lenda'];
+const gold = () => M(0xffd54f, { metalness: 0.85, roughness: 0.25 });
+export function uniformId(job, lvl) { return `uni_${job}_${lvl}`; }
+export function registerUniforms(jobs) {
+  for (const [job, def] of Object.entries(jobs)) {
+    if (def.hidden || !JOB_COLORS[job]) continue;
+    const [shirt, pants, accent] = JOB_COLORS[job];
+    for (let lvl = 1; lvl <= 3; lvl++) {
+      ITEMS[uniformId(job, lvl)] = {
+        slot: 'suit', cur: 'job', job, lvl, price: 0, shirt, pants,
+        name: `${def.icon} ${def.name} ${TIER_NAMES[lvl]}`,
+        build() {
+          const b = new THREE.Group(), h = new THREE.Group();
+          // chest badge with the career colour
+          mesh(b, new THREE.BoxGeometry(0.2, 0.2, 0.04), lvl >= 2 ? gold() : M(accent), 0.17, 0.72, 0.41);
+          mesh(b, new THREE.BoxGeometry(0.12, 0.12, 0.05), M(accent, { emissive: accent, emissiveIntensity: lvl === 3 ? 0.8 : 0.1 }), 0.17, 0.72, 0.425);
+          band(b, 0.3, accent, 0.437, lvl === 3 ? 0.6 : 0);
+          if (lvl >= 2) {
+            band(b, 0.12, 0xffd54f, 0.44, 0.2);
+            for (const s of [-1, 1]) mesh(b, new THREE.BoxGeometry(0.26, 0.06, 0.3), gold(), s * 0.38, 0.95, 0, 0, 0, s * -0.35);
+          }
+          if (lvl === 3) {
+            // legendary: glowing golden halo and trim
+            mesh(h, new THREE.TorusGeometry(0.3, 0.035, 8, 28), M(0xffe082, { emissive: 0xffc400, emissiveIntensity: 1.4 }), 0, 0.62, 0, Math.PI / 2);
+            band(b, 0.55, 0xffd54f, 0.44, 1.2);
+            mesh(b, new THREE.OctahedronGeometry(0.09), M(0xffffff, { emissive: 0xffd54f, emissiveIntensity: 1.6 }), -0.17, 0.72, 0.43);
+          }
+          return { body: b, head: h };
+        },
+      };
+    }
+  }
+}

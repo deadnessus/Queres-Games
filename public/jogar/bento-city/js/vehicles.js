@@ -331,12 +331,13 @@ export class Vehicle {
     let vl = this.vel.x * lx + this.vel.z * lz;
     const water = world.isWater(this.pos.x, this.pos.z);
     const boat = d.style === 'boat';
-    let maxS = d.max;
+    const boost = this.boost || 1;
+    let maxS = d.max * boost;
     if (boat && !water) maxS = 4;
     if (!boat && water && d.style !== 'ufo') maxS = 3;
     const thr = ctl ? ctl.throttle : 0, st = ctl ? ctl.steer : 0, hb = ctl && ctl.handbrake;
     if (this.grounded || boat) {
-      if (thr > 0) vf += (vf < -0.5 ? 30 : d.acc) * thr * dt;
+      if (thr > 0) vf += (vf < -0.5 ? 30 : d.acc * boost) * thr * dt;
       else if (thr < 0) vf += (vf > 0.5 ? -30 : -d.acc * 0.6) * -thr * dt;
       else vf *= Math.exp(-0.7 * dt);
       if (hb) vf *= Math.exp(-1.2 * dt);
@@ -430,7 +431,8 @@ export class Vehicle {
     let ground = groundAt();
     const onGround = this.y <= ground + 0.08;
     const brake = onGround && ctl && ctl.throttle < 0 && this.throttle <= 0.01 ? 10 : 0;
-    this.spd += (d.acc * this.throttle - d.acc * (this.spd / d.max) ** 2 - 9.8 * Math.sin(this.pitchA) * 0.7 - (onGround ? 1.2 + brake : 0)) * dt;
+    const boost = this.boost || 1, acc = d.acc * boost, vmax = d.max * boost;
+    this.spd += (acc * this.throttle - acc * (this.spd / vmax) ** 2 - 9.8 * Math.sin(this.pitchA) * 0.7 - (onGround ? 1.2 + brake : 0)) * dt;
     if (onGround && water && !d.floats) this.spd *= Math.exp(-3 * dt);
     this.spd = Math.max(0, this.spd);
     const up = ctl ? (ctl.up ? 1 : 0) - (ctl.down ? 1 : 0) : 0, st = ctl ? ctl.steer : 0;

@@ -39,6 +39,11 @@ export class Sfx {
   horn() { this.tone(420, 0.5, 'square', 0.12); this.tone(530, 0.5, 'square', 0.1); }
   door() { this.tone(160, 0.1, 'square', 0.15, -40); }
   success() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, 'square', 0.12), i * 110)); }
+  fanfare() {
+    const seq = [[392, 0], [523, 140], [659, 280], [784, 420], [659, 620], [784, 740], [1047, 900]];
+    for (const [f, t] of seq) setTimeout(() => { this.tone(f, 0.22, 'square', 0.12); this.tone(f / 2, 0.22, 'triangle', 0.1); }, t);
+    setTimeout(() => { for (const f of [523, 659, 784, 1047]) this.tone(f, 0.9, 'triangle', 0.08); }, 1100);
+  }
   fail() { [392, 330, 262].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, 'sawtooth', 0.1), i * 150)); }
   chat() { this.tone(880, 0.06, 'sine', 0.12); }
   splash() { this.noise(0.4, 0.3, 2000); }
