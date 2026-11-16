@@ -5,6 +5,7 @@ import { Effects, noiseTexture } from './effects.js';
 import { input } from './input.js';
 import { sfx } from './audio.js';
 import { escapeHtml } from './fight.js';
+import { seedMath, gravarEfeitos, repetirEfeito, EV, SONS, TIROS, r2, r3, num } from './rede.js';
 
 const HALF = 104;
 const TEAM_COL = [0x3d8bff, 0xff4545];
@@ -22,7 +23,12 @@ const WEAPONS = {
 };
 
 const ABILITY_CD = { granada: 7, camuflagem: 22, muralha: 20, cura: 14 };
+const ABILITIES = ['granada', 'camuflagem', 'muralha', 'cura'];
+// nomes das armas no placar de abates (o número vai pela rede)
+const WEAPON_NAMES = ['Fuzil de Assalto', 'Rifle de Precisão', 'Metralhadora Pesada', 'Submetralhadora', 'Pistola', 'Jipe', 'Tanque',
+  'Explosão', 'Fogo', 'Ataque Aéreo', 'Canhão', 'Granada', 'Artilharia'];
 
+const ITEM_KEYS = ['vida', 'municao', 'colete', 'habilidade', 'radio', 'adrenalina'];
 const ITEM_TYPES = {
   vida: { nome: 'Kit Médico', color: 0xffffff, accent: 0xe02020, ico: '✚' },
   municao: { nome: 'Munição', color: 0x4b5a2a, accent: 0xd8b84a, ico: '▮' },
@@ -92,12 +98,20 @@ export class BattlefieldGame {
     this.over = false;
     this.staticBuckets = new Map();
     this.mats = {};
-    this.buildWorld();
-    this.spawnVehicles();
-    this.spawnItems();
-    this.createSoldiers();
+    this.pid = 0;
+    this.net = opts.net || null; // { role: 'host'|'guest', seed, roster, me, send(foto), sendInput(d) }
+    this.netEv = { ligado: !!(this.net && this.net.role === 'host'), lista: [] };
+    // Online: mesma semente em todos os celulares = mesmo mapa e mesmos bots.
+    const restore = this.net ? seedMath(this.net.seed) : null;
+    try {
+      this.buildWorld();
+      this.spawnVehicles();
+      this.spawnItems();
+      this.createSoldiers();
+    } finally { if (restore) restore(); }
+    if (this.netEv.ligado) gravarEfeitos(this.fx, this.netEv);
     this.buildHud();
-    this.banner('CONQUISTA', 'Capture as bandeiras A, B e C — destrua os tickets inimigos', 3.5);
+    this.bannerK(0);
   }
 
   // ======================================================================
@@ -522,7 +536,7 @@ export class BattlefieldGame {
     }
     v.cannonCd -= dt;
     if (d && v.type === 'tank' && it.fire && v.cannonCd <= 0) this.fireCannon(v, d);
-    if (d && Math.abs(v.speed) > 1 && Math.random() < dt * 6) sfx.engine(this.distToPlayer(v.pos));
+    if (d && Math.abs(v.speed) > 1 && Math.random() < dt * 6) this.somAt('engine', 0, v.pos);
     if (Math.abs(v.speed) > 6 && Math.random() < 0.3) this.fx.smoke(v.pos.clone().addScaledVector(f, -v.radius), 1, 0x6b5a44, 0.8, 0.4, 0.5);
 
     // atropelar
@@ -548,10 +562,10 @@ export class BattlefieldGame {
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd27a }));
     mesh.position.copy(start);
     this.scene.add(mesh);
-    this.projectiles.push({ kind: 'shell', mesh, vel: dir.multiplyScalar(90), owner: d, life: 4 });
+    this.projectiles.push({ id: ++this.pid, kind: 'shell', mesh, vel: dir.multiplyScalar(90), owner: d, life: 4 });
     this.fx.flash(start, 0xffc060, 1.6, 0.15);
     this.fx.smoke(start, 4, 0x777777, 1.2, 1, 1);
-    sfx.shoot('cannon', this.distToPlayer(start));
+    this.somAt('shoot', 5, start);
     if (d.isPlayer) this.shakeP(d, 0.4);
     v.speed -= 1.5;
   }
@@ -578,9 +592,9 @@ export class BattlefieldGame {
     s.vehicle = v;
     s.model.root.visible = false;
     s.lookOff = 0;
+    s.tp = (s.tp || 0) + 1;
     if (v.type === 'tank') s.yaw = v.yaw + v.turretYaw;
-    this.toast(s, isTouch() ? `${v.name} — joystick para dirigir${v.type === 'tank' ? ', ATIRAR = canhão' : ', Pular = freio'}`
-      : `${v.name} — [W/S] acelerar, [A/D] virar${v.type === 'tank' ? ', [atirar] canhão' : ', [pular] freio'}`);
+    this.toastK(s, 0, this.vehicles.indexOf(v));
   }
   exitVehicle(s) {
     const v = s.vehicle;
@@ -593,6 +607,7 @@ export class BattlefieldGame {
     s.pos.y = 0.5;
     this.pushOut(s.pos, 0.4, 2);
     s.vel.set(0, 0, 0);
+    s.tp = (s.tp || 0) + 1;
   }
 
   // ======================================================================
@@ -661,9 +676,8 @@ export class BattlefieldGame {
       default: return false;
     }
     if (s.isPlayer) {
-      sfx.pickup();
-      const msg = type === 'radio' ? `Rádio obtido! Use [${keyName(s, 'G', 'H', 'Ataque aéreo')}] para pedir ATAQUE AÉREO` : `+ ${ITEM_TYPES[type].nome}`;
-      this.toast(s, msg);
+      this.somP(s, 'pickup');
+      this.toastK(s, 1, ITEM_KEYS.indexOf(type));
     }
     return true;
   }
@@ -673,6 +687,20 @@ export class BattlefieldGame {
   // ======================================================================
   createSoldiers() {
     const per = 8;
+    if (this.net) {
+      // Online: os jogadores (com o apelido da conta), na ordem do servidor; os bots completam 8 de cada lado.
+      this.players = []; this.locals = [];
+      for (const h of this.net.roster) {
+        const me = h.id === this.net.me;
+        const s = this.makeSoldier({ ...h.look, name: h.name }, h.team, true, me ? 0 : -1);
+        s.nid = h.id; s.human = true; s.remote = !me;
+        this.players.push(s);
+        if (me) this.locals.push(s);
+      }
+      for (const t of [0, 1]) while (this.soldiers.filter((x) => x.team === t).length < per) this.makeSoldier(randomChar(), t, false);
+      for (const x of this.soldiers) this.respawn(x, true);
+      return;
+    }
     const [c1, c2] = this.opts.chars;
     this.players = [];
     const p1 = this.makeSoldier(c1, 0, true, 0);
@@ -681,6 +709,7 @@ export class BattlefieldGame {
     while (this.soldiers.filter((s) => s.team === 0).length < per) this.makeSoldier(randomChar(), 0, false);
     for (let i = 0; i < per; i++) this.makeSoldier(randomChar(), 1, false);
     for (const s of this.soldiers) this.respawn(s, true);
+    this.locals = this.players;
   }
 
   makeSoldier(cfg, team, isPlayer, pIndex = -1) {
@@ -698,7 +727,7 @@ export class BattlefieldGame {
       intent: { mx: 0, mz: 0 }, recoil: 0, lookOff: 0,
       ai: { thinkT: Math.random(), target: null, react: 0, goal: null, strafe: 1, stuckT: 0, lastPos: new THREE.Vector3(), detour: 0, detourDir: 0, burst: 0, grenadeT: rand(4, 10) },
     };
-    if (isPlayer) model.root.traverse((o) => o.layers.set(3 + pIndex));
+    if (isPlayer && pIndex >= 0) model.root.traverse((o) => o.layers.set(3 + pIndex));
     this.soldiers.push(s);
     return s;
   }
@@ -723,7 +752,8 @@ export class BattlefieldGame {
     s.model.root.visible = true;
     setModelOpacity(s.model, 1);
     s.ai.target = null; s.ai.goal = null;
-    if (s.isPlayer && !initial) this.toast(s, 'Você voltou ao combate!');
+    s.tp = (s.tp || 0) + 1;
+    if (s.isPlayer && !initial) this.toastK(s, 2);
   }
 
   insideCollider(p, r) {
@@ -821,7 +851,7 @@ export class BattlefieldGame {
     const g = s.guns[s.wi];
     if (s.reloadT > 0 || s.fireCd > 0) return false;
     if (g.mag <= 0) {
-      if (s.isPlayer) sfx.empty();
+      if (s.isPlayer) this.somP(s, 'empty');
       this.startReload(s);
       s.fireCd = 0.25;
       return false;
@@ -843,7 +873,7 @@ export class BattlefieldGame {
     if (s.isPlayer && s.view) { muzzle = new THREE.Vector3(); s.view.muzzle.getWorldPosition(muzzle); s.view.flashT = 0.05; s.recoil = Math.min(0.3, s.recoil + def.recoil * 4); s.pitch += def.recoil * (s.aiming ? 0.5 : 1); s.yaw += (Math.random() - 0.5) * def.recoil * 0.6; }
     else muzzle = o.clone().addScaledVector(fwd(s.yaw), 0.7).add(new THREE.Vector3(0, -0.35, 0));
     this.fx.tracer(muzzle, res.point, s.el.color, def.scope ? 0.15 : 0.06);
-    sfx.shoot(def.sound, this.distToPlayer(s.pos, s));
+    this.somAt('shoot', TIROS.indexOf(def.sound), s.pos, s);
 
     if (res.soldier) {
       const t = res.soldier;
@@ -873,7 +903,7 @@ export class BattlefieldGame {
     const g = s.guns[s.wi];
     if (s.reloadT > 0 || g.reserve <= 0 || g.mag >= g.def.mag) return;
     s.reloadT = g.def.reload;
-    if (s.isPlayer) sfx.reload();
+    if (s.isPlayer) this.somP(s, 'reload');
   }
 
   damageSoldier(t, dmg, attacker, info = {}) {
@@ -898,15 +928,14 @@ export class BattlefieldGame {
     t.burn = 0;
     this.tickets[t.team] = Math.max(0, this.tickets[t.team] - 1);
     if (attacker && attacker !== t) attacker.kills++;
-    const an = attacker ? `<span class="${TEAM_CSS[attacker.team]}">${escapeHtml(attacker.name)}</span>` : '';
-    const tn = `<span class="${TEAM_CSS[t.team]}">${escapeHtml(t.name)}</span>`;
-    this.feed(attacker && attacker !== t ? `${an} [${info.weapon || '?'}${info.head ? ' ☠' : ''}] ${tn}` : `${tn} morreu`);
-    if (attacker && attacker.isPlayer && attacker !== t) this.toast(attacker, `${info.head ? 'HEADSHOT! ' : ''}Abateu ${t.name}`);
+    const ai = attacker && attacker !== t ? this.soldiers.indexOf(attacker) : -1;
+    this.feedK(0, ai, this.soldiers.indexOf(t), WEAPON_NAMES.indexOf(info.weapon), info.head ? 1 : 0);
+    if (attacker && attacker.isPlayer && attacker !== t) this.toastK(attacker, 3, this.soldiers.indexOf(t), info.head ? 1 : 0);
   }
 
   explode(pos, radius, dmg, attacker, weapon = 'Explosão') {
     this.fx.explosion(pos, radius * 0.7);
-    sfx.explosion(this.distToPlayer(pos));
+    this.somAt('explosion', 0, pos);
     const bl = this.boomLights.reduce((a, b) => (a.t < b.t ? a : b));
     bl.l.position.copy(pos).setY(pos.y + 2); bl.t = 0.3; bl.l.intensity = 120;
     for (const s of this.soldiers) {
@@ -938,12 +967,12 @@ export class BattlefieldGame {
       mesh.position.copy(p);
       mesh.castShadow = true;
       this.scene.add(mesh);
-      this.projectiles.push({ kind: 'grenade', mesh, vel: dir.multiplyScalar(19).add(s.vel.clone().multiplyScalar(0.5)), owner: s, life: 2.4 });
-      if (s.isPlayer) this.toast(s, 'Granada!');
+      this.projectiles.push({ id: ++this.pid, kind: 'grenade', mesh, vel: dir.multiplyScalar(19).add(s.vel.clone().multiplyScalar(0.5)), owner: s, life: 2.4 });
+      if (s.isPlayer) this.toastK(s, 4, 0);
     } else if (ab === 'camuflagem') {
       s.camo = 7;
       setModelOpacity(s.model, 0.18);
-      if (s.isPlayer) this.toast(s, 'Camuflagem ativa — os inimigos não te veem de longe');
+      if (s.isPlayer) this.toastK(s, 4, 1);
     } else if (ab === 'muralha') {
       const f = fwd(s.yaw);
       const c = s.pos.clone().addScaledVector(f, 3);
@@ -954,9 +983,9 @@ export class BattlefieldGame {
       this.scene.add(mesh);
       const col = { min: new THREE.Vector3(c.x - w / 2, s.pos.y, c.z - d / 2), max: new THREE.Vector3(c.x + w / 2, s.pos.y + 2.6, c.z + d / 2) };
       this.colliders.push(col);
-      this.walls.push({ mesh, col, life: 15 });
+      this.walls.push({ id: ++this.pid, mesh, col, life: 15, w, d, h: 2.6 });
       this.fx.burst(mesh.position, 0x5fd4ff, 16, 4, 0.12, 0.6, 0);
-      if (s.isPlayer) this.toast(s, 'Muralha de energia erguida!');
+      if (s.isPlayer) this.toastK(s, 4, 2);
     } else if (ab === 'cura') {
       for (const o of this.soldiers) {
         if (!o.alive || o.team !== s.team || o.pos.distanceTo(s.pos) > 9) continue;
@@ -965,8 +994,8 @@ export class BattlefieldGame {
         this.fx.burst(this.eye(o), 0x6dff8b, 10, 2.5, 0.1, 0.7, 2);
       }
       this.fx.ring(s.pos, 0x6dff8b, 9, 0.7, s.pos.y + 0.1);
-      sfx.heal();
-      if (s.isPlayer) this.toast(s, 'Cura em área!');
+      this.som('heal');
+      if (s.isPlayer) this.toastK(s, 4, 3);
     }
     return true;
   }
@@ -977,7 +1006,7 @@ export class BattlefieldGame {
     const res = this.traceShot(o, dirFrom(s.yaw, s.pitch), 220, s);
     const target = res.point.clone().setY(0);
     s.radio = false;
-    this.toast(s, 'Ataque aéreo a caminho!');
+    this.toastK(s, 5);
     // marcador de fumaça vermelha
     this.fx.smoke(target.clone().setY(0.5), 8, 0xcc3322, 3, 2, 1.5);
     const dir = fwd(s.yaw);
@@ -985,8 +1014,8 @@ export class BattlefieldGame {
     plane.position.copy(target).addScaledVector(dir, -160).setY(45);
     plane.rotation.y = s.yaw;
     this.scene.add(plane);
-    this.strikes.push({ owner: s, target, dir: dir.clone(), plane, t: 0, drops: 0 });
-    sfx.whistle();
+    this.strikes.push({ id: ++this.pid, owner: s, target, dir: dir.clone(), plane, t: 0, drops: 0 });
+    this.som('whistle');
   }
 
   makePlane() {
@@ -1101,35 +1130,33 @@ export class BattlefieldGame {
   }
 
   updatePlayer(s, dt) {
-    const it = this.readPlayer(s, dt);
+    const it = s.remote ? this.takeNet(s) : this.readPlayer(s, dt);
     s.intent = it;
     if (!s.alive) return;
 
     if (s.vehicle) {
       const v = s.vehicle;
-      if (v.type === 'tank') { s.yaw -= it.lx; s.pitch = THREE.MathUtils.clamp(s.pitch - it.ly, -0.3, 0.5); }
-      else { s.lookOff = THREE.MathUtils.clamp(s.lookOff - it.lx, -2.5, 2.5); s.pitch = THREE.MathUtils.clamp(s.pitch - it.ly, -0.4, 0.4); if (!it.lx) s.lookOff *= Math.pow(0.2, dt); }
+      if (!s.remote) this.lookVehicle(s, it, dt);
       it.fire = v.type === 'tank' ? it.fire : false;
       if (it.use) this.exitVehicle(s);
       return;
     }
 
-    s.yaw -= it.lx;
-    s.pitch = THREE.MathUtils.clamp(s.pitch - it.ly, -1.45, 1.45);
+    if (!s.remote) {
+      s.yaw -= it.lx;
+      s.pitch = THREE.MathUtils.clamp(s.pitch - it.ly, -1.45, 1.45);
+    }
     s.aiming = !!it.aim && s.reloadT <= 0;
-    const f = fwd(s.yaw);
-    const r = _v2.set(-f.z, 0, f.x);
-    const wish = new THREE.Vector3().addScaledVector(f, -it.mz).addScaledVector(r, it.mx);
-    if (wish.lengthSq() > 1) wish.normalize();
-    this.moveSoldier(s, wish, it.run && it.mz < 0 && !s.aiming, it.jumpP, dt);
+    if (s.remote) this.applyNetPos(s);
+    else this.moveLocal(s, it, dt);
 
     if (it.w1 && s.wi !== 0) { s.wi = 0; s.reloadT = 0; s.fireCd = 0.35; this.rebuildViewGun(s); }
     if (it.w2 && s.wi !== 1) { s.wi = 1; s.reloadT = 0; s.fireCd = 0.3; this.rebuildViewGun(s); }
     if (it.reload) this.startReload(s);
     const def = s.guns[s.wi].def;
     if (it.fire && (def.auto ? true : it.fireP)) this.tryFire(s);
-    if (it.ability) { if (!this.useAbility(s)) this.toast(s, `Habilidade recarregando (${Math.ceil(s.abilityCd)}s)`); }
-    if (it.air) { if (s.radio) this.callAirstrike(s); else this.toast(s, 'Você precisa de um Rádio (item ✈) para pedir ataque aéreo'); }
+    if (it.ability) { if (!this.useAbility(s)) this.toastK(s, 6, Math.ceil(s.abilityCd)); }
+    if (it.air) { if (s.radio) this.callAirstrike(s); else this.toastK(s, 7); }
 
     // veículo próximo
     s.nearVehicle = null;
@@ -1293,19 +1320,15 @@ export class BattlefieldGame {
         if (f.progress >= 1) f.owner = 0;
         if (f.progress <= -1) f.owner = 1;
         if (before !== f.owner) {
+          const fi = this.flags.indexOf(f);
           if (f.owner >= 0) {
-            this.feed(`Bandeira <b>${f.name}</b> capturada pelo time <span class="${TEAM_CSS[f.owner]}">${TEAM_NAME[f.owner]}</span>`);
-            for (const p of this.players) this.toast(p, f.owner === p.team ? `Bandeira ${f.name} capturada!` : `Perdemos a bandeira ${f.name}!`);
-            sfx.capture();
-          } else this.feed(`Bandeira <b>${f.name}</b> neutralizada`);
+            this.feedK(1, fi, f.owner);
+            for (const p of this.players) this.toastK(p, 8, fi, f.owner === p.team ? 1 : 0);
+            this.som('capture');
+          } else this.feedK(2, fi);
         }
       }
-      const col = f.owner === 0 ? TEAM_COL[0] : f.owner === 1 ? TEAM_COL[1] : 0xdddddd;
-      f.cloth.material.color.setHex(col);
-      f.ring.material.color.setHex(col);
-      const h = 2 + Math.abs(f.progress) * 5;
-      f.cloth.position.y = h;
-      f.cloth.rotation.y = Math.sin(this.time * 2 + f.pos.x) * 0.3;
+      this.flagVisual(f);
     }
     // drenagem de tickets
     this.drainT += dt;
@@ -1317,11 +1340,17 @@ export class BattlefieldGame {
     }
     if (!this.over && (this.tickets[0] <= 0 || this.tickets[1] <= 0)) {
       this.over = true;
-      const win = this.tickets[0] > 0;
-      this.banner(win ? 'VITÓRIA!' : 'DERROTA', win ? 'O time Azul dominou o campo de batalha' : 'O time Vermelho venceu a batalha', 4);
-      const p = this.players.map((pl) => `${pl.name}: ${pl.kills} abates / ${pl.deaths} mortes`).join(' · ');
-      setTimeout(() => { if (!this.disposed) this.opts.onEnd(win ? 'Vitória!' : 'Derrota', p); }, 3500);
+      this.bannerK(1, this.tickets[0] > 0 ? 0 : 1);
     }
+  }
+
+  flagVisual(f) {
+    const col = f.owner === 0 ? TEAM_COL[0] : f.owner === 1 ? TEAM_COL[1] : 0xdddddd;
+    f.cloth.material.color.setHex(col);
+    f.ring.material.color.setHex(col);
+    const h = 2 + Math.abs(f.progress) * 5;
+    f.cloth.position.y = h;
+    f.cloth.rotation.y = Math.sin(this.time * 2 + f.pos.x) * 0.3;
   }
 
   updateArtillery(dt) {
@@ -1333,20 +1362,25 @@ export class BattlefieldGame {
       const far = new THREE.Vector3(Math.cos(a) * rand(130, 170), rand(2, 10), Math.sin(a) * rand(130, 170));
       this.fx.flash(far, 0xffa040, 10, 0.5);
       this.fx.smoke(far, 6, 0x333333, 5, 3, 8);
-      sfx.explosion(80);
+      this.som('explosion', 80);
       // bombardeio na terra de ninguém
       if (Math.random() < 0.55) {
         const p = new THREE.Vector3(rand(-80, 80), 0.3, rand(-55, 55));
-        sfx.whistle();
+        this.som('whistle');
         this.fx.ring(p, 0xff3322, 5, 1.2, 0.1);
         setTimeout(() => { if (!this.disposed) this.explode(p, 5, 55, null, 'Artilharia'); }, 1200);
       }
     }
+    this.animFires(dt, true);
+  }
+
+  // fogo dos incêndios e luz das explosões (a fumaça só no celular do dono: nos outros ela chega como evento)
+  animFires(dt, fumaca) {
     for (const f of this.fires) {
       f.grp.children.forEach((c, i) => { c.scale.y = 0.8 + Math.sin(this.time * 12 + i * 2) * 0.35; });
       if (f.light) f.light.intensity = 35 + Math.sin(this.time * 17 + f.pos.x) * 10;
       f.smokeT -= dt;
-      if (f.smokeT <= 0) { f.smokeT = 0.35; this.fx.smoke(f.pos.clone().setY(2.5), 1, 0x2a2622, 5, 2.4, 1.2); }
+      if (fumaca && f.smokeT <= 0) { f.smokeT = 0.35; this.fx.smoke(f.pos.clone().setY(2.5), 1, 0x2a2622, 5, 2.4, 1.2); }
     }
     for (const b of this.boomLights) { if (b.t > 0) { b.t -= dt; b.l.intensity = Math.max(0, b.t / 0.3) * 120; } }
   }
@@ -1355,7 +1389,7 @@ export class BattlefieldGame {
   // CÂMERAS / VIEWMODEL
   // ======================================================================
   setupViews() {
-    for (const p of this.players) {
+    for (const p of this.locals) {
       const cam = new THREE.PerspectiveCamera(75, 1, 0.05, 600);
       cam.rotation.order = 'YXZ';
       cam.layers.enable(1 + p.pIndex);
@@ -1448,11 +1482,14 @@ export class BattlefieldGame {
     if (v.flash.visible) v.flash.scale.setScalar(1 + Math.random() * 1.5);
   }
 
-  shakeP(p, a) { if (p.view) p.view.shake = Math.max(p.view.shake, a); }
+  shakeP(p, a) {
+    if (p.view) p.view.shake = Math.max(p.view.shake, a);
+    else if (p.remote) this.gravar([EV.SHAKE, r2(a), this.soldiers.indexOf(p)]);
+  }
 
   distToPlayer(pos, except) {
     let d = Infinity;
-    for (const p of this.players) { if (p === except) return 0; d = Math.min(d, p.pos.distanceTo(pos)); }
+    for (const p of this.locals) { if (p === except) return 0; d = Math.min(d, p.pos.distanceTo(pos)); }
     return d;
   }
 
@@ -1465,7 +1502,7 @@ export class BattlefieldGame {
     views.innerHTML = '';
     views.classList.toggle('split', this.twoP);
     this.setupViews();
-    for (const p of this.players) {
+    for (const p of this.locals) {
       const el = document.createElement('div');
       el.className = 'bf-view';
       el.innerHTML = `
@@ -1504,7 +1541,7 @@ export class BattlefieldGame {
       f.hud.className = 'flag' + (f.owner === 0 ? ' blue' : f.owner === 1 ? ' red' : '');
       f.hud.querySelector('i').style.width = Math.abs(f.progress) * 100 + '%';
     }
-    for (const p of this.players) {
+    for (const p of this.locals) {
       const h = p.hud;
       const g = p.guns[p.wi];
       h.hp.style.width = (p.hp / p.maxHp * 100) + '%';
@@ -1599,6 +1636,8 @@ export class BattlefieldGame {
   }
 
   hitMarker(p, head) {
+    if (p.remote) { this.gravar([EV.HIT, this.soldiers.indexOf(p), head ? 1 : 0]); return; }
+    if (!p.hud) return;
     p.hud.cross.classList.add('hit');
     p.hitT = head ? 0.25 : 0.12;
     sfx.hitmarker();
@@ -1628,11 +1667,434 @@ export class BattlefieldGame {
   }
 
   // ======================================================================
+  // MENSAGENS COM CÓDIGO (para irem pela rede só como números)
+  // ======================================================================
+  gravar(ev) { if (this.netEv.ligado) this.netEv.lista.push(ev); }
+
+  toastText(p, code, a = 0, b = 0) {
+    switch (code) {
+      case 0: {
+        const v = this.vehicles[a]; if (!v) return '';
+        return isTouch() ? `${v.name} — joystick para dirigir${v.type === 'tank' ? ', ATIRAR = canhão' : ', Pular = freio'}`
+          : `${v.name} — [W/S] acelerar, [A/D] virar${v.type === 'tank' ? ', [atirar] canhão' : ', [pular] freio'}`;
+      }
+      case 1: {
+        const type = ITEM_KEYS[a]; if (!type) return '';
+        return type === 'radio' ? `Rádio obtido! Use [${keyName(p, 'G', 'H', 'Ataque aéreo')}] para pedir ATAQUE AÉREO` : `+ ${ITEM_TYPES[type].nome}`;
+      }
+      case 2: return 'Você voltou ao combate!';
+      case 3: { const t = this.soldiers[a]; return `${b ? 'HEADSHOT! ' : ''}Abateu ${t ? t.name : ''}`; }
+      case 4: return ['Granada!', 'Camuflagem ativa — os inimigos não te veem de longe', 'Muralha de energia erguida!', 'Cura em área!'][a] || '';
+      case 5: return 'Ataque aéreo a caminho!';
+      case 6: return `Habilidade recarregando (${a}s)`;
+      case 7: return 'Você precisa de um Rádio (item ✈) para pedir ataque aéreo';
+      case 8: { const f = this.flags[a]; if (!f) return ''; return b ? `Bandeira ${f.name} capturada!` : `Perdemos a bandeira ${f.name}!`; }
+      default: return '';
+    }
+  }
+
+  toastK(p, code, a = 0, b = 0) {
+    if (p.hud) this.toast(p, this.toastText(p, code, a, b));
+    else if (p.remote) this.gravar([EV.TOAST, this.soldiers.indexOf(p), code, a, b]);
+  }
+
+  feedHtml(kind, a, b, c, d) {
+    const nome = (s) => (s ? `<span class="${TEAM_CSS[s.team]}">${escapeHtml(s.name)}</span>` : '');
+    if (kind === 0) {
+      const at = this.soldiers[a]; const t = this.soldiers[b];
+      if (!t) return '';
+      return at ? `${nome(at)} [${WEAPON_NAMES[c] || '?'}${d ? ' ☠' : ''}] ${nome(t)}` : `${nome(t)} morreu`;
+    }
+    const f = this.flags[a]; if (!f) return '';
+    if (kind === 1) return `Bandeira <b>${f.name}</b> capturada pelo time <span class="${TEAM_CSS[b]}">${TEAM_NAME[b]}</span>`;
+    return `Bandeira <b>${f.name}</b> neutralizada`;
+  }
+
+  feedK(kind, a = 0, b = 0, c = 0, d = 0) {
+    const html = this.feedHtml(kind, a, b, c, d);
+    if (html) this.feed(html);
+    this.gravar([EV.FEED, kind, a, b, c, d]);
+  }
+
+  // 0 = começo (CONQUISTA); 1 = fim, a = time que venceu (cada aparelho mostra do seu ponto de vista)
+  bannerK(code, a = 0) {
+    if (code === 0) this.banner('CONQUISTA', 'Capture as bandeiras A, B e C — destrua os tickets inimigos', 3.5);
+    else if (code === 1) {
+      if (this.fimMarcado) return;
+      this.fimMarcado = true;
+      const myTeam = this.locals[0] ? this.locals[0].team : 0;
+      const win = this.net ? a === myTeam : a === 0;
+      const sub = this.net ? (win ? 'Seu time dominou o campo de batalha' : 'O outro time venceu a batalha')
+        : (win ? 'O time Azul dominou o campo de batalha' : 'O time Vermelho venceu a batalha');
+      this.banner(win ? 'VITÓRIA!' : 'DERROTA', sub, 4);
+      const p = this.locals.map((pl) => `${pl.name}: ${pl.kills} abates / ${pl.deaths} mortes`).join(' · ');
+      setTimeout(() => { if (!this.disposed) this.opts.onEnd(win ? 'Vitória!' : 'Derrota', p); }, 3500);
+    }
+    this.gravar([EV.BANNER, code, a]);
+  }
+
+  // ---------- sons ----------
+  tocar(nome, arg, dist) {
+    if (nome === 'shoot') sfx.shoot(TIROS[arg] || 'rifle', dist);
+    else if (nome === 'explosion' || nome === 'engine') sfx[nome](dist);
+    else if (sfx[nome]) sfx[nome](arg);
+  }
+  // som que todos ouvem igual
+  som(nome, arg = 0) {
+    this.tocar(nome, arg, arg);
+    this.gravar([EV.SOM, SONS.indexOf(nome), arg, 0, 0, 0, 0, -1, -1]);
+  }
+  // som com lugar: o volume depende da distância de quem ouve
+  somAt(nome, arg, pos, de) {
+    this.tocar(nome, arg, this.distToPlayer(pos, de));
+    this.gravar([EV.SOM, SONS.indexOf(nome), arg, 1, r2(pos.x), r2(pos.y), r2(pos.z), -1, de ? this.soldiers.indexOf(de) : -1]);
+  }
+  // som só de um jogador (recarregar, sem munição, item)
+  somP(s, nome) {
+    if (s.view) { if (sfx[nome]) sfx[nome](); }
+    else if (s.remote) this.gravar([EV.SOM, SONS.indexOf(nome), 0, 0, 0, 0, 0, this.soldiers.indexOf(s), -1]);
+  }
+
+  // ---------- movimento do jogador deste aparelho ----------
+  lookVehicle(s, it, dt) {
+    const v = s.vehicle;
+    if (v.type === 'tank') { s.yaw -= it.lx; s.pitch = THREE.MathUtils.clamp(s.pitch - it.ly, -0.3, 0.5); }
+    else { s.lookOff = THREE.MathUtils.clamp(s.lookOff - it.lx, -2.5, 2.5); s.pitch = THREE.MathUtils.clamp(s.pitch - it.ly, -0.4, 0.4); if (!it.lx) s.lookOff *= Math.pow(0.2, dt); }
+  }
+  moveLocal(s, it, dt) {
+    const f = fwd(s.yaw);
+    const r = _v2.set(-f.z, 0, f.x);
+    const wish = new THREE.Vector3().addScaledVector(f, -it.mz).addScaledVector(r, it.mx);
+    if (wish.lengthSq() > 1) wish.normalize();
+    this.moveSoldier(s, wish, it.run && it.mz < 0 && !s.aiming, it.jumpP, dt);
+  }
+
+  // ======================================================================
+  // ONLINE — celular do dono
+  // ======================================================================
+  netStart() { this.netGo = true; }
+
+  // Controles de um jogador que chegaram pela rede:
+  // [mx, mz, yaw, pitch, lookOff, x, y, z, vx, vy, vz, noChão, segurando, toques, tp]
+  netInput(id, d) {
+    const s = this.soldiers.find((x) => x.nid === id && x.remote);
+    if (!s || !Array.isArray(d)) return;
+    const n = s.netIn || (s.netIn = { e: 0 });
+    n.mx = THREE.MathUtils.clamp(num(d[0]), -1, 1); n.mz = THREE.MathUtils.clamp(num(d[1]), -1, 1);
+    n.yaw = num(d[2]); n.pitch = num(d[3]); n.lookOff = num(d[4]);
+    n.x = num(d[5]); n.y = num(d[6]); n.z = num(d[7]); n.vx = num(d[8]); n.vy = num(d[9]); n.vz = num(d[10]);
+    n.onGround = !!num(d[11]); n.held = num(d[12]) | 0; n.e |= (num(d[13]) | 0) & 255; n.tp = num(d[14]); n.novo = true;
+  }
+
+  takeNet(s) {
+    const n = s.netIn;
+    if (!n) return { mx: 0, mz: 0, lx: 0, ly: 0 };
+    const e = n.e; n.e = 0;
+    if (s.alive) {
+      s.yaw = n.yaw;
+      s.pitch = THREE.MathUtils.clamp(n.pitch, -1.45, 1.45);
+      s.lookOff = THREE.MathUtils.clamp(n.lookOff, -2.5, 2.5);
+    }
+    const h = n.held;
+    return {
+      mx: n.mx, mz: n.mz, lx: 0, ly: 0,
+      jump: !!(h & 1), run: !!(h & 2), fire: !!(h & 4), aim: !!(h & 8),
+      jumpP: !!(e & 1), reload: !!(e & 2), use: !!(e & 4), ability: !!(e & 8), air: !!(e & 16), w1: !!(e & 32), w2: !!(e & 64), fireP: !!(e & 128),
+    };
+  }
+
+  // O outro celular manda onde o soldado dele está (ele anda na hora, sem esperar a rede). Só vale se ele já
+  // recebeu o último "pulo" de lugar (renascer, sair de veículo) e se o passo for de tamanho possível.
+  applyNetPos(s) {
+    const n = s.netIn;
+    if (!n || !n.novo || n.tp !== (s.tp || 0)) return;
+    n.novo = false;
+    const dx = n.x - s.pos.x; const dz = n.z - s.pos.z;
+    if (Math.hypot(dx, dz) > 14) { s.tp = (s.tp || 0) + 1; return; } // passo grande demais: manda ele voltar
+    s.pos.set(THREE.MathUtils.clamp(n.x, -HALF, HALF), THREE.MathUtils.clamp(n.y, 0, 40), THREE.MathUtils.clamp(n.z, -HALF, HALF));
+    s.vel.set(n.vx, n.vy, n.vz);
+    s.onGround = n.onGround;
+  }
+
+  // Alguém saiu no meio da partida: o soldado dele vira bot.
+  netLeave(id) {
+    const s = this.soldiers.find((x) => x.nid === id);
+    if (!s || s === this.locals[0]) return;
+    if (s.vehicle && this.net.role === 'host') this.exitVehicle(s);
+    s.remote = false; s.isPlayer = false; s.human = false;
+    this.players = this.players.filter((p) => p !== s);
+  }
+
+  // Foto do Battlefield, umas 15 vezes por segundo.
+  hostTick(dt) {
+    this.netT = (this.netT || 0) - dt;
+    if (this.netT > 0 || !this.netGo) return;
+    this.netT = 1 / 15;
+    const idx = (s) => (s ? this.soldiers.indexOf(s) : -1);
+    const hdr = [2, this.tickets[0], this.tickets[1], this.over ? 1 : 0, r2(this.time)];
+    const ss = this.soldiers.map((s) => [r2(s.pos.x), r2(s.pos.y), r2(s.pos.z), r2(s.vel.x), r2(s.vel.z), r3(s.yaw), r3(s.pitch),
+      s.onGround ? 1 : 0, s.alive ? 1 : 0, Math.ceil(s.hp), Math.ceil(s.armor), s.vehicle ? this.vehicles.indexOf(s.vehicle) : -1,
+      s.camo > 0 ? 1 : 0, s.wi, s.kills, s.deaths, Math.ceil(Math.max(0, s.respawnT)), s.flashT > 0 ? 1 : 0, s.tp || 0,
+      this.time - s.lastShot < 1.5 ? 1 : 0]);
+    const hs = this.players.map((p) => {
+      const g = p.guns[p.wi];
+      return [idx(p), g.mag, g.reserve, r2(Math.max(0, p.reloadT)), r2(p.abilityCd), r2(p.adren), p.radio ? 1 : 0, r2(p.slow), idx(p.killer)];
+    });
+    const vs = this.vehicles.map((v) => [r2(v.pos.x), r2(v.pos.z), r3(v.yaw), r2(v.speed), r3(v.turretYaw || 0), v.alive ? 1 : 0, Math.ceil(v.hp), idx(v.driver), r2(Math.max(0, v.cannonCd))]);
+    const its = this.items.map((it) => (it.active ? 1 : 0));
+    const fl = this.flags.map((f) => [f.owner, r3(f.progress)]);
+    const pr = this.projectiles.map((p) => [p.id, p.kind === 'shell' ? 1 : 0, r2(p.mesh.position.x), r2(p.mesh.position.y), r2(p.mesh.position.z)]);
+    const wl = this.walls.map((w) => [w.id, r2(w.mesh.position.x), r2(w.col.min.y), r2(w.mesh.position.z), r2(w.w), r2(w.d)]);
+    const sk = this.strikes.map((st) => [st.id, r2(st.plane.position.x), r2(st.plane.position.y), r2(st.plane.position.z), r3(st.plane.rotation.y)]);
+    const ev = this.netEv.lista; this.netEv.lista = [];
+    this.net.send([hdr, ss, hs, vs, its, fl, pr, wl, sk, ev]);
+  }
+
+  // ======================================================================
+  // ONLINE — celular de quem entrou
+  // ======================================================================
+  onState(d) {
+    if (!Array.isArray(d) || !Array.isArray(d[0]) || d[0][0] !== 2) return;
+    this.netState = { hdr: d[0], ss: d[1] || [], hs: d[2] || [], vs: d[3] || [], its: d[4] || [], fl: d[5] || [], pr: d[6] || [], wl: d[7] || [], sk: d[8] || [], t: performance.now() };
+    for (const ev of d[9] || []) this.replay(ev);
+  }
+
+  replay(ev) {
+    if (!Array.isArray(ev)) return;
+    const me = this.locals[0];
+    const myIdx = this.soldiers.indexOf(me);
+    const k = ev[0];
+    if (k === EV.FX) {
+      const r = repetirEfeito(this.fx, ev, THREE.Vector3);
+      if (r && r.nome === 'explosion') { // luz da explosão
+        const bl = this.boomLights.reduce((a, b) => (a.t < b.t ? a : b));
+        bl.l.position.copy(r.args[0]).setY(r.args[0].y + 2); bl.t = 0.3; bl.l.intensity = 120;
+      }
+    } else if (k === EV.SOM) {
+      const nome = SONS[ev[1]]; if (!nome) return;
+      const alvo = num(ev[7], -1); const de = num(ev[8], -1);
+      if (alvo >= 0 && alvo !== myIdx) return;
+      if (nome === 'shoot' && de === myIdx) return; // o meu tiro já tocou aqui na hora
+      let dist = num(ev[2]);
+      if (num(ev[3])) dist = de === myIdx ? 0 : me.pos.distanceTo(_v1.set(num(ev[4]), num(ev[5]), num(ev[6])));
+      this.tocar(nome, num(ev[2]), dist);
+    } else if (k === EV.BANNER) this.bannerK(num(ev[1]), num(ev[2]));
+    else if (k === EV.FEED) { const html = this.feedHtml(num(ev[1]), num(ev[2]), num(ev[3]), num(ev[4]), num(ev[5])); if (html) this.feed(html); }
+    else if (k === EV.TOAST) { if (num(ev[1]) === myIdx) this.toast(me, this.toastText(me, num(ev[2]), num(ev[3]), num(ev[4]))); }
+    else if (k === EV.HIT) { if (num(ev[1]) === myIdx) this.hitMarker(me, !!num(ev[2])); }
+    else if (k === EV.SHAKE) { if (num(ev[2], -1) === myIdx) this.shakeP(me, num(ev[1])); }
+  }
+
+  guestUpdate(dt) {
+    this.time += dt;
+    const me = this.locals[0];
+    if (this.netGo) this.guestControl(me, dt);
+    this.applyState(dt);
+    // visuais que cada aparelho anima sozinho
+    for (const it of this.items) {
+      if (!it.active) continue;
+      it.grp.rotation.y += dt * 1.5;
+      it.grp.position.y = 1 + Math.sin(this.time * 2 + it.pos.x) * 0.15;
+    }
+    for (const f of this.flags) this.flagVisual(f);
+    for (const w of this.walls) w.mesh.material.opacity = 0.35 + Math.sin(this.time * 6) * 0.08;
+    this.animFires(dt, false);
+    me.recoil *= Math.pow(0.002, dt);
+    if (me.flashT > 0) { me.flashT -= dt; }
+    this.updateView(me, dt);
+    this.fx.update(dt, me.view.cam, null);
+    this.updateHud(dt);
+  }
+
+  // Controles deste aparelho: mira e movimento na hora; o resto vai para o dono decidir.
+  guestControl(me, dt) {
+    const it = this.readPlayer(me, dt);
+    me.intent = it;
+    const li = this.localIn || (this.localIn = { e: 0, t: 0 });
+    li.e |= (it.jumpP ? 1 : 0) | (it.reload ? 2 : 0) | (it.use ? 4 : 0) | (it.ability ? 8 : 0) | (it.air ? 16 : 0) | (it.w1 ? 32 : 0) | (it.w2 ? 64 : 0) | (it.fireP ? 128 : 0);
+    const held = (it.jump ? 1 : 0) | (it.run ? 2 : 0) | (it.fire ? 4 : 0) | (it.aim ? 8 : 0);
+    if (me.alive) {
+      if (me.vehicle) this.lookVehicle(me, it, dt);
+      else {
+        me.yaw -= it.lx;
+        me.pitch = THREE.MathUtils.clamp(me.pitch - it.ly, -1.45, 1.45);
+        me.aiming = !!it.aim && me.reloadT <= 0;
+        if (me.tpOk) this.moveLocal(me, it, dt);
+        // tiro: o clarão, o recuo e o som acontecem aqui na hora; quem decide se acertou é o dono
+        me.fireCdL = (me.fireCdL || 0) - dt;
+        const g = me.guns[me.wi]; const def = g.def;
+        if (it.fire && (def.auto || it.fireP) && me.fireCdL <= 0 && me.reloadT <= 0 && g.mag > 0) {
+          me.fireCdL = def.rate * (me.el.effect === 'stun' ? 0.85 : 1);
+          me.view.flashT = 0.05;
+          me.recoil = Math.min(0.3, me.recoil + def.recoil * 4);
+          me.pitch += def.recoil * (me.aiming ? 0.5 : 1);
+          me.yaw += (Math.random() - 0.5) * def.recoil * 0.6;
+          sfx.shoot(def.sound, 0);
+          g.mag = Math.max(0, g.mag - 1);
+        }
+        me.nearVehicle = null;
+        for (const v of this.vehicles) {
+          if (!v.alive || v.driver) continue;
+          if (v.pos.distanceTo(me.pos) < v.radius + 2) { me.nearVehicle = v; break; }
+        }
+      }
+    }
+    li.t -= dt;
+    if (li.t <= 0) {
+      li.t = 1 / 30;
+      this.net.sendInput([r3(it.mx || 0), r3(it.mz || 0), r3(me.yaw), r3(me.pitch), r3(me.lookOff), r2(me.pos.x), r2(me.pos.y), r2(me.pos.z),
+        r2(me.vel.x), r2(me.vel.y), r2(me.vel.z), me.onGround ? 1 : 0, held, li.e, me.tpAck || 0]);
+      li.e = 0;
+    }
+  }
+
+  applyState(dt) {
+    const st = this.netState;
+    if (!st) return;
+    const me = this.locals[0];
+    const h = st.hdr;
+    this.tickets[0] = num(h[1]); this.tickets[1] = num(h[2]);
+    const age = Math.min(0.2, (performance.now() - st.t) / 1000);
+    const k = Math.min(1, dt * 12);
+    st.ss.forEach((a, i) => {
+      const s = this.soldiers[i];
+      if (!s || !Array.isArray(a)) return;
+      const alive = !!a[8];
+      const vi = num(a[11], -1);
+      const veh = vi >= 0 ? this.vehicles[vi] || null : null;
+      s.kills = num(a[14]); s.deaths = num(a[15]); s.respawnT = num(a[16]);
+      s.armor = num(a[10]);
+      s.lastShot = a[19] ? this.time : -10;
+      const camo = !!a[12];
+      if (camo !== !!s.camoNet) { s.camoNet = camo; setModelOpacity(s.model, camo ? 0.18 : 1); }
+      s.camo = camo ? 1 : 0;
+      if (s === me) {
+        const hp = num(a[9]);
+        if (hp < s.hp - 0.5 && alive && s.alive) s.hurtT = 0.5;
+        s.hp = hp;
+        const tp = num(a[18]);
+        const renasceu = alive && !s.alive;
+        s.alive = alive;
+        s.vehicle = veh;
+        if (tp !== (s.tpAck || 0) || renasceu) {
+          s.pos.set(num(a[0]), num(a[1]), num(a[2])); s.vel.set(0, 0, 0);
+          if (renasceu) { s.yaw = num(a[5]); s.pitch = 0; }
+          s.tpAck = tp;
+        }
+        s.tpOk = true;
+        if (veh) { s.pos.copy(veh.pos); s.pos.y = 1; }
+        const wi = num(a[13]);
+        if (wi !== s.wi) { s.wi = wi; this.rebuildViewGun(s); }
+        return;
+      }
+      // os outros soldados: seguem a foto, suavizados
+      const tx = num(a[0]) + num(a[3]) * age; const tz = num(a[2]) + num(a[4]) * age; const ty = num(a[1]);
+      if (!s.alive && alive) s.pos.set(tx, ty, tz);
+      else if (Math.hypot(tx - s.pos.x, tz - s.pos.z) > 6) s.pos.set(tx, ty, tz);
+      else { s.pos.x += (tx - s.pos.x) * k; s.pos.y += (ty - s.pos.y) * k; s.pos.z += (tz - s.pos.z) * k; }
+      s.vel.set(num(a[3]), 0, num(a[4]));
+      s.yaw += Math.atan2(Math.sin(num(a[5]) - s.yaw), Math.cos(num(a[5]) - s.yaw)) * k;
+      s.pitch = num(a[6]);
+      s.onGround = !!a[7];
+      s.alive = alive;
+      s.hp = num(a[9]);
+      s.vehicle = veh;
+      s.wi = num(a[13]);
+      if (a[17] && !(s.flashT > 0)) { flashModel(s.model, 0xff2222, 0.8); s.flashT = 0.1; }
+      if (s.flashT > 0) { s.flashT -= dt; if (s.flashT <= 0) flashModel(s.model, 0, 0); }
+      s.model.root.visible = !veh && (alive || s.isPlayer || s.respawnT >= 2.5);
+      if (!alive) { poseCharacter(s.model, { dead: true }, dt); return; }
+      if (veh) return;
+      const hsp = Math.hypot(s.vel.x, s.vel.z);
+      s.phase += dt * hsp * 1.7;
+      s.model.root.rotation.y = s.yaw + Math.PI;
+      poseCharacter(s.model, { phase: s.phase, speed: Math.min(1, hsp / 6), air: !s.onGround, gun: true, aimPitch: s.pitch * 0.8 }, dt);
+    });
+    // dados do painel de cada jogador
+    for (const x of st.hs) {
+      if (!Array.isArray(x) || this.soldiers[num(x[0], -1)] !== me) continue;
+      const g = me.guns[me.wi];
+      g.mag = num(x[1]); g.reserve = num(x[2]); me.reloadT = num(x[3]); me.abilityCd = num(x[4]); me.adren = num(x[5]);
+      me.radio = !!x[6]; me.slow = num(x[7]);
+      me.killer = this.soldiers[num(x[8], -1)] || null;
+    }
+    // veículos
+    st.vs.forEach((a, i) => {
+      const v = this.vehicles[i];
+      if (!v || !Array.isArray(a)) return;
+      const alive = !!a[5];
+      if (alive && !v.alive) { v.pos.set(num(a[0]), 0, num(a[1])); v.yaw = num(a[2]); }
+      v.alive = alive; v.grp.visible = alive;
+      const tx = num(a[0]); const tz = num(a[1]);
+      if (Math.hypot(tx - v.pos.x, tz - v.pos.z) > 8) v.pos.set(tx, 0, tz);
+      else { v.pos.x += (tx - v.pos.x) * k; v.pos.z += (tz - v.pos.z) * k; }
+      v.yaw += Math.atan2(Math.sin(num(a[2]) - v.yaw), Math.cos(num(a[2]) - v.yaw)) * k;
+      v.grp.rotation.y = v.yaw;
+      v.speed = num(a[3]);
+      for (const w of v.wheels) w.rotation.x += v.speed * dt * 2;
+      if (v.turret) { v.turretYaw = num(a[4]); v.turret.rotation.y = v.turretYaw; }
+      v.hp = num(a[6]);
+      v.driver = this.soldiers[num(a[7], -1)] || null;
+      v.cannonCd = num(a[8]);
+    });
+    st.its.forEach((on, i) => { const it = this.items[i]; if (it) { it.active = !!on; it.grp.visible = !!on; } });
+    st.fl.forEach((a, i) => { const f = this.flags[i]; if (f && Array.isArray(a)) { f.owner = num(a[0], -1); f.progress = num(a[1]); } });
+    // granadas e projéteis do tanque
+    this.syncNetMeshes('gp', st.pr, (p) => {
+      const shell = num(p[1]) === 1;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(shell ? 0.18 : 0.14, 8, 6), shell ? new THREE.MeshBasicMaterial({ color: 0xffd27a }) : new THREE.MeshStandardMaterial({ color: 0x3b4a2a }));
+      return m;
+    }, (m, p) => m.position.set(num(p[2]), num(p[3]), num(p[4])));
+    // muralhas de energia (também bloqueiam o meu movimento)
+    this.syncNetMeshes('gw', st.wl, (w) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(num(w[4], 1), 2.6, num(w[5], 1)), new THREE.MeshStandardMaterial({ color: 0x5fd4ff, emissive: 0x2a8acc, emissiveIntensity: 0.8, transparent: true, opacity: 0.45 }));
+      const x = num(w[1]); const y = num(w[2]); const z = num(w[3]); const ww = num(w[4], 1); const dd = num(w[5], 1);
+      mesh.position.set(x, y + 1.3, z);
+      mesh.userData.col = { min: new THREE.Vector3(x - ww / 2, y, z - dd / 2), max: new THREE.Vector3(x + ww / 2, y + 2.6, z + dd / 2) };
+      this.colliders.push(mesh.userData.col);
+      this.walls.push({ mesh, col: mesh.userData.col, netOnly: true });
+      return mesh;
+    }, () => {}, (mesh) => {
+      const c = mesh.userData.col;
+      const i = this.colliders.indexOf(c); if (i >= 0) this.colliders.splice(i, 1);
+      this.walls = this.walls.filter((w) => w.mesh !== mesh);
+    });
+    // aviões do ataque aéreo
+    this.syncNetMeshes('gs', st.sk, () => this.makePlane(), (pl, a) => { pl.position.set(num(a[1]), num(a[2]), num(a[3])); pl.rotation.y = num(a[4]); });
+  }
+
+  syncNetMeshes(chave, lista, criar, mover, remover) {
+    const mapa = this[chave] || (this[chave] = new Map());
+    const vivos = new Set();
+    for (const it of lista || []) {
+      if (!Array.isArray(it)) continue;
+      const id = num(it[0]); vivos.add(id);
+      let mesh = mapa.get(id);
+      if (!mesh) { mesh = criar(it); this.scene.add(mesh); mapa.set(id, mesh); }
+      mover(mesh, it);
+    }
+    for (const [id, mesh] of mapa) {
+      if (vivos.has(id)) continue;
+      if (remover) remover(mesh);
+      this.scene.remove(mesh);
+      mesh.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      mapa.delete(id);
+    }
+  }
+
+  // ======================================================================
   // LOOP
   // ======================================================================
   update(dt) {
     dt = Math.min(dt, 0.05);
+    if (this.net && this.net.role === 'guest') { this.guestUpdate(dt); return; }
     this.time += dt;
+    if (this.net && !this.netGo) { // esperando todos ficarem prontos
+      for (const p of this.locals) this.updateView(p, dt);
+      this.fx.update(dt, this.locals[0].view.cam, null);
+      this.updateHud(dt);
+      return;
+    }
     for (const s of this.soldiers) {
       if (s.alive && !this.over) { if (s.isPlayer) this.updatePlayer(s, dt); else this.updateBot(s, dt); }
       else if (s.isPlayer) s.intent = { mx: 0, mz: 0 };
@@ -1644,17 +2106,18 @@ export class BattlefieldGame {
     this.updateItems(dt);
     this.updateFlags(dt);
     this.updateArtillery(dt);
-    for (const p of this.players) this.updateView(p, dt);
+    for (const p of this.locals) this.updateView(p, dt);
     const vp = this.twoP ? { x: 0, w: innerWidth / 2, h: innerHeight } : null;
-    this.fx.update(dt, this.players[0].view.cam, vp);
+    this.fx.update(dt, this.locals[0].view.cam, vp);
     this.updateHud(dt);
+    if (this.net) this.hostTick(dt);
   }
 
   render() {
     const r = this.renderer;
     const W = innerWidth; const H = innerHeight;
     if (!this.twoP) {
-      const cam = this.players[0].view.cam;
+      const cam = this.locals[0].view.cam;
       cam.aspect = W / H; cam.updateProjectionMatrix();
       r.setScissorTest(false);
       r.setViewport(0, 0, W, H);
@@ -1662,7 +2125,7 @@ export class BattlefieldGame {
       return;
     }
     r.setScissorTest(true);
-    this.players.forEach((p, i) => {
+    this.locals.forEach((p, i) => {
       const cam = p.view.cam;
       cam.aspect = (W / 2) / H; cam.updateProjectionMatrix();
       r.setViewport(i * W / 2, 0, W / 2, H);

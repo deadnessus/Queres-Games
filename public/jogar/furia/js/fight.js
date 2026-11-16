@@ -3,6 +3,7 @@ import { CLASSES, ELEMENTS, buildCharacter, poseCharacter, flashModel, randomCha
 import { Effects, noiseTexture } from './effects.js';
 import { input } from './input.js';
 import { sfx } from './audio.js';
+import { seedMath, gravarEfeitos, repetirEfeito, EV, SONS, r2, r3, num } from './rede.js';
 
 // ---------------- Ataques por classe ----------------
 // type: melee | aoe | proj | dash | multi | meteor
@@ -50,6 +51,8 @@ const ATK = {
 };
 
 const ARENA_R = 15.5;
+// animações dos golpes (o número vai pela rede)
+const FIGHT_ANIMS = ['light', 'light2', 'light3', 'spin', 'cast', 'kick', 'throw', 'slam', 'charge'];
 const GRAV = -28;
 
 // ---------------- Mapas de controle ----------------
@@ -158,12 +161,12 @@ class Fighter {
     this.hitSet.clear();
     this.didHit = false;
     if (kind === 'ult') {
-      sfx.ultimate();
-      this.game.banner(`${this.cls.moves.ult.toUpperCase()}!`, this.cfg.name, 1.0);
+      this.game.som('ultimate');
+      this.game.bannerK(2, this.game.fighters.indexOf(this));
       this.game.fx.ring(this.pos, this.el.color, 3, 0.6);
       this.game.hitstop = 0.12;
-    } else if (kind === 'special') sfx.special();
-    else sfx.swing();
+    } else if (kind === 'special') this.game.som('special');
+    else this.game.som('swing');
     if (def.lunge) { const f = this.forward(); this.vel.x += f.x * def.lunge; this.vel.z += f.z * def.lunge; }
     return true;
   }
@@ -192,7 +195,7 @@ class Fighter {
     if (this.status.fortress > 0 && Math.random() < dt * 12) g.fx.burst(this.center, 0xffd27a, 1, 1.5, 0.1, 0.5, 2);
 
     let it = { mx: 0, mz: 0 };
-    if (!this.dead && g.fightActive) it = this.isBot ? this.think(dt) : readHuman(this.keys, this.padIdx);
+    if (!this.dead && g.fightActive) it = this.isBot ? this.think(dt) : this.remote ? this.takeNet() : readHuman(this.keys, this.padIdx);
 
     const canAct = !this.dead && g.fightActive && this.state !== 'hurt' && this.status.stun <= 0 && this.state !== 'attack';
     this.blocking = false;
@@ -212,7 +215,7 @@ class Fighter {
       else if (it.light) {
         const def = this.atk.light[this.combo % 3];
         if (this.startAttack(def, 'light')) { this.combo = (this.combo + 1) % 3; this.comboT = def.dur + 0.45; }
-      } else if (it.jump && this.onGround) { this.vel.y = 11; this.onGround = false; sfx.jump(); }
+      } else if (it.jump && this.onGround) { this.vel.y = 11; this.onGround = false; g.som('jump'); }
     }
 
     // movimento
@@ -293,7 +296,7 @@ class Fighter {
           g.fx.burst(c.clone().setY(0.3), col, d.radius * 5, d.radius * 2.2, 0.18, 0.7, -10);
           g.fx.burst(c.clone().setY(0.2), 0x7a6650, 10, d.radius * 1.5, 0.2, 0.8, -14, false);
           g.shake(d.radius * 0.08);
-          if (d.heavy) sfx.hit(true);
+          if (d.heavy) g.som('hit', 1);
           if (d.fortress) { this.status.fortress = 7; g.fx.flash(this.center, 0xffd27a, 2.5, 0.5); }
         }
         break;
@@ -335,7 +338,7 @@ class Fighter {
             const last = m.n === d.hits - 1;
             g.hit(this, m.tgt, { dmg: last ? d.finalDmg : d.dmg, knock: last ? d.knock : 0.5, heavy: last }, last && d.el);
             g.fx.burst(m.tgt.center, this.el.color, 6, 5, 0.1, 0.3, 0);
-            sfx.swing();
+            g.som('swing');
             m.n++; m.next += 0.13;
           }
         }
@@ -349,7 +352,7 @@ class Fighter {
             const tgt = enemies.length ? enemies[i % enemies.length] : null;
             const base = tgt ? tgt.pos : this.pos.clone().addScaledVector(f, 6);
             const p = new THREE.Vector3(base.x + (Math.random() - 0.5) * 6, 0, base.z + (Math.random() - 0.5) * 6);
-            g.meteors.push({ owner: this, def: d, target: p, delay: i * 0.16 + Math.random() * 0.1, mesh: null });
+            g.meteors.push({ id: ++g.pid, owner: this, def: d, target: p, delay: i * 0.16 + Math.random() * 0.1, mesh: null });
           }
         }
         break;
@@ -368,10 +371,18 @@ class Fighter {
       this.hp = 0;
       this.dead = true;
       this.state = 'dead';
-      sfx.ko();
+      this.game.som('ko');
       this.game.onKO(this, from);
     }
     return amount;
+  }
+
+  // Controles que chegaram pela rede (outro jogador, no celular do dono). Os toques de botão valem uma vez.
+  takeNet() {
+    const n = this.netIn;
+    if (!n) return { mx: 0, mz: 0 };
+    const e = n.e; n.e = 0;
+    return { mx: n.mx, mz: n.mz, block: !!n.block, jump: !!(e & 1), dash: !!(e & 2), light: !!(e & 4), heavy: !!(e & 8), special: !!(e & 16), ult: !!(e & 32) };
   }
 
   // ---------- IA ----------
@@ -445,10 +456,16 @@ export class FightGame {
     this.wins = [0, 0];
     this.fightActive = false;
     this.camTarget = new THREE.Vector3();
-    this.buildArena();
-    this.createFighters();
+    this.pid = 0;
+    this.net = opts.net || null; // { role: 'host'|'guest', seed, roster, me, send(foto), sendInput(d) }
+    this.netEv = { ligado: !!(this.net && this.net.role === 'host'), lista: [] };
+    // Online: mesma semente em todos os celulares = mesma arena e mesmos bots.
+    const restore = this.net ? seedMath(this.net.seed) : null;
+    try { this.buildArena(); this.createFighters(); } finally { if (restore) restore(); }
+    if (this.netEv.ligado) gravarEfeitos(this.fx, this.netEv);
     this.buildHud();
-    this.startRound();
+    if (this.net) this.startRound(true); // só posiciona; a luta começa quando o servidor manda "lights"
+    else this.startRound();
   }
 
   buildArena() {
@@ -532,8 +549,22 @@ export class FightGame {
 
   createFighters() {
     const o = this.opts;
-    const [c1, c2] = o.chars;
     const mk = (cfg, team, bot, keys, pad) => { const f = new Fighter(this, cfg, team, bot, keys, pad); this.fighters.push(f); return f; };
+    if (this.net) {
+      // Online: os jogadores (com o apelido da conta), na ordem do servidor; depois os bots completam os times.
+      for (const h of this.net.roster) {
+        const me = h.id === this.net.me;
+        const f = mk({ ...h.look, name: h.name }, h.team, false, me ? P1_KEYS : null, me ? 0 : null);
+        f.nid = h.id; f.human = true; f.remote = !me;
+        if (me) this.p1 = f;
+      }
+      const size = o.mode === '1v1' ? 1 : 2;
+      const cnt = (t) => this.fighters.filter((f) => f.team === t).length;
+      const target = Math.max(size, cnt(0), cnt(1));
+      for (const t of [0, 1]) while (cnt(t) < target) mk(randomChar(), t, true);
+      return;
+    }
+    const [c1, c2] = o.chars;
     const twoP = o.mode === '2v2p2';
     const merged = twoP ? P1_KEYS : P1_KEYS;
     this.p1 = mk(c1, 0, false, merged, twoP ? 1 : 0);
@@ -545,7 +576,7 @@ export class FightGame {
 
   enemiesOf(f) { return this.fighters.filter((e) => e.team !== f.team && !e.dead); }
 
-  startRound() {
+  startRound(silencioso) {
     const t0 = this.fighters.filter((f) => f.team === 0);
     const t1 = this.fighters.filter((f) => f.team === 1);
     t0.forEach((f, i) => f.reset(new THREE.Vector3((i - (t0.length - 1) / 2) * 4, 0, 7), Math.PI));
@@ -558,8 +589,9 @@ export class FightGame {
     this.fightActive = false;
     this.roundOver = false;
     this.introT = 2.2;
-    this.banner(`ROUND ${this.round}`, '', 1.2);
-    setTimeout(() => { if (!this.disposed) this.banner('LUTEM!', '', 0.8); }, 1200);
+    if (silencioso) { this.introT = Infinity; this.updateHud(true); return; }
+    this.bannerK(0, this.round);
+    setTimeout(() => { if (!this.disposed) this.bannerK(1); }, 1200);
     this.updateHud(true);
   }
 
@@ -579,22 +611,22 @@ export class FightGame {
     if (tgt.blocking && tf.dot(dir) < -0.2) {
       dmg *= 0.15; knock *= 0.25;
       tgt.energy = Math.min(100, tgt.energy + 4);
-      sfx.block();
+      this.som('block');
       this.fx.burst(tgt.center.addScaledVector(tf, 0.5), 0x9ad4ff, 8, 4, 0.1, 0.3, 0);
-      this.fx.number('DEFENDEU', tgt.center.add(new THREE.Vector3(0, 0.8, 0)), 'block');
+      this.numero(-1, 0, tgt.center.add(new THREE.Vector3(0, 0.8, 0)), 2);
       tgt.damage(dmg, att);
       tgt.vel.addScaledVector(dir, knock);
       return;
     }
 
     // efeito do elemento
-    let effTxt = '';
+    let effTxt = 0;
     if (elemental) {
       const e = att.el.effect;
-      if (e === 'burn') { tgt.status.burn = 3.5; effTxt = '🔥'; }
-      else if (e === 'slow') { tgt.status.slow = 3; effTxt = '❄️'; }
-      else if (e === 'stun') { tgt.status.stun = 0.9; effTxt = '⚡'; }
-      else if (e === 'knock') { knock *= 1.7; dmg += 4; effTxt = '🪨'; }
+      if (e === 'burn') { tgt.status.burn = 3.5; effTxt = 1; }
+      else if (e === 'slow') { tgt.status.slow = 3; effTxt = 2; }
+      else if (e === 'stun') { tgt.status.stun = 0.9; effTxt = 3; }
+      else if (e === 'knock') { knock *= 1.7; dmg += 4; effTxt = 4; }
     }
 
     const dealt = tgt.damage(dmg, att);
@@ -610,30 +642,36 @@ export class FightGame {
     tgt.flashT = 0.1;
     const hc = elemental ? att.el.color : 0xfff1c0;
     this.fx.burst(tgt.center, hc, def.heavy ? 16 : 9, def.heavy ? 7 : 4.5, 0.12, 0.4, -6);
-    this.fx.number(Math.round(dealt) + effTxt, tgt.center.add(new THREE.Vector3(0, 0.9, 0)), def.heavy ? 'crit' : '');
-    sfx.hit(def.heavy);
+    this.numero(Math.round(dealt), effTxt, tgt.center.add(new THREE.Vector3(0, 0.9, 0)), def.heavy ? 1 : 0);
+    this.som('hit', def.heavy ? 1 : 0);
     if (def.heavy) { this.hitstop = Math.max(this.hitstop, 0.07); this.shake(0.25); }
   }
 
-  spawnProjectile(owner, def, angle) {
-    const col = owner.el.color;
+  // tipo: 0 onda, 1 shuriken, 2 orbe
+  projMesh(tipo, col, size) {
     let mesh;
-    if (def.wave) {
+    if (tipo === 0) {
       mesh = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.12, 6, 20, Math.PI), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
       mesh.rotation.order = 'YXZ';
-    } else if (def.shuriken) {
-      mesh = new THREE.Mesh(new THREE.OctahedronGeometry(def.size, 0), new THREE.MeshBasicMaterial({ color: col }));
+    } else if (tipo === 1) {
+      mesh = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), new THREE.MeshBasicMaterial({ color: col }));
       mesh.scale.y = 0.25;
     } else {
-      mesh = new THREE.Mesh(new THREE.SphereGeometry(def.size, 14, 10), new THREE.MeshBasicMaterial({ color: col }));
-      const glow = new THREE.Mesh(new THREE.SphereGeometry(def.size * 1.7, 12, 8), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 14, 10), new THREE.MeshBasicMaterial({ color: col }));
+      const glow = new THREE.Mesh(new THREE.SphereGeometry(size * 1.7, 12, 8), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
       mesh.add(glow);
     }
+    return mesh;
+  }
+
+  spawnProjectile(owner, def, angle) {
+    const tipo = def.wave ? 0 : def.shuriken ? 1 : 2;
+    const mesh = this.projMesh(tipo, owner.el.color, def.size);
     const p = owner.center;
     p.addScaledVector(new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle)), 0.9);
     mesh.position.copy(p);
     this.scene.add(mesh);
-    this.projectiles.push({ owner, def, mesh, vel: new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle)).multiplyScalar(def.speed), life: 2.2, angle });
+    this.projectiles.push({ id: ++this.pid, tipo, owner, def, mesh, vel: new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle)).multiplyScalar(def.speed), life: 2.2, angle });
   }
 
   updateProjectiles(dt) {
@@ -686,7 +724,7 @@ export class FightGame {
       if (dir.length() <= step) {
         for (const e of this.enemiesOf(m.owner)) if (e.pos.distanceTo(m.target) < m.def.radius) this.hit(m.owner, e, m.def, m.def.el, m.target);
         this.fx.explosion(m.target, m.def.radius * 0.8);
-        sfx.explosion(10);
+        this.som('explosion', 10);
         this.shake(0.2);
         this.scene.remove(m.mesh);
         this.meteors.splice(i, 1);
@@ -704,7 +742,7 @@ export class FightGame {
     this.shake(0.4);
   }
 
-  shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }
+  shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); this.gravar([EV.SHAKE, r2(a)]); }
 
   banner(text, sub = '', dur = 1.2) {
     const el = this.hud.banner;
@@ -725,7 +763,8 @@ export class FightGame {
     for (const f of this.fighters) {
       const el = document.createElement('div');
       el.className = 'fbar' + (this.fighters.length > 2 ? ' small' : '');
-      const tag = f.isBot ? (f.team === 0 ? 'BOT ALIADO' : 'BOT') : (f === this.p1 ? 'J1' : 'J2');
+      const myTeam = this.p1 ? this.p1.team : 0;
+      const tag = f.isBot ? (f.team === myTeam ? 'BOT ALIADO' : 'BOT') : this.net ? (f === this.p1 ? 'VOCÊ' : 'ONLINE') : (f === this.p1 ? 'J1' : 'J2');
       el.innerHTML = `<div class="nm">${f.cls.ico} ${escapeHtml(f.cfg.name)} <small>${f.cls.nome} · ${f.el.ico} ${tag}</small></div>
         <div class="hp"><em class="lag"></em><em class="cur"></em></div><div class="en"><em></em></div>`;
       (f.team === 0 ? left : right).appendChild(el);
@@ -754,6 +793,7 @@ export class FightGame {
 
   // ---------- loop ----------
   update(dt) {
+    if (this.net && this.net.role === 'guest') { this.guestUpdate(dt); return; }
     if (this.hitstop > 0) { this.hitstop -= dt; dt *= 0.05; }
     const t = performance.now() / 1000;
 
@@ -789,17 +829,222 @@ export class FightGame {
       if (!alive0 || !alive1) this.endRound(alive0 ? 0 : 1);
     }
 
-    // cenário animado
+    this.animScenery(dt, t);
+    this.updateCamera(dt);
+    this.fx.update(dt, this.camera);
+    this.updateHud();
+    if (this.net) this.hostTick(dt);
+  }
+
+  // cenário animado
+  animScenery(dt, t) {
     for (const fl of this.torches) {
       fl.scale.set(1, 0.8 + Math.sin(t * 15 + fl.position.x) * 0.25, 1);
       if (fl.userData.light) fl.userData.light.intensity = 26 + Math.sin(t * 20 + fl.position.z) * 6;
     }
     for (const r of this.rocks) { r.position.y = r.userData.base + Math.sin(t * 0.6 + r.userData.ph) * 0.8; r.rotation.y += dt * 0.1; }
     this.lava.material.map.offset.set(t * 0.01, t * 0.007);
+  }
 
+  // Resultado do ponto de vista de quem está jogando neste aparelho.
+  fimDaLuta(winner) {
+    if (this.fimMarcado) return;
+    this.fimMarcado = true;
+    const myTeam = this.p1 ? this.p1.team : 0;
+    const youWin = winner === myTeam;
+    setTimeout(() => { if (!this.disposed) this.opts.onEnd(youWin ? 'Vitória!' : 'Derrota', `Placar final: ${this.wins[myTeam]} x ${this.wins[1 - myTeam]}`); }, 2200);
+  }
+
+  // ---------- mensagens, sons e números (com código, para irem pela rede) ----------
+  gravar(ev) { if (this.netEv.ligado) this.netEv.lista.push(ev); }
+
+  som(nome, arg = 0) {
+    if (sfx[nome]) sfx[nome](arg);
+    this.gravar([EV.SOM, SONS.indexOf(nome), arg, 0, 0, 0, 0, -1, -1]);
+  }
+
+  // valor -1 = "DEFENDEU"; efeito 1..4 = fogo, gelo, raio, terra; estilo 0 normal, 1 forte, 2 defesa
+  numero(valor, efeito, pos, estilo) {
+    const txt = valor < 0 ? 'DEFENDEU' : valor + (['', '🔥', '❄️', '⚡', '🪨'][efeito] || '');
+    this.fx.number(txt, pos, ['', 'crit', 'block'][estilo] || '');
+    this.gravar([EV.NUM, r2(pos.x), r2(pos.y), r2(pos.z), valor, efeito, estilo]);
+  }
+
+  bannerK(code, a = 0) {
+    const myTeam = this.p1 ? this.p1.team : 0;
+    let t = ''; let sub = ''; let d = 1.2;
+    if (code === 0) t = `ROUND ${a}`;
+    else if (code === 1) { t = 'LUTEM!'; d = 0.8; }
+    else if (code === 2) { const f = this.fighters[a]; if (!f) return; t = `${f.cls.moves.ult.toUpperCase()}!`; sub = escapeHtml(f.cfg.name); d = 1.0; }
+    else if (code === 3) { t = 'TEMPO!'; d = 1.4; }
+    else if (code === 4) { t = 'K.O.!'; d = 1.4; }
+    else if (code === 5) {
+      const win = a === myTeam;
+      const solo = this.fighters.filter((f) => f.team === myTeam).length === 1;
+      t = win ? 'VITÓRIA!' : 'DERROTA';
+      sub = !this.net ? (win ? 'Você venceu a luta!' : 'Os bots venceram desta vez')
+        : solo ? (win ? 'Você venceu a luta!' : 'Não foi desta vez') : (win ? 'Seu time venceu a luta!' : 'O outro time venceu desta vez');
+      d = 2.5;
+    }
+    this.banner(t, sub, d);
+    this.gravar([EV.BANNER, code, a]);
+  }
+
+  // ======================================================================
+  // ONLINE
+  // ======================================================================
+  // Dono: o servidor mandou começar.
+  netStart() {
+    if (this.net.role === 'host') this.startRound();
+    this.netGo = true;
+  }
+
+  // Dono: controles de um jogador que chegaram pela rede: [mx, mz, defender, toques]
+  netInput(id, d) {
+    const f = this.fighters.find((x) => x.nid === id && x.remote);
+    if (!f || !Array.isArray(d)) return;
+    const n = f.netIn || (f.netIn = { mx: 0, mz: 0, block: 0, e: 0 });
+    n.mx = Math.max(-1, Math.min(1, num(d[0]))); n.mz = Math.max(-1, Math.min(1, num(d[1])));
+    n.block = num(d[2]) ? 1 : 0; n.e |= (num(d[3]) | 0) & 63;
+  }
+
+  // Alguém saiu no meio da luta: o lutador dele vira bot (no celular do dono).
+  netLeave(id) {
+    const f = this.fighters.find((x) => x.nid === id);
+    if (f && f.remote) { f.remote = false; f.isBot = true; }
+  }
+
+  // Dono: manda a "foto" da luta umas 20 vezes por segundo.
+  hostTick(dt) {
+    this.netT = (this.netT || 0) - dt;
+    if (this.netT > 0 || !this.netGo) return;
+    this.netT = 0.05;
+    const ANIM = FIGHT_ANIMS;
+    const hdr = [1, this.round, this.wins[0], this.wins[1], Math.ceil(Math.max(0, this.timer)), (this.fightActive ? 1 : 0) | (this.roundOver ? 2 : 0)];
+    const fs = this.fighters.map((f) => {
+      const st = f.dead ? 3 : f.state === 'attack' ? 1 : f.state === 'hurt' ? 2 : 0;
+      const at = f.state === 'attack' && f.cur ? Math.min(1, f.stateT / f.cur.dur) : 0;
+      return [r2(f.pos.x), r2(f.pos.y), r2(f.pos.z), r2(f.vel.x), r2(f.vel.y), r2(f.vel.z), r3(f.facing), f.onGround ? 1 : 0, st,
+        f.state === 'attack' && f.cur ? ANIM.indexOf(f.cur.anim) : -1, r3(at), f.cur ? r3(f.cur.dur) : 1, f.blocking ? 1 : 0,
+        r2(f.hp), r2(f.energy), f.flashT > 0 ? 1 : 0];
+    });
+    const ps = this.projectiles.map((p) => [p.id, p.tipo, this.fighters.indexOf(p.owner), r2(p.mesh.position.x), r2(p.mesh.position.y), r2(p.mesh.position.z), r3(p.mesh.rotation.y), r3(p.mesh.scale.x), r3(p.def.size || 0.4)]);
+    const ms = this.meteors.filter((m) => m.mesh).map((m) => [m.id, this.fighters.indexOf(m.owner), r2(m.mesh.position.x), r2(m.mesh.position.y), r2(m.mesh.position.z)]);
+    const ev = this.netEv.lista; this.netEv.lista = [];
+    this.net.send([hdr, fs, ps, ms, ev]);
+  }
+
+  // Convidado: chegou uma foto da luta.
+  onState(d) {
+    if (!Array.isArray(d) || !Array.isArray(d[0]) || d[0][0] !== 1) return;
+    this.netState = { hdr: d[0], fs: d[1] || [], ps: d[2] || [], ms: d[3] || [], t: performance.now() };
+    for (const ev of d[4] || []) this.replay(ev);
+  }
+
+  replay(ev) {
+    if (!Array.isArray(ev)) return;
+    const k = ev[0];
+    if (k === EV.FX) repetirEfeito(this.fx, ev, THREE.Vector3);
+    else if (k === EV.SOM) { const n = SONS[ev[1]]; if (n && sfx[n]) sfx[n](num(ev[2])); }
+    else if (k === EV.NUM) {
+      const v = num(ev[4]);
+      const txt = v < 0 ? 'DEFENDEU' : Math.round(v) + (['', '🔥', '❄️', '⚡', '🪨'][num(ev[5])] || '');
+      this.fx.number(txt, new THREE.Vector3(num(ev[1]), num(ev[2]), num(ev[3])), ['', 'crit', 'block'][num(ev[6])] || '');
+    } else if (k === EV.SHAKE) this.shakeAmt = Math.max(this.shakeAmt, num(ev[1]));
+    else if (k === EV.BANNER) {
+      const code = num(ev[1]); const a = num(ev[2]);
+      if (code === 5) {
+        // o placar final vem na foto; garante o último ponto
+        this.bannerK(5, a);
+        this.fimDaLuta(a);
+      } else this.bannerK(code, a);
+    }
+  }
+
+  // Convidado: manda os controles (umas 30 vezes por segundo) e desenha a última foto.
+  guestUpdate(dt) {
+    const t = performance.now() / 1000;
+    // controles deste aparelho
+    const it = readHuman(P1_KEYS, 0);
+    const li = this.localIn || (this.localIn = { e: 0, t: 0 });
+    li.e |= (it.jump ? 1 : 0) | (it.dash ? 2 : 0) | (it.light ? 4 : 0) | (it.heavy ? 8 : 0) | (it.special ? 16 : 0) | (it.ult ? 32 : 0);
+    li.t -= dt;
+    if (li.t <= 0 && this.netGo) {
+      li.t = 1 / 30;
+      this.net.sendInput([r3(it.mx), r3(it.mz), it.block ? 1 : 0, li.e]);
+      li.e = 0;
+    }
+    const s = this.netState;
+    if (s) {
+      const h = s.hdr;
+      this.round = num(h[1], 1); this.wins[0] = num(h[2]); this.wins[1] = num(h[3]); this.timer = num(h[4]);
+      this.fightActive = !!(num(h[5]) & 1);
+      const age = Math.min(0.15, (performance.now() - s.t) / 1000);
+      const k = Math.min(1, dt * 14);
+      s.fs.forEach((a, i) => {
+        const f = this.fighters[i];
+        if (!f || !Array.isArray(a)) return;
+        const tx = num(a[0]) + num(a[3]) * age; const ty = Math.max(0, num(a[1]) + num(a[4]) * age); const tz = num(a[2]) + num(a[5]) * age;
+        if (f.pos.distanceTo(new THREE.Vector3(tx, ty, tz)) > 4) f.pos.set(tx, ty, tz);
+        else { f.pos.x += (tx - f.pos.x) * k; f.pos.y += (ty - f.pos.y) * k; f.pos.z += (tz - f.pos.z) * k; }
+        f.vel.set(num(a[3]), num(a[4]), num(a[5]));
+        const df = Math.atan2(Math.sin(num(a[6]) - f.facing), Math.cos(num(a[6]) - f.facing));
+        f.facing += df * k;
+        f.onGround = !!a[7];
+        const st = num(a[8]);
+        f.dead = st === 3; f.state = ['idle', 'attack', 'hurt', 'dead'][st] || 'idle';
+        const anim = FIGHT_ANIMS[num(a[9], -1)] || null;
+        if (anim !== f.netAnim || num(a[10]) < (f.netAt || 0) - 0.05) { f.netAt = num(a[10]); }
+        f.netAnim = anim; f.netDur = Math.max(0.1, num(a[11], 1));
+        if (f.state === 'attack' && anim) f.netAt = Math.min(1, Math.max(f.netAt || 0, num(a[10])) + dt / f.netDur);
+        else f.netAt = 0;
+        f.blocking = !!a[12];
+        f.hp = num(a[13]); f.energy = num(a[14]);
+        if (a[15] && !(f.flashT > 0)) { flashModel(f.model, 0xffffff, 0.9); f.flashT = 0.1; }
+      });
+      // projéteis e meteoros
+      this.syncNetMeshes('gp', s.ps, (p) => {
+        const owner = this.fighters[num(p[2])];
+        return this.projMesh(num(p[1]), owner ? owner.el.color : 0xffffff, num(p[8], 0.4));
+      }, (mesh, p) => {
+        mesh.position.set(num(p[3]), num(p[4]), num(p[5]));
+        if (num(p[1]) === 0) { mesh.rotation.set(Math.PI / 2, num(p[6]), 0); mesh.scale.setScalar(num(p[7], 1)); }
+        else if (num(p[1]) === 1) mesh.rotation.y += dt * 25;
+      });
+      this.syncNetMeshes('gm', s.ms, (m) => {
+        const owner = this.fighters[num(m[1])];
+        return new THREE.Mesh(new THREE.DodecahedronGeometry(0.6, 0), new THREE.MeshBasicMaterial({ color: owner ? owner.el.color : 0xff8a2a }));
+      }, (mesh, m) => { mesh.position.set(num(m[2]), num(m[3]), num(m[4])); mesh.rotation.x += dt * 8; });
+    }
+    for (const f of this.fighters) {
+      if (f.flashT > 0) { f.flashT -= dt; if (f.flashT <= 0) flashModel(f.model, 0, 0); }
+      const hs = Math.hypot(f.vel.x, f.vel.z);
+      f.phase += dt * hs * 1.6;
+      f.model.root.rotation.y = f.facing;
+      poseCharacter(f.model, {
+        phase: f.phase, speed: Math.min(1, hs / f.cls.speed), air: !f.onGround,
+        action: f.state === 'attack' ? f.netAnim : null, at: f.state === 'attack' ? f.netAt : 0,
+        block: f.blocking, hurt: f.state === 'hurt', dead: f.dead,
+      }, dt);
+    }
+    this.animScenery(dt, t);
     this.updateCamera(dt);
     this.fx.update(dt, this.camera);
     this.updateHud();
+  }
+
+  // Cria/move/apaga objetos que só existem na foto (projéteis, meteoros...). Cada item começa com o id.
+  syncNetMeshes(chave, lista, criar, mover) {
+    const mapa = this[chave] || (this[chave] = new Map());
+    const vivos = new Set();
+    for (const it of lista || []) {
+      if (!Array.isArray(it)) continue;
+      const id = num(it[0]); vivos.add(id);
+      let mesh = mapa.get(id);
+      if (!mesh) { mesh = criar(it); this.scene.add(mesh); mapa.set(id, mesh); }
+      mover(mesh, it);
+    }
+    for (const [id, mesh] of mapa) if (!vivos.has(id)) { this.scene.remove(mesh); mesh.geometry.dispose(); mapa.delete(id); }
   }
 
   endRound(winner) {
@@ -809,15 +1054,14 @@ export class FightGame {
     if (winner == null) { // tempo esgotado: vence quem tem mais vida
       const sum = (tm) => this.fighters.filter((f) => f.team === tm).reduce((s, f) => s + f.hp / f.maxHp, 0);
       winner = sum(0) >= sum(1) ? 0 : 1;
-      this.banner('TEMPO!', '', 1.4);
-    } else this.banner('K.O.!', '', 1.4);
+      this.bannerK(3);
+    } else this.bannerK(4);
     this.wins[winner]++;
     setTimeout(() => {
       if (this.disposed) return;
       if (this.wins[winner] >= 2) {
-        const youWin = winner === 0;
-        this.banner(youWin ? 'VITÓRIA!' : 'DERROTA', youWin ? 'Você venceu a luta!' : 'Os bots venceram desta vez', 2.5);
-        setTimeout(() => { if (!this.disposed) this.opts.onEnd(youWin ? 'Vitória!' : 'Derrota', `Placar final: ${this.wins[0]} x ${this.wins[1]}`); }, 2200);
+        this.bannerK(5, winner);
+        this.fimDaLuta(winner);
       } else {
         this.round++;
         this.startRound();
