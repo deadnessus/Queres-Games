@@ -16,6 +16,7 @@ export const MAX_VERSOES_POR_JOGO_DIA = 6; // versões além disso entram como "
 export const MAX_ERROS_DISTINTOS_POR_JOGO_DIA = 30;
 export const MAX_EVENTOS_DISTINTOS_POR_JOGO_DIA = 100;
 export const MAX_BYTES_LOTE = 4096;
+export const MAX_BOTOES_DISTINTOS_POR_JOGO_DIA = 60; // nomes de elementos por jogo, dia e versão; o resto vira "outros"
 
 export const CABECALHOS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 export const json = (corpo, status = 200, extra = {}) =>
@@ -41,6 +42,10 @@ export async function prepararBanco(db) {
     ),
     db.prepare(
       'CREATE TABLE IF NOT EXISTS tel_erros (jogo TEXT NOT NULL, dia TEXT NOT NULL, versao TEXT NOT NULL, impressao TEXT NOT NULL, mensagem TEXT NOT NULL, arquivo TEXT NOT NULL, linha INTEGER NOT NULL, vezes INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (jogo, dia, versao, impressao)) WITHOUT ROWID',
+    ),
+    // Uma linha por jogo/dia/versão com os contadores de uso de botões em JSON ({ "btn-skip": 12, ... }): 1 gravação por lote.
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS tel_cliques (jogo TEXT NOT NULL, dia TEXT NOT NULL, versao TEXT NOT NULL, dados TEXT NOT NULL DEFAULT '{}', PRIMARY KEY (jogo, dia, versao)) WITHOUT ROWID",
     ),
     db.prepare(
       'CREATE TABLE IF NOT EXISTS tel_eventos (jogo TEXT NOT NULL, dia TEXT NOT NULL, versao TEXT NOT NULL, nome TEXT NOT NULL, valor TEXT NOT NULL, vezes INTEGER NOT NULL DEFAULT 0, sessoes INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (jogo, dia, versao, nome, valor)) WITHOUT ROWID',
@@ -81,6 +86,8 @@ export function limparTexto(texto, max = 120) {
     .trim()
     .slice(0, max);
 }
+// Nome de elemento da tela (id ou data-...): mesmas regras do /telemetria.js e do scripts/pos-build.mjs. Nunca é o texto do botão.
+export const limparNomeElemento = (t) => String(t ?? '').replace(/\d{3,}/g, '#').replace(/[^A-Za-z0-9_.:#>-]/g, '').slice(0, 32);
 export const limparArquivo = (a) =>
   String(a ?? '').split(/[?#]/)[0].split('/').pop().replace(/[^A-Za-z0-9._-]/g, '').slice(0, 60);
 
@@ -108,9 +115,10 @@ async function impressao(texto) {
 //  i {d 'c'|'p' (celular|computador), t 1..6 (faixa de tela), n 0|1 (aparelho novo),
 //     a 0|1 (primeira vez do aparelho hoje), r 0..3 (voltou depois de: 1 dia | 2-7 dias | 8+ dias)}   <- só no começo da sessão
 //  a segundos ativos desde o último lote, m marcos novos [10,60,300,900],
-//  e erros [{m mensagem, f arquivo, l linha}], x eventos [{n nome, v valor, c vezes, s 0|1}]
+//  e erros [{m mensagem, f arquivo, l linha}], x eventos [{n nome, v valor, c vezes, s 0|1}],
+//  c cliques em botões { nome do elemento: vezes } (até 30 nomes)
 export async function normalizarLote(bruto, cfgJogo) {
-  const l = { jogo: null, versao: null, inicio: null, ativo: 0, marcos: [], erros: [], eventos: [] };
+  const l = { jogo: null, versao: null, inicio: null, ativo: 0, marcos: [], erros: [], eventos: [], cliques: {} };
   if (!bruto || typeof bruto !== 'object') return null;
   l.versao = VERSAO.test(String(bruto.v ?? '')) ? String(bruto.v) : 'sem-versao';
   if (bruto.i && typeof bruto.i === 'object') {
@@ -142,7 +150,14 @@ export async function normalizarLote(bruto, cfgJogo) {
       l.eventos.push({ nome, valor: limparValorEvento(x.v), vezes: inteiro(x.c, 1, 100), sessoes: x.s === 1 ? 1 : 0 });
     }
   }
-  const vazio = !l.inicio && !l.ativo && !l.marcos.length && !l.erros.length && !l.eventos.length;
+  if (bruto.c && typeof bruto.c === 'object' && !Array.isArray(bruto.c)) {
+    for (const [nome, vezes] of Object.entries(bruto.c).slice(0, 30)) {
+      const n = limparNomeElemento(nome) || 'sem-nome';
+      const v = inteiro(vezes, 0, 999);
+      if (v > 0) l.cliques[n] = Math.min(999, (l.cliques[n] || 0) + v);
+    }
+  }
+  const vazio = !l.inicio && !l.ativo && !l.marcos.length && !l.erros.length && !l.eventos.length && !Object.keys(l.cliques).length;
   return vazio ? null : l;
 }
 

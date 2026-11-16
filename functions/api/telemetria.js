@@ -5,7 +5,7 @@
 import { origemInvalida } from '../_lib/conta.js';
 import {
   COLUNAS_DIARIO, LIMITE_LOTES_DIA, MAX_BYTES_LOTE, MAX_ERROS_DISTINTOS_POR_JOGO_DIA, MAX_EVENTOS_DISTINTOS_POR_JOGO_DIA,
-  MAX_VERSOES_POR_JOGO_DIA, SLUG, diaBrasilia, json, lerConfig, normalizarLote, prepararBanco,
+  MAX_BOTOES_DISTINTOS_POR_JOGO_DIA, MAX_VERSOES_POR_JOGO_DIA, SLUG, diaBrasilia, json, lerConfig, normalizarLote, prepararBanco,
 } from '../_lib/telemetria.js';
 
 const vazio = () => new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
@@ -111,6 +111,39 @@ export async function onRequest({ request, env }) {
             .bind(jogo, dia, versao, e.nome, valor, e.vezes, e.sessoes),
         );
       }
+    }
+
+    if (Object.keys(lote.cliques).length) {
+      // Nomes novos só entram até o teto (o resto soma em "outros"); a soma com o que já existe é feita no banco (json_each),
+      // de uma vez só, então dois lotes ao mesmo tempo não perdem contagem.
+      const atual = await db.prepare('SELECT dados FROM tel_cliques WHERE jogo = ? AND dia = ? AND versao = ?').bind(jogo, dia, versao).first();
+      let conhecidos = {};
+      try { conhecidos = atual ? JSON.parse(atual.dados) : {}; } catch { conhecidos = {}; }
+      let distintos = Object.keys(conhecidos).length;
+      const novos = {};
+      for (const [nome, vezes] of Object.entries(lote.cliques)) {
+        let n = nome;
+        if (!(n in conhecidos) && !(n in novos)) {
+          if (distintos >= MAX_BOTOES_DISTINTOS_POR_JOGO_DIA) n = 'outros'; else distintos++;
+        }
+        novos[n] = (novos[n] || 0) + vezes;
+      }
+      comandos.push(
+        db
+          .prepare(
+            `INSERT INTO tel_cliques (jogo, dia, versao, dados) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT (jogo, dia, versao) DO UPDATE SET dados = (
+               SELECT json_group_object(k, s) FROM (
+                 SELECT k, SUM(v) AS s FROM (
+                   SELECT key AS k, value AS v FROM json_each(tel_cliques.dados)
+                   UNION ALL
+                   SELECT key, value FROM json_each(excluded.dados)
+                 ) GROUP BY k
+               )
+             )`,
+          )
+          .bind(jogo, dia, versao, JSON.stringify(novos)),
+      );
     }
 
     await db.batch(comandos);

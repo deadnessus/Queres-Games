@@ -15,6 +15,7 @@ celular ou computador, tamanho de tela e se o aparelho volta em outro dia, e mar
 - **Não crie analytics próprio** neste jogo: nada de Google Analytics, contadores, `fetch` para servidores de medição,
   cookies de medição, nem identificador de jogador. É um site para crianças (LGPD): não coletamos nome, e-mail, IP nem texto livre.
 - **Não precisa importar nenhum script de medição.** Não mexa em `/telemetria.js`.
+- O site também conta **quantas vezes cada botão é usado**, sozinho, pelo nome técnico (`id` ou o primeiro `data-…`), nunca pelo texto. Por isso: dê **`id` ou `data-…` estáveis e claros** aos botões (`btn-pausar`, `data-modo="facil"`), nunca ponha nome de pessoa, texto digitado ou outro dado pessoal em `id` ou `data-…`, e não troque esses nomes à toa (isso quebra a comparação entre versões). Botões criados por JavaScript sem `id` aparecem como `sem-nome`.
 - Erros de JavaScript já são registrados sozinhos. Não esconda erros com `try/catch` vazio só para o console ficar limpo.
 
 **Avisar um acontecimento do jogo (opcional)**, para ver depois onde as crianças travam ou desistem:
