@@ -65,11 +65,26 @@
   <div class="card menu-card">
     <h1>BENTO CITY</h1>
     <p class="sub">Sandbox de mundo aberto · empregos · veículos · bagunça</p>
-    <label>Seu nome <input id="name-input" maxlength="16" placeholder="Jogador"></label>
-    <div class="row">
-      <button id="btn-offline" class="btn primary">🏠 Jogar Offline</button>
-      <button id="btn-online" class="btn">🌐 Jogar Online</button>
+    <div id="creator" class="hidden">
+      <h3 id="creator-title">Crie seu personagem</h3>
+      <label>Nome <input id="name-input" maxlength="16" placeholder="Jogador"></label>
+      <div class="cr-label">Camisa</div><div class="swatches" id="sw-shirt"></div>
+      <div class="cr-label">Calça</div><div class="swatches" id="sw-pants"></div>
+      <div class="cr-label">Pele</div><div class="swatches" id="sw-skin"></div>
+      <button id="btn-char-ok" class="btn primary wide">✅ Criar personagem</button>
+      <button id="btn-char-back" class="btn wide hidden">Voltar</button>
+      <p class="small muted">Seu personagem fica salvo neste aparelho e volta toda vez que você abrir o jogo.</p>
     </div>
+    <div id="profile" class="hidden">
+      <div class="profile-box">
+        <div class="small muted">Seu personagem</div>
+        <div id="profile-name" class="pname"></div>
+        <div id="profile-stats" class="small"></div>
+      </div>
+      <div class="row">
+        <button id="btn-offline" class="btn primary">🏠 Jogar Offline</button>
+        <button id="btn-online" class="btn">🌐 Jogar Online</button>
+      </div>
     <div id="online-panel" class="hidden">
       <div id="conta-area"></div>
       <div id="online-acoes" class="hidden">
@@ -80,6 +95,18 @@
         </div>
       </div>
       <p id="net-status" class="small"></p>
+    </div>
+      <div class="row">
+        <button id="btn-edit-char" class="btn">✏️ Mudar visual</button>
+        <button id="btn-reset-char" class="btn danger">🔄 Reiniciar personagem</button>
+      </div>
+      <div id="reset-confirm" class="hidden">
+        <p><b>Reiniciar o personagem?</b><br>Isso apaga dinheiro, estrelas, roupas, veículos, níveis dos empregos e presentes encontrados. Não dá para desfazer.</p>
+        <div class="row">
+          <button id="btn-reset-yes" class="btn danger">Sim, começar do zero</button>
+          <button id="btn-reset-no" class="btn">Cancelar</button>
+        </div>
+      </div>
     </div>
     <p class="small muted" id="loading">Carregando cidade...</p>
   </div>

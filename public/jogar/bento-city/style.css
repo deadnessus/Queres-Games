@@ -5,6 +5,28 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1026; fon
 .pill { background: rgba(0,0,0,.55); padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 18px; backdrop-filter: blur(4px); }
 #topbar { position: fixed; top: 12px; left: 12px; display: flex; gap: 8px; flex-wrap: wrap; z-index: 5; }
 #money { color: #9cff6b; }
+#menu.side { justify-content: flex-end; background: linear-gradient(90deg, rgba(5,10,30,0) 35%, rgba(5,10,30,.6)); }
+#menu.side .menu-card { margin-right: max(2vw, 8px); }
+@media (max-height: 500px), (max-width: 760px) {
+  #menu.side .menu-card { width: min(56vw, 440px); padding: 12px 14px; }
+  #menu.side .menu-card h1 { font-size: 26px; }
+  #menu.side .sub { display: none; }
+  #creator .sw { width: 24px; height: 24px; }
+  .pname { font-size: 19px; }
+}
+@media (orientation: portrait) and (max-width: 760px) {
+  #menu.side { justify-content: center; align-items: flex-end; background: linear-gradient(180deg, transparent 35%, rgba(5,10,30,.55)); }
+  #menu.side .menu-card { width: 100%; max-height: 62vh; margin: 0; }
+}
+#creator h3 { margin: 6px 0 2px; }
+.cr-label { text-align: left; font-weight: 700; font-size: 14px; margin-top: 8px; }
+#creator .swatches { margin: 4px 0 2px; }
+.profile-box { background: #f5f7fa; border-radius: 14px; padding: 10px 12px; margin: 6px 0 4px; }
+.pname { font-size: 24px; font-weight: 900; color: #ff7043; }
+.btn.danger { background: #ffebee; color: #c62828; }
+#reset-confirm { background: #fff3f3; border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: 14px; }
+.joblist .career { margin: 6px 0 0; padding: 6px 8px; }
+.joblist .item.locked { opacity: .75; }
 #code-pill { border: 0; color: #ffe082; cursor: pointer; font-family: inherit; letter-spacing: 2px; }
 .btn.wide { width: 100%; margin-top: 12px; }
 .join-row { display: flex; gap: 8px; margin-top: 10px; }
