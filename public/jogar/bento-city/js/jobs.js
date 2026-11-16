@@ -3,6 +3,9 @@ import { canvasTexture, dist2, clamp } from './util.js';
 import { TrafficAI } from './vehicles.js';
 import { BEACH_Z } from './world.js';
 
+// Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
+const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
+
 export const JOBS = {
   pizza: { name: 'Entregador de Pizza', place: 'pizzeria', icon: '🍕', desc: 'Pegue a pizza e entregue na casa marcada antes do tempo acabar. Use a motoca!' },
   taxi: { name: 'Taxista', place: 'taxi', icon: '🚕', desc: 'Busque passageiros com o táxi e leve-os até o destino.' },
@@ -659,15 +662,17 @@ export class JobManager {
     this.quit(true);
     this.current = new CLASSES[key](this.g, key);
     this.current.start();
+    evento('emprego_iniciado', { emprego: key });
     this.g.toast(JOBS[key].hidden ? `${JOBS[key].icon} ${JOBS[key].name} começou!` : `Você começou a trabalhar como ${JOBS[key].name}! ${JOBS[key].icon}`);
     this.g.sfx.success();
     if (!JOBS[key].hidden) this.g.onJobStart?.(key);
   }
   quit(silent) {
     if (!this.current) return;
+    const key = this.current.key;
     this.current.end();
     this.current = null;
-    if (!silent) this.g.toast('Você saiu do emprego.');
+    if (!silent) { evento('emprego_abandonado', { emprego: key }); this.g.toast('Você saiu do emprego.'); }
   }
   update(dt, t) { this.current?.update(dt, t); }
 }

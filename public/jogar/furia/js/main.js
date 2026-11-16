@@ -8,6 +8,9 @@ import { touch } from './touch.js';
 
 touch.init();
 
+// Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
+const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
+
 // ---------------- Renderizador principal ----------------
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -146,7 +149,7 @@ document.getElementById('cRandom').addEventListener('click', () => {
   preview.action = 'spin'; preview.actT = 0;
   renderCreatorUI();
 });
-document.getElementById('cSave').addEventListener('click', () => { saveChars(); show('menu'); });
+document.getElementById('cSave').addEventListener('click', () => { saveChars(); evento('personagem_salvo'); show('menu'); });
 document.getElementById('cNext').addEventListener('click', () => { saveChars(); editIdx = 1 - editIdx; renderCreatorUI(); document.querySelector('.creator-left').scrollTop = 0; document.getElementById('creator').scrollTop = 0; });
 
 function renderPreview(dt) {
@@ -179,6 +182,7 @@ function startMode(mode) {
   lastMode = mode;
   paused = false; ended = false;
   const difficulty = +document.getElementById('difficulty').value;
+  evento('partida_iniciada', { modo: mode, dif: difficulty });
   const onEnd = (title, text) => endGame(title, text);
   const c = chars.map((x) => ({ ...x }));
   if (mode.startsWith('fight')) {
@@ -212,6 +216,7 @@ function resume() {
 }
 function endGame(title, text) {
   ended = true;
+  evento('partida_terminada', { modo: lastMode, resultado: title === 'Vitória!' ? 'vitoria' : 'derrota' });
   input.unlock();
   touch.setMode(null);
   document.getElementById('pauseTitle').textContent = title;
@@ -220,6 +225,7 @@ function endGame(title, text) {
   pauseEl.classList.add('active');
 }
 function quit() {
+  if (game && !ended) evento('partida_abandonada', { modo: lastMode });
   if (game) { game.dispose(); game = null; }
   input.unlock();
   touch.setMode(null);
@@ -229,7 +235,7 @@ function quit() {
   show('menu');
 }
 document.getElementById('btnResume').addEventListener('click', resume);
-document.getElementById('btnRestart').addEventListener('click', () => startMode(lastMode));
+document.getElementById('btnRestart').addEventListener('click', () => { evento('reiniciou', { modo: lastMode }); startMode(lastMode); });
 document.getElementById('btnQuit').addEventListener('click', quit);
 clickEl.addEventListener('click', () => { input.lock(canvas); });
 canvas.addEventListener('click', () => { if (game && game.isBF && !touch.enabled && !paused && !ended && !input.mouse.locked) input.lock(canvas); });

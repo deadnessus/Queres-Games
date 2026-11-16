@@ -1,8 +1,15 @@
 {
-  "commit": "e4c9769",
-  "branch": "claude/adoring-babbage-ju4bte",
+  "commit": "3740b38",
+  "data_do_commit": "2026-11-16T01:27:47+00:00",
+  "branch": "claude/invasao-estelar-eventos",
   "origem": "deadnessus/Jojo-5",
   "pasta": "invasao-estelar",
-  "eventos": [],
-  "observacao": "Escrito à mão a partir da mensagem do commit 001f44e do site (a primeira versão marcada). Nas próximas publicações, quem grava é scripts/gravar-versao.mjs."
+  "gravado_em": "2026-11-16T01:28:01.522Z",
+  "eventos": [
+    "partida_iniciada",
+    "partida_terminada",
+    "partida_pausada",
+    "saiu_da_partida",
+    "ranking_aberto"
+  ]
 }

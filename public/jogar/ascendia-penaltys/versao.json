@@ -1,0 +1,14 @@
+{
+  "commit": "42205a9",
+  "data_do_commit": "2026-11-16T01:27:50+00:00",
+  "branch": "claude/ascendia-eventos",
+  "origem": "deadnessus/ascendia-penalty",
+  "gravado_em": "2026-11-16T01:28:01.612Z",
+  "eventos": [
+    "partida_iniciada",
+    "partida_terminada",
+    "partida_abandonada",
+    "revanche",
+    "online_conectou"
+  ]
+}

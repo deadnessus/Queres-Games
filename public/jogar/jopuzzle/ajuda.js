@@ -236,7 +236,10 @@ function mostrar({ aoFechar } = {}) {
   E.mostrar('painel');
 }
 
-document.getElementById('btn-ajuda').addEventListener('click', () => mostrar({ aoFechar: () => E.voltar() }));
+document.getElementById('btn-ajuda').addEventListener('click', () => {
+  try { if (window.QG && window.QG.evento) window.QG.evento('ajuda_aberta'); } catch (e) { /* medição nunca atrapalha o jogo */ }
+  mostrar({ aoFechar: () => E.voltar() });
+});
 
 window.JoAjuda = { aoComecar, mostrar };
 })();

@@ -1,0 +1,15 @@
+{
+  "commit": "d980015",
+  "data_do_commit": "2026-11-16T01:27:52+00:00",
+  "branch": "claude/bento-city-eventos",
+  "origem": "deadnessus/Bento-2",
+  "pasta": "public",
+  "gravado_em": "2026-11-16T01:28:01.654Z",
+  "eventos": [
+    "jogo_iniciado",
+    "emprego_iniciado",
+    "servico_concluido",
+    "emprego_abandonado",
+    "viagem_espaco"
+  ]
+}
