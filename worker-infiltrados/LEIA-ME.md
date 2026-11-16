@@ -17,6 +17,7 @@ Um Worker do Cloudflare com Durable Objects (uma "sala" por código de 4 letras)
 - **Quem pode entrar:**
   - Até 20 conexões por sala. O jogo deixa até 16 jogarem; as outras assistem.
   - Dá para entrar com a partida em andamento. Quem chega assiste e joga na próxima rodada.
+  - Quem digita um código que ainda não existe **abre essa sala** (assim ninguém fica de fora se quem criou cair da internet ao mandar o código). Se a conexão de alguém cair, o jogo reconecta sozinho na mesma sala.
 - **Quem é o anfitrião:** o anfitrião (quem roda os robôs e as regras) é escolhido pelos próprios celulares. Se ele sair, outro assume e a partida continua.
 - A mesma conta em outra aba derruba a conexão antiga.
 - **O que fica guardado:** a sala some **10 minutos depois** que o último jogador sai. O servidor não guarda IP, nome real nem histórico; só o apelido de quem passou pela sala, enquanto ela existir.
