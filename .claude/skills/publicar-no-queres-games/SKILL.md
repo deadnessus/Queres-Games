@@ -30,6 +30,14 @@ Leia antes o `CLAUDE.md` da raiz do repositório `queres-games` (mapa do site, t
 - Confira `<meta charset="utf-8">` no começo do `index.html`; sem ele os acentos quebram ("BrasileirÃ£o"). O Brasileirão FIFA precisa dessa linha acrescentada.
 - Se o script novo do jogo (ex.: `src/sites.js`) não estiver referenciado no `index.html` copiado, algo está errado.
 
+## 1b. Rodar o verificador (sempre)
+
+```
+node modelo-jogos/skills/preparar-jogo-para-queres-games/verificar-jogo.mjs public/jogar/<slug>
+```
+
+Corrija os **ERROS** e mostre ao dono os **AVISOS** (fontes/CDN de fora, sem `viewport`, `alert`/`confirm`, chat, dado pessoal). Não publique com ERRO.
+
 ## 2. Testar o jogo localmente
 
 Chromium e Playwright já vêm instalados (`require('playwright')`). Sirva a pasta e abra o jogo:

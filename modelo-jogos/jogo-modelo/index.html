@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meu Jogo (modelo)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- JOGO-MODELO do queres.games: um exemplo mínimo e funcional. TROQUE pelo seu jogo, mantendo as boas práticas:
+     charset e viewport, caminhos relativos, nada de sites externos, botões com id, pausa ao esconder a aba. -->
+<main id="app">
+  <header class="barra">
+    <span id="placar">0</span>
+    <span id="tempo">20</span>
+    <button id="btn-pausar" type="button" aria-label="Pausar">II</button>
+  </header>
+  <canvas id="campo" aria-label="Área do jogo"></canvas>
+
+  <section id="tela-inicio" class="tela">
+    <h1>Meu Jogo</h1>
+    <p>Toque nos círculos antes que o tempo acabe.</p>
+    <button id="btn-jogar" class="grande" type="button">Jogar</button>
+  </section>
+  <section id="tela-pausa" class="tela" hidden>
+    <h2>Pausado</h2>
+    <button id="btn-continuar" class="grande" type="button">Continuar</button>
+    <button id="btn-sair" type="button">Sair para o início</button>
+  </section>
+  <section id="tela-fim" class="tela" hidden>
+    <h2>Fim!</h2>
+    <p id="fim-texto"></p>
+    <button id="btn-de-novo" class="grande" type="button">Jogar de novo</button>
+  </section>
+</main>
+<script src="src/main.js"></script>
+</body>
+</html>

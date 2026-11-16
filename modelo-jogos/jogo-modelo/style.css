@@ -1,0 +1,10 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: #14102b; color: #f4f1ff; font-family: system-ui, sans-serif; overflow: hidden; touch-action: manipulation; }
+#app { position: fixed; inset: 0; }
+.barra { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-size: 22px; font-weight: 800; }
+#campo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+button { font: inherit; color: inherit; background: #2c2559; border: 3px solid #6c62b8; border-radius: 12px; padding: 12px 18px; min-height: 48px; min-width: 48px; }
+button.grande { background: #ffd23f; color: #14102b; border-color: #fff; font-weight: 800; font-size: 20px; }
+.tela { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; gap: 14px; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(20, 16, 43, .92); }
+.tela[hidden] { display: none; }
+h1, h2 { margin: 0; }

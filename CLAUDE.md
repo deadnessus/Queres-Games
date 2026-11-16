@@ -108,11 +108,16 @@ Medição **automática e anônima** de como os jogos são usados, para melhorá
 
 **Teste local**: `npm run build` e `npx wrangler@4 pages dev dist --d1 DB=teste-local --binding PAINEL_CHAVE=<chave de teste com 16+ letras>`; abra um jogo, depois `curl -H "Authorization: Bearer <chave>" localhost:8788/api/painel/resumo`. O `wrangler` local liga um banco sozinho; para ver o 503 sem banco, só no Cloudflare.
 
+## Modelo para os repositórios de jogos
+
+`modelo-jogos/` é a **versão oficial** das skills (`preparar-jogo-para-queres-games` com o verificador `verificar-jogo.mjs`, `telemetria-queres-games`, `privacidade-infantil`, `melhorias-por-issues`), do `CLAUDE.md` padrão e de um jogo-modelo mínimo, para os repositórios de jogos (Jojo-1…5, Bento-1…5 e os já publicados). Não é publicada no site. Para distribuir ou atualizar: `node modelo-jogos/distribuir.mjs <pasta-do-repo> <nome-do-jogo|-> [--novo]` e um PR em cada repositório; aumente `modelo-jogos/VERSAO` ao mudar (cada repositório guarda o número em `.claude/skills/VERSAO-MODELO`). Detalhes em `modelo-jogos/LEIA-ME.md`. **Ao publicar um jogo**, rode o verificador na cópia do site (`node modelo-jogos/skills/preparar-jogo-para-queres-games/verificar-jogo.mjs public/jogar/<slug>`) e mostre o resultado ao dono.
+
 ## Pendências conhecidas
 
 - O `index.html` original do Brasileirão FIFA não tem `<meta charset="utf-8">`; a cópia do site foi corrigida (primeira linha). Ao recopiar, mantenha a correção.
 - Repositório de origem do Collatz Rocket não está registrado.
 - Frases dos devs em `src/data/devs.ts` ainda vazias.
+- Achados do verificador nos jogos publicados (2026-11-16): fontes do Google (Jopuzzle, Brasileirão FIFA, Herói, Collatz Rocket: entregam o IP das crianças; guardar no jogo), CDN no Herói (cdnjs) e no Ascendia (`net.js`, plano B do PeerJS), `alert`/`confirm` no Ascendia e na Ilha Misteriosa, sem `viewport` no Brasileirão FIFA, caixa de mensagem (chat) escondida no HTML da Ilha Selvagem.
 - Ilha Selvagem: só a versão solo está no site (mundo salvo no `localStorage` do navegador). A versão online (servidor Node + WebSocket, da pasta `ilha/`) não está publicada. O guia rápido em PDF foi escrito a partir do `ilha/MANUAL.md` do jogo e adaptado ao solo; se o jogo mudar muito, regenere (`fontes/manuais/ilha-selvagem/`, PDF via Playwright `page.pdf`).
 - Ilustração do Jojô em `public/devs/jojo.webp`: publicada com autorização do pai (ele confirmou no chat). Não trocar nem publicar outras fotos ou ilustrações de crianças sem nova autorização.
 - Contadores (visitas e por jogo): banco D1 `queres-games` (binding `DB`, ID no `wrangler.jsonc`). Sem o banco, `/api/visitas` responde 503 e o rodapé esconde o contador. Teste local: `npx wrangler@4 pages dev dist --d1 DB=teste-local`.
