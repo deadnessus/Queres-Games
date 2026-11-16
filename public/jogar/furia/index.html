@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Fúria: Arena &amp; Guerra</title>
 <link rel="stylesheet" href="style.css">
+<script src="/conta.js?v=2"></script>
 <script type="importmap">
 { "imports": { "three": "./lib/three.module.min.js" } }
 </script>
@@ -32,6 +33,10 @@
       <button class="btn war" data-mode="bfSolo">Solo + esquadrão de bots</button>
       <button class="btn war" data-mode="bf2p">2 Jogadores (tela dividida)</button>
     </div>
+    <h3>Online <small>(com amigos, por código)</small></h3>
+    <div class="row">
+      <button class="btn online" id="btnOnline">🌐 Jogar online — Luta ou Battlefield</button>
+    </div>
     <div class="row opts">
       <label>Dificuldade
         <select id="difficulty">
@@ -41,6 +46,53 @@
         </select>
       </label>
       <button class="btn small" data-go="controls">🎮 Controles</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ONLINE: CONTA E CÓDIGO ============ -->
+<div id="online" class="screen">
+  <div class="menu-box">
+    <h2>🌐 Jogar online</h2>
+    <p class="on-help">Crie uma partida e mande o <b>código de 4 letras</b> para seus amigos. Eles só conseguem entrar <b>antes de começar</b>. Não existe chat: o nome de cada um é o apelido da conta.</p>
+    <p class="on-help" id="onChar"></p>
+    <div id="onConta"></div>
+    <div id="onAcoes" class="hidden">
+      <div class="row"><button class="btn big" id="onCriar">➕ Criar partida</button></div>
+      <div class="row on-join"><input id="onCodigo" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn" id="onEntrar">Entrar</button></div>
+    </div>
+    <div id="onStatus" class="on-status"></div>
+    <div class="row"><button class="btn small" id="onVoltar">Voltar</button></div>
+  </div>
+</div>
+
+<!-- ============ ONLINE: SALA DE ESPERA ============ -->
+<div id="lobby" class="screen">
+  <div class="menu-box wide lb-box">
+    <h2>🏁 Sala de espera</h2>
+    <div class="lb-cols">
+      <div class="lb-left">
+        <div class="on-help">Código da partida (quem digitar entra até começar):</div>
+        <div id="lbCode" class="lb-code">----</div>
+        <div class="row lb-tools"><button class="btn small" id="lbCopy">📋 Copiar convite</button><span id="lbCount" class="on-help"></span></div>
+        <div id="lbHost" class="hidden">
+          <div class="on-help"><b>Modo</b></div>
+          <div class="chips" id="lbModo"><div class="chip" data-v="luta1">🥊 Luta 1 x 1</div><div class="chip" data-v="luta2">🥊 Luta 2 x 2</div><div class="chip" data-v="bf">🪖 Battlefield</div></div>
+          <div id="lbTimes"><div class="on-help"><b>Times</b></div>
+            <div class="chips"><div class="chip" data-v="contra">⚔️ Uns contra os outros</div><div class="chip" data-v="juntos">🤝 Todos juntos contra os bots</div></div></div>
+          <div class="on-help"><b>Bots</b></div>
+          <div class="chips" id="lbDif"><div class="chip" data-v="0">Fáceis</div><div class="chip" data-v="1">Normais</div><div class="chip" data-v="2">Difíceis</div></div>
+          <button class="btn big" id="lbStart">▶ Começar a partida</button>
+          <div id="lbWhy" class="on-help"></div>
+        </div>
+        <div id="lbGuest" class="on-help hidden"></div>
+      </div>
+      <div class="lb-right">
+        <div id="lbList"></div>
+        <div class="on-help">Vagas vazias viram bots. Com a sala cheia para o modo escolhido, a partida começa sozinha.</div>
+        <div id="lbMsg" class="on-status"></div>
+        <div class="row"><button class="btn small" id="lbSair">Sair da sala</button></div>
+      </div>
     </div>
   </div>
 </div>
@@ -189,6 +241,7 @@
 </div>
 
 <div id="clickToPlay" class="click-to-play hidden">Clique para jogar</div>
+<div id="netToast" class="net-toast"></div>
 <div class="rotate-hint">📱↻ Gire o celular para a horizontal para jogar</div>
 
 <script type="module" src="js/main.js"></script>

@@ -5,6 +5,7 @@ import { BattlefieldGame } from './battlefield.js';
 import { input, pollPads } from './input.js';
 import { initAudio } from './audio.js';
 import { touch } from './touch.js';
+import { initOnline, ON, enviarFoto, enviarControle, avisarFim, sairOnline, avisoRede } from './online.js';
 
 touch.init();
 
@@ -28,7 +29,7 @@ if (!Array.isArray(chars) || chars.length !== 2 || !chars.every((c) => c && CLAS
 function saveChars() { try { localStorage.setItem('furia_chars', JSON.stringify(chars)); } catch (e) { /* armazenamento indisponível */ } }
 
 // ---------------- Telas ----------------
-const screens = ['menu', 'creator', 'controls'];
+const screens = ['menu', 'creator', 'controls', 'online', 'lobby'];
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('active', s === id);
   if (id === 'menu') { refreshMenuChars(); rebuildBackdrop(); }
@@ -198,11 +199,56 @@ function startMode(mode) {
   game.resize();
 }
 
+// ---------------- Online ----------------
+// Começa a partida que o servidor mandou. O celular de quem criou roda o jogo; os outros só desenham e mandam controles.
+function startOnline(go) {
+  if (game) { game.dispose(); game = null; }
+  for (const s of screens) document.getElementById(s).classList.remove('active');
+  pauseEl.classList.remove('active');
+  lastMode = 'online';
+  paused = false; ended = false;
+  const c = go.cfg || {};
+  const roster = (go.players || []).map((p) => ({ id: p.id, name: p.name, look: p.look, team: p.team }));
+  const net = { role: ON.host ? 'host' : 'guest', seed: go.semente, roster, me: ON.id, send: enviarFoto, sendInput: enviarControle };
+  const dif = [0, 1, 2].includes(c.dif) ? c.dif : 1;
+  const onEnd = (title, text) => endGame(title, text);
+  evento('partida_iniciada', { modo: 'online' + (c.modo || ''), dif });
+  if (c.modo === 'bf') {
+    game = new BattlefieldGame(renderer, { twoPlayers: false, chars: [], difficulty: dif, onEnd, net });
+    touch.setMode('bf', 1);
+    if (!touch.enabled) input.lock(canvas);
+  } else {
+    game = new FightGame(renderer, { mode: c.modo === 'luta1' ? '1v1' : '2v2', chars: [], difficulty: dif, onEnd, net });
+    touch.setMode('fight', 1);
+  }
+  game.isBF = c.modo === 'bf';
+  game.online = true;
+  game.resize();
+}
+function fimOnline(motivo) {
+  if (!game || !game.online || ended) return;
+  const txt = { dono: 'Quem criou a partida saiu, então a partida acabou.', caiu: 'A conexão com a partida caiu.',
+    outra: 'Você entrou em outro lugar com a mesma conta.', tempo: 'A partida chegou ao tempo máximo.' }[motivo];
+  if (txt) endGame('Partida encerrada', txt);
+}
+initOnline({
+  show,
+  look: () => { const c = chars[0]; return { cls: c.cls, el: c.el, color: c.color, skin: c.skin, hat: c.hat }; },
+  startOnline,
+  onLights: () => { if (game && game.online) game.netStart(); },
+  onState: (d) => { if (game && game.online && game.net.role === 'guest') game.onState(d); },
+  onInput: (id, d) => { if (game && game.online && game.net.role === 'host') game.netInput(id, d); },
+  onSaiu: (id, nome) => { if (game && game.online) game.netLeave(id); if (nome && !ended) avisoRede(`${nome} saiu da partida (virou bot)`); },
+  onFim: fimOnline,
+});
+
 function pause() {
   if (!game || paused || ended) return;
   paused = true;
-  document.getElementById('pauseTitle').textContent = 'Pausado';
-  document.getElementById('pauseText').textContent = game.isBF && !touch.enabled ? 'Clique em Continuar para voltar a mirar com o mouse.' : '';
+  document.getElementById('pauseTitle').textContent = game.online ? 'Menu da partida' : 'Pausado';
+  document.getElementById('pauseText').textContent = game.online ? 'A partida continua para todo mundo!'
+    : game.isBF && !touch.enabled ? 'Clique em Continuar para voltar a mirar com o mouse.' : '';
+  document.getElementById('btnRestart').style.display = game.online ? 'none' : '';
   touch.releaseAll();
   document.getElementById('btnResume').style.display = '';
   pauseEl.classList.add('active');
@@ -217,6 +263,8 @@ function resume() {
 function endGame(title, text) {
   ended = true;
   evento('partida_terminada', { modo: lastMode, resultado: title === 'Vitória!' ? 'vitoria' : 'derrota' });
+  if (game && game.online) { avisarFim(); document.getElementById('btnRestart').style.display = 'none'; }
+  else document.getElementById('btnRestart').style.display = '';
   input.unlock();
   touch.setMode(null);
   document.getElementById('pauseTitle').textContent = title;
@@ -226,6 +274,7 @@ function endGame(title, text) {
 }
 function quit() {
   if (game && !ended) evento('partida_abandonada', { modo: lastMode });
+  if (game && game.online) sairOnline();
   if (game) { game.dispose(); game = null; }
   input.unlock();
   touch.setMode(null);
@@ -259,6 +308,9 @@ window.addEventListener('resize', () => {
   if (game) game.resize();
 });
 
+// gancho para testes automáticos (só leitura do estado)
+window.__furia = { get game() { return game; }, get online() { return ON; } };
+
 // ---------------- Loop principal ----------------
 let last = performance.now();
 function frame(now) {
@@ -268,7 +320,7 @@ function frame(now) {
   pollPads();
   if (game) {
     if (game.isBF) clickEl.classList.toggle('hidden', touch.enabled || paused || ended || input.mouse.locked);
-    if (!paused) game.update(dt);
+    if (!paused || game.online) game.update(dt); // online não para: o jogo dos outros continua
     game.render();
   } else {
     const t = now / 1000;

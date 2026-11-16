@@ -1,9 +1,9 @@
 {
-  "commit": "64fd75b",
-  "data_do_commit": "2026-11-16T01:27:49+00:00",
-  "branch": "claude/furia-eventos",
+  "commit": "70583bc",
+  "data_do_commit": "2026-11-16T11:33:10-03:00",
+  "branch": "claude/kind-davinci-3p5s5s",
   "origem": "deadnessus/Bento-1",
-  "gravado_em": "2026-11-16T01:28:01.569Z",
+  "gravado_em": "2026-11-16T14:33:22.121Z",
   "eventos": [
     "partida_iniciada",
     "partida_terminada",
