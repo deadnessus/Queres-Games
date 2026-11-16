@@ -1,0 +1,5 @@
+# Regras de cabeçalho do Cloudflare Pages (copiado para dist/ pelo Astro).
+# Bento City: o navegador confere se há versão nova antes de usar o JS/CSS guardado.
+# Sem isso, depois de uma atualização a página nova (sempre conferida) misturava com o JS antigo guardado por 4 h.
+/jogar/bento-city/*
+  Cache-Control: public, max-age=0, must-revalidate
