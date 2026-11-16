@@ -164,7 +164,9 @@ export class Sala {
       if (outros.length > 0 || criada) return recusar('Esse código já está em uso. Tente criar de novo.');
       await this.ctx.storage.put('criada', { codigo, em: Date.now() });
     } else if (!criada) {
-      return recusar(`Sala "${codigo}" não encontrada. Confira o código com quem criou.`);
+      // Entrar com um código que ainda não existe abre a sala: quem chegar com o mesmo código cai junto.
+      // (Evita "sala não encontrada" quando quem criou caiu da internet ao mandar o código para os amigos.)
+      await this.ctx.storage.put('criada', { codigo, em: Date.now() });
     }
     // A mesma conta em outra aba: a conexão antiga sai.
     for (const { w, a } of outros) if (a.conta === conta) { try { w.close(4001, 'outra-aba'); } catch { /* ignorar */ } }

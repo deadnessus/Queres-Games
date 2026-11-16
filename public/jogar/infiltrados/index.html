@@ -627,7 +627,7 @@ function conectarSite(url){
     ws.onerror=()=>falhar('Não consegui conectar. Confira a internet e se você está na sua conta.');
     ws.onclose=()=>falhar('A conexão foi encerrada. Tente de novo.');});
 }
-async function joinSite(c,created){
+async function joinSite(c,created,volta){
   audioOn();const note=$('note');
   if(!window.QGConta){note.textContent='O modo online só funciona no site queres.games.';return;}
   if(!created){c=cleanCode(c);if(!/^[A-HJ-NP-Z2-9]{4}$/.test(c)){note.textContent='Digite o código de 4 letras que seu amigo mandou.';return;}}
@@ -644,12 +644,28 @@ async function joinSite(c,created){
     note.textContent='';
     const nr=makeSiteRoom(ws,welcome);
     offline=false;NET={room:{presence:()=>Promise.resolve()},nr,code:welcome.room||c,joinedAt:performance.now(),unsubs:[],created:!!created,aloneWarned:false,site:true};
-    NET.unsubs.push(nr.onPeers(()=>{},()=>{if(MODE==='game'&&NET&&NET.nr===nr){toast('A conexão com a sala caiu.');leaveGame();}}));
+    NET.unsubs.push(nr.onPeers(()=>{},()=>{if(MODE==='game'&&NET&&NET.nr===nr)reconectarSite(NET.code);}));
+    RECON=null;
     myId=null;resetSession();enterGame();
-    toast(created?'Sala '+NET.code+' criada. Passe o código para os amigos!':'Você entrou na sala '+NET.code);
-  }catch(e){note.textContent=e.message||'Não deu para entrar agora.';}
+    toast(created?'Sala '+NET.code+' criada. Passe o código para os amigos!':(volta?'Você voltou para a sala ':'Você entrou na sala ')+NET.code);
+    return true;
+  }catch(e){note.textContent=e.message||'Não deu para entrar agora.';return false;}
   finally{$('bCreate').disabled=$('bJoin').disabled=false;}
 }
+// A conexão caiu (ex.: trocou de aplicativo para mandar o código): volta sozinho para a mesma sala.
+let RECON=null;
+function reconectarSite(code){
+  leaveGame();RECON={code,tent:0};$('note').textContent='A conexão caiu. Voltando para a sala '+code+'…';tentarReconectar();
+}
+async function tentarReconectar(){
+  if(!RECON||MODE==='game')return;if(document.hidden)return; // tenta de novo quando a tela voltar
+  const r=RECON;r.tent++;
+  const ok=await joinSite(r.code,false,true);
+  if(ok||RECON!==r)return;
+  if(r.tent<5)setTimeout(tentarReconectar,2000*r.tent);
+  else{RECON=null;$('note').textContent='Não consegui voltar para a sala '+r.code+'. Digite o código e toque em Entrar.';$('code').value=r.code;}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&RECON&&MODE!=='game')tentarReconectar();});
 
 async function initLobby(){
   if(SITE){$('roomsSec').hidden=true;$('fldName').hidden=true;$('acctBox').hidden=false;siteConta(false);
@@ -736,7 +752,7 @@ function updateNet(){
   }
   if(!NET.aloneWarned&&performance.now()-NET.joinedAt>3500){NET.aloneWarned=true;
     const others=peers.filter(p=>!p.sameTab&&p.presence&&typeof p.presence.n==='string').length;
-    if(!others&&!NET.created)toast('Ninguém nesta sala ainda. Você é o anfitrião: passe o código '+NET.code,4000);}
+    if(!others&&!NET.created)toast(SITE?'Ninguém nesta sala ainda. Confira se o código '+NET.code+' está certo ou espere seus amigos entrarem.':'Ninguém nesta sala ainda. Você é o anfitrião: passe o código '+NET.code,5000);}
 }
 function sendPresence(dt){
   presAcc+=dt;broadcastAcc+=dt;
