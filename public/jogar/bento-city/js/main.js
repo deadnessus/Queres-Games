@@ -30,6 +30,7 @@ const defaultSave = () => ({
 let save = defaultSave();
 try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s) save = { ...save, ...s, look: { ...save.look, ...s.look } }; } catch (e) { /* no storage */ }
 // Career XP: earlier work (from stats) counts the first time
+if (save.created === undefined) save.created = !!save.name;
 if (!save.jobXP) { save.jobXP = {}; for (const [k, j] of Object.entries(STAT_JOB)) if (save.stats[k]) save.jobXP[j] = save.stats[k]; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } }
 
@@ -554,7 +555,11 @@ let waypoint = null;
 function openJobsList() {
   const s = save.stats;
   openPanel(`<h2>💼 Empregos</h2><p class="small muted">Vá até o local marcado para começar. Estatísticas: 🍕${s.pizzas || 0} 🚕${s.corridas || 0} 🗑️${s.lixo || 0} 📦${s.mudancas || 0} 🚒${s.incendios || 0} 💎${s.cristais || 0} 🛰️${s.entregasEspaciais || 0} 📡${s.antenas || 0} ✈️${s.voos || 0} 🚁${s.resgates || 0} 🚑${s.pacientes || 0} 🚓${s.prisoes || 0} 🎣${s.peixes || 0}${save.spaceUnlocked ? '' : '<br>🚀 Complete a Missão Espacial no Centro Espacial para desbloquear empregos na Lua!'}</p>
-    <div class="joblist">${Object.entries(JOBS).filter(([, j]) => !j.hidden && (!j.space || save.spaceUnlocked)).map(([k, j]) => `<div class="item" style="margin:8px 0"><div class="ico">${j.icon}</div><div style="flex:1"><div class="t">${j.name} <span class="lvtag">${LEVELS[levelOf(save.jobXP[k] || 0)].icon} ${LEVELS[levelOf(save.jobXP[k] || 0)].name}</span></div><div class="small">${j.desc}</div></div><button class="btn blue" data-go="${k}" ${!!j.space !== isSpace(player.pos.x) ? 'disabled title="Fica em outro planeta"' : ''}>Marcar</button></div>`).join('')}</div>
+    <div class="joblist">${Object.entries(JOBS).filter(([, j]) => !j.hidden).map(([k, j]) => {
+      const locked = j.space && !save.spaceUnlocked, other = !!j.space !== isSpace(player.pos.x);
+      const btn = locked ? '<button class="btn" disabled>🔒 Lua</button>' : `<button class="btn blue" data-go="${k}" ${other ? 'disabled' : ''}>${other ? (j.space ? '🌙 Na Lua' : '🌍 Na Terra') : 'Marcar'}</button>`;
+      return `<div class="item ${locked ? 'locked' : ''}" style="margin:8px 0"><div class="ico">${j.icon}</div><div style="flex:1;min-width:0"><div class="t">${j.name}</div>${careerHtml(k, true)}</div>${btn}</div>`;
+    }).join('')}</div>
     ${jobs.current ? '<button class="btn" id="quitjob">Sair do emprego atual</button>' : ''}`, (el) => {
     el.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const z = world.locations[JOBS[b.dataset.go].place].zone; waypoint = { x: z.x, z: z.z }; toast('Local marcado no mapa! Siga a seta.'); closePanel(); });
     el.querySelector('#quitjob')?.addEventListener('click', () => { jobs.quit(); closePanel(); });
@@ -593,9 +598,10 @@ function respawn() {
 }
 
 // ---------------- Careers: gear, promotions, confetti ----------------
-function careerHtml(key) {
+function careerHtml(key, compact) {
   const xp = save.jobXP[key] || 0, pi = progressInfo(key, xp), perk = PERKS[key];
   const has = perk && pi.level >= perk.lvl;
+  if (compact) return `<div class="career"><div class="small"><b>${pi.text}</b></div><div class="bar"><div style="width:${Math.round(pi.frac * 100)}%"></div></div>${perk ? `<div class="small">${has ? '✅' : '🔒'} ${perk.name}${has ? '' : ` (${LEVELS[perk.lvl].name})`}</div>` : ''}</div>`;
   return `<div class="career"><div><b>${pi.text}</b></div><div class="bar"><div style="width:${Math.round(pi.frac * 100)}%"></div></div>
     <div class="small">Ganho: <b>x${LEVELS[pi.level].mult}</b> · ${LEVELS.map((l, i) => `<span class="${i <= pi.level ? 'lv-on' : 'lv-off'}">${l.icon} ${l.name}</span>`).join(' → ')}</div>
     ${perk ? `<div class="small">${has ? '✅' : '🔒'} <b>${perk.name}</b> ${has ? '' : `(vira ${LEVELS[perk.lvl].name})`}: ${perk.desc}</div>` : ''}</div>`;
@@ -1110,10 +1116,22 @@ function frame(now) {
     if (hudT > 0.05) { updateHud(hudT); drawMinimap(); hudT = 0; }
     updateCamera(dt);
   } else {
-    // menu: slow orbit around the plaza
-    const s = world.locations.spawn;
-    camera.position.set(s.x + Math.sin(elapsed * 0.1) * 120, 70, s.z + Math.cos(elapsed * 0.1) * 120);
-    camera.lookAt(s.x, 10, s.z);
+    if (menuChar) {
+      // menu: the saved character, shown beside the menu card
+      const f = player.forward(), a = Math.sin(elapsed * 0.4) * 0.25;
+      const cx = Math.sin(player.ry + a), cz = Math.cos(player.ry + a);
+      camera.position.set(player.pos.x + cx * 4.4, player.pos.y + 1.6, player.pos.z + cz * 4.4);
+      const portrait = innerWidth < innerHeight;
+      const side = portrait ? 0 : innerWidth / innerHeight > 1.7 ? 1.7 : 1.3;
+      camera.lookAt(player.pos.x + f.z * side, player.pos.y + (portrait ? 0.1 : 1.0), player.pos.z - f.x * side);
+      player.syncMesh();
+      player.char.animate(dt, { speed: 0, grounded: true, mode: 'walk' });
+    } else {
+      // menu: slow orbit around the plaza
+      const s = world.locations.spawn;
+      camera.position.set(s.x + Math.sin(elapsed * 0.1) * 120, 70, s.z + Math.cos(elapsed * 0.1) * 120);
+      camera.lookAt(s.x, 10, s.z);
+    }
     for (const v of vehicles) if (v.ai) v.update(dt, v.ai.control(dt, vehicles), world);
     collideVehicles(vehicles);
     updateSkyPlanes(dt);
@@ -1124,15 +1142,55 @@ function frame(now) {
   renderer.render(scene, camera);
 }
 
-// ---------------- Main menu ----------------
+// ---------------- Main menu: create / keep / reset the character ----------------
+let menuChar = true;
+let lookBeforeEdit = null;
 $('#name-input').value = save.name || '';
 $('#loading').textContent = 'Cidade pronta! 🏙️';
+function creatorSwatches() {
+  for (const [f, colors] of [['shirt', CLOTH], ['pants', CLOTH], ['skin', SKINS]]) {
+    const el = $('#sw-' + f);
+    el.innerHTML = colors.map((c) => `<div class="sw ${save.look[f] === c ? 'on' : ''}" data-f="${f}" data-c="${c}" style="background:${hex(c)}"></div>`).join('');
+    el.querySelectorAll('.sw').forEach((sw) => sw.onclick = () => { save.look[f] = +sw.dataset.c; player.char.setLook(save.look); creatorSwatches(); });
+  }
+}
+function showCreator(editing) {
+  lookBeforeEdit = editing ? { ...save.look } : null;
+  $('#profile').classList.add('hidden'); $('#creator').classList.remove('hidden');
+  $('#creator-title').textContent = editing ? 'Mudar visual' : 'Crie seu personagem';
+  $('#btn-char-ok').textContent = editing ? '💾 Salvar' : '✅ Criar personagem';
+  $('#btn-char-back').classList.toggle('hidden', !editing);
+  $('#name-input').value = save.name || '';
+  creatorSwatches();
+}
+function showProfile() {
+  $('#creator').classList.add('hidden'); $('#profile').classList.remove('hidden'); $('#reset-confirm').classList.add('hidden');
+  $('#profile-name').textContent = save.name || 'Jogador';
+  const lv = Object.values(save.jobXP || {}).reduce((m, x) => Math.max(m, levelOf(x)), 0);
+  $('#profile-stats').textContent = `💰 $${save.money} · ⭐ ${save.stars} · ${LEVELS[lv].icon} melhor cargo: ${LEVELS[lv].name} · 🎁 ${save.gifts.length}/${world.gifts.length}`;
+}
+$('#menu').classList.add('side');
+if (save.created) showProfile(); else showCreator(false);
+$('#btn-char-ok').onclick = () => {
+  save.name = ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
+  save.created = true; persist();
+  if (!lookBeforeEdit) toast(`Personagem criado: ${save.name}! 🎉`);
+  showProfile();
+};
+$('#btn-char-back').onclick = () => { if (lookBeforeEdit) { save.look = lookBeforeEdit; player.char.setLook(save.look); } showProfile(); };
+$('#btn-edit-char').onclick = () => showCreator(true);
+$('#btn-reset-char').onclick = () => $('#reset-confirm').classList.toggle('hidden');
+$('#btn-reset-no').onclick = () => $('#reset-confirm').classList.add('hidden');
+$('#btn-reset-yes').onclick = () => {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* sem armazenamento */ }
+  location.reload();
+};
 
 function startGame(m, nomeOnline) {
   // Online: o nome é o apelido da conta e não substitui o nome salvo do jogo offline.
   const nome = nomeOnline || ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
   if (!nomeOnline) { save.name = nome; persist(); }
-  mode = m; started = true;
+  mode = m; started = true; menuChar = false; $('#menu').classList.remove('side');
   evento('jogo_iniciado', { modo: m });
   sfx.init();
   $('#menu').classList.add('hidden'); $('#hud').classList.remove('hidden');
