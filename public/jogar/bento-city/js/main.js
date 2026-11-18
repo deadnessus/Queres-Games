@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { World, EDGE, WATER_Z, BEACH_Z, MX, MZ, isSpace, AX } from './world.js';
 import { ITEMS, SLOT_NAMES, registerUniforms, uniformId } from './outfits.js';
 import { LEVELS, STAT_JOB, PERKS, levelOf, progressInfo } from './levels.js';
+import { ModeManager, MODES } from './modes.js';
 import { Character, HATS, SKINS, makeHat } from './character.js';
 import { Player } from './player.js';
 import { Props, PTYPES, makePropMesh } from './props.js';
@@ -242,6 +243,9 @@ for (const [key, j] of Object.entries(JOBS)) if (!j.hidden) stations.push({ kind
 stations.push({ kind: 'shop', loc: world.locations.shop, label: '👕 Loja de Roupas', color: '#8e24aa' });
 stations.push({ kind: 'spaceshop', loc: world.locations.spaceshop, label: '🪐 Loja Espacial', color: '#6a1b9a' });
 stations.push({ kind: 'rocket', loc: world.locations.rocket, label: '🚀 Missão Espacial', color: '#0d47a1' });
+// Rocket next to the plaza: only in the modes, whose play area is the city centre
+const modeRocket = { x: world.fountain.x + 16, z: world.fountain.z - 18 };
+stations.push({ kind: 'rocket', modeOnly: true, loc: { zone: modeRocket }, label: '🚀 Ir para a Lua', color: '#0d47a1' });
 stations.push({ kind: 'return', loc: world.locations.moonReturn, label: '🌍 Voltar para a Terra', color: '#0d47a1' });
 stations.push({ kind: 'dealer', loc: world.locations.dealer, label: '🚗 Concessionária', color: '#263238' });
 stations.push({ kind: 'hangar', loc: world.locations.hangar, label: '✈️ Hangar (comprar aviões)', color: '#00695c' });
@@ -253,7 +257,8 @@ for (const s of stations) {
   const disk = new THREE.Mesh(new THREE.CircleGeometry(2.4, 40), new THREE.MeshBasicMaterial({ color: s.color, transparent: true, opacity: 0.25 }));
   disk.rotation.x = -Math.PI / 2; disk.position.set(z.x, 0.19, z.z); scene.add(disk);
   const lab = labelSprite(s.label, s.color); lab.position.set(z.x, 5, z.z); scene.add(lab);
-  s.sprite = lab;
+  s.sprite = lab; s.meshes = [ring, disk, lab];
+  if (s.modeOnly) { s.hidden = true; for (const m of s.meshes) m.visible = false; }
 }
 
 // ---------------- Water hose particles ----------------
@@ -654,6 +659,10 @@ function confetti() {
 
 // ---------------- Rocket / space travel ----------------
 function openRocket() {
+  if (modes.active) {
+    openPanel(`<h2>🚀 Foguete</h2><p>Neste modo não precisa fazer a missão: é só decolar!</p><div class="row"><button class="btn primary" id="go">🌙 Ir para a Lua</button></div>`, (el) => { el.querySelector('#go').onclick = () => startTravel('moon'); });
+    return;
+  }
   if (!save.spaceUnlocked) {
     const cur = jobs.current?.key === 'spacemission';
     openPanel(`<h2>🚀 Missão Espacial</h2><p>O foguete está sem combustível! Leve <b>3 barris de combustível</b> até o tanque branco ao lado da plataforma. Depois disso, você pode viajar para a <b>Lua</b> quando quiser.</p>
@@ -693,7 +702,7 @@ function updateTravel(dt) {
     $('#fade').style.opacity = clamp((T.t - 3.2) / 1, 0, 1);
     if (T.t > 4.3) {
       T.done = true; r.position.y = T.baseY; r.userData.flame.visible = false;
-      const dest = T.to === 'moon' ? world.locations.moonPad : { x: world.locations.rocket.zone.x, z: world.locations.rocket.zone.z + 2 };
+      const dest = T.to === 'moon' ? world.locations.moonPad : modes.active ? { x: modeRocket.x, z: modeRocket.z + 3 } : { x: world.locations.rocket.zone.x, z: world.locations.rocket.zone.z + 2 };
       player.pos.set(dest.x, 0.5, dest.z); player.vel.set(0, 0, 0); camTarget.copy(player.pos);
       camYaw = 0; player.ry = 0;
       if (T.to === 'moon' && !save.stats.moon) { save.stats.moon = 1; save.stars += 10; persist(); setTimeout(() => toast('🌙 Missão espacial concluída! Bem-vindo(a) à Lua! +10 ⭐', 'money'), 800); }
@@ -854,6 +863,7 @@ function netSend(dt) {
 player.onKnock = () => { if (player.held) player.release(false, G); sfx.bonk(); };
 
 function nearestGrabbableNpc() {
+  if (peds.disabled) return null;
   const f = player.forward();
   let best = null, bd = 2.2;
   for (const n of peds.list) {
@@ -864,7 +874,7 @@ function nearestGrabbableNpc() {
   return best;
 }
 function stationHere() {
-  for (const s of stations) if (dist2(s.loc.zone.x, s.loc.zone.z, player.pos.x, player.pos.z) < 3.2) return s;
+  for (const s of stations) if (!s.hidden && dist2(s.loc.zone.x, s.loc.zone.z, player.pos.x, player.pos.z) < 3.2) return s;
   return null;
 }
 function useStation(s) {
@@ -884,11 +894,12 @@ function handlePlayer(dt) {
   const job = jobs.current;
   const sprayJob = job && job.key === 'fire' && job.canSpray && job.canSpray();
   player.spraying = false;
-  if (input.pressed('KeyJ')) openJobsList();
+  if (input.pressed('KeyJ')) { if (modes.active) toast('Neste modo não tem empregos.'); else openJobsList(); }
   if (input.pressed('KeyM')) openMap();
-  if (input.pressed('KeyV')) callFavorite(false);
+  if (input.pressed('KeyV')) { if (modes.active && !MODES[modes.active].cars) toast('Neste modo não tem carros.'); else if (!modes.active) callFavorite(false); }
   if (input.pressed('Escape') && !panelOpen) openPause();
   if (panelOpen) return;
+  if (modes.frozen) { $('#prompt').textContent = ''; return; }
   if (v) {
     const ax = input.axis();
     const ctl = { throttle: ax.y, steer: ax.x, handbrake: input.down('Space'), up: input.down('Space'), down: input.down('KeyQ') || input.down('ControlLeft') || input.down('KeyC') };
@@ -919,8 +930,10 @@ function handlePlayer(dt) {
         else { const s = Math.sign(lp.z) * pz; player.pos.x += f.x * s; player.pos.z += f.z * s; }
       }
     }
-    const st = stationHere();
-    const nv = nearestVehicle();
+    const mp = modes.active ? modes.interact() : null;
+    if (mp) prompt = mp;
+    const st = mp ? null : stationHere();
+    const nv = mp ? null : nearestVehicle();
     if (st) {
       prompt = `E: ${st.label}`;
       if (input.pressed('KeyE')) useStation(st);
@@ -931,7 +944,7 @@ function handlePlayer(dt) {
     if (input.pressed('KeyQ')) { const f = player.forward(); player.knock(f.x * 3, 4, f.z * 3); }
     if (input.pressed('KeyR')) respawn();
     const grabKey = input.pressed('KeyF') || (!sprayJob && input.pressed('Mouse0'));
-    if (player.held) {
+    if (mp) { /* the mode is using E/F */ } else if (player.held) {
       prompt += (prompt ? ' · ' : '') + 'F: soltar · G: arremessar';
       if (grabKey) { player.release(false, G); sfx.grab(); }
       else if (input.pressed('KeyG') || input.pressed('Mouse2')) { player.release(true, G); sfx.throw(); }
@@ -986,6 +999,7 @@ function vehicleHits() {
   const actors = [];
   if (!player.vehicle) actors.push(player);
   for (const n of peds.list) if (!n.actor.carriedBy && n.char.root.visible) actors.push(n.actor);
+  for (const a of modes.actors()) actors.push(a);
   for (const v of vehicles) {
     const sp = Math.hypot(v.vel.x, v.vel.z);
     if (sp < 3) continue;
@@ -1003,6 +1017,7 @@ function vehicleHits() {
 }
 
 function updateGifts(dt, t) {
+  if (modes.active) return;
   for (let i = giftMeshes.length - 1; i >= 0; i--) {
     const g = giftMeshes[i];
     g.rotation.y += dt * 1.5; g.position.y += Math.sin(t * 2 + i) * 0.004;
@@ -1035,8 +1050,8 @@ function updateHud(dt) {
     const tm = $('#job-timer');
     if (job.timer != null) { const s = Math.max(0, Math.ceil(job.timer)); tm.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; tm.classList.toggle('late', s <= 10); }
     else tm.textContent = '';
-  } else $('#jobpanel').classList.add('hidden');
-  const tgt = job?.target || waypoint;
+  } else if (!modes.active) $('#jobpanel').classList.add('hidden');
+  const tgt = job?.target || modes.target || waypoint;
   if (tgt) {
     const dx = tgt.x - player.pos.x, dz = tgt.z - player.pos.z, d = Math.hypot(dx, dz);
     if (!job?.target && waypoint && d < 8) { waypoint = null; toast('Você chegou! 📍'); }
@@ -1105,8 +1120,9 @@ function frame(now) {
     player.updateHeld();
     const actorsForProps = [player.vehicle ? null : player, ...peds.list.slice(0, 60).map((n) => n.actor)];
     props.update(dt, actorsForProps, vehicles);
-    peds.update(dt, camera.position, player);
+    if (!peds.disabled) peds.update(dt, camera.position, player);
     jobs.update(dt, elapsed);
+    modes.update(dt);
     updateWater(dt);
     updateSkyPlanes(dt);
     updateGifts(dt, elapsed);
@@ -1142,6 +1158,43 @@ function frame(now) {
   renderer.render(scene, camera);
 }
 
+// ---------------- Modes (Infiltrados, Esconde-esconde, Pega-pega) ----------------
+const modes = new ModeManager({
+  scene, world, player, input, sfx, save, esc, toast,
+  openPanel: (...a) => openPanel(...a), closePanel: () => closePanel(), panelOpen: () => panelOpen,
+  exitVehicle: () => exitVehicle(), returnPoint: modeRocket,
+  darken: (o) => { $('#fade').style.opacity = o; },
+});
+let gameMode = MODES[save.lastMode] ? save.lastMode : 'cidade';
+// A mode happens in the city centre with no jobs, people, missions or gifts (and no cars in hide-and-seek / tag)
+function prepareModeWorld(key) {
+  if (jobs.current) jobs.quit(true);
+  peds.disabled = true;
+  for (const n of peds.list) n.char.root.visible = false;
+  for (const v of [...vehicles]) if (v.ai || !MODES[key].cars) removeVehicle(v);
+  for (const g of giftMeshes) g.visible = false;
+  for (const s of stations) {
+    const show = s.modeOnly || s.kind === 'return';
+    s.hidden = !show; for (const m of s.meshes) m.visible = show;
+  }
+  if (!MODES[key].cars) $('#callcar').classList.add('hidden');
+  waypoint = null;
+}
+function updateModeButton() {
+  const m = MODES[gameMode];
+  $('#btn-mode').textContent = `🎮 Modo: ${m.icon} ${m.name}`;
+  const special = gameMode !== 'cidade';
+  $('#btn-online').disabled = special;
+  $('#mode-note').classList.toggle('hidden', !special);
+  if (special) $('#online-panel').classList.add('hidden');
+}
+function showModes() {
+  const el = $('#mode-list');
+  el.innerHTML = Object.entries(MODES).map(([k, m]) => `<button class="mode-opt ${k === gameMode ? 'on' : ''}" data-mode="${k}"><span class="mi">${m.icon}</span><span><b>${m.name}</b><br><span class="small">${m.desc}</span></span></button>`).join('');
+  el.classList.toggle('hidden');
+  el.querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => { gameMode = b.dataset.mode; save.lastMode = gameMode; persist(); updateModeButton(); el.classList.add('hidden'); });
+}
+
 // ---------------- Main menu: create / keep / reset the character ----------------
 let menuChar = true;
 let lookBeforeEdit = null;
@@ -1171,6 +1224,8 @@ function showProfile() {
 }
 $('#menu').classList.add('side');
 if (save.created) showProfile(); else showCreator(false);
+$('#btn-mode').onclick = showModes;
+updateModeButton();
 $('#btn-char-ok').onclick = () => {
   save.name = ($('#name-input').value || '').trim().slice(0, 16) || 'Jogador' + Math.floor(Math.random() * 900 + 100);
   save.created = true; persist();
@@ -1197,6 +1252,7 @@ function startGame(m, nomeOnline) {
   if (input.isTouch) $('#touch').style.display = 'block';
   camTarget.copy(player.pos);
   player.hasJetpack = save.look.back === 'jetpack';
+  if (gameMode !== 'cidade') { prepareModeWorld(gameMode); modes.start(gameMode); return; }
   toast(`Bem-vindo(a) a Bento City, ${nome}! 🏙️`);
   setTimeout(() => toast('Aperte J para ver os empregos · M para o mapa'), 1500);
   if (!save.stats.tutorial) { setTimeout(() => toast('Dica: há 40 presentes 🎁 escondidos pela cidade!'), 4500); save.stats.tutorial = 1; }
@@ -1310,5 +1366,5 @@ $('#code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('
 for (const el of document.querySelectorAll('#menu input')) el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') $('#btn-offline').focus(); });
 
 requestAnimationFrame(frame);
-window.__game = { G, world, player, vehicles, props, peds, jobs, startGame, net, renderer, scene, camera };
+window.__game = { G, world, player, vehicles, props, peds, jobs, startGame, net, renderer, scene, camera, modes };
 $('#callcar').addEventListener('click', (e) => { e.stopPropagation(); callFavorite(false); });

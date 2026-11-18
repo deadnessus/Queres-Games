@@ -69,6 +69,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1026; fon
 #promo { position: fixed; top: 18%; left: 50%; transform: translateX(-50%); z-index: 30; background: #fff; color: #222; border-radius: 20px; padding: 18px 22px; text-align: center; width: min(420px, 90vw); box-shadow: 0 20px 60px rgba(0,0,0,.45); animation: pop .35s ease-out; }
 .promo-t { font-size: 34px; font-weight: 900; color: #ff7043; letter-spacing: 1px; }
 .promo-l { font-size: 20px; font-weight: 800; margin: 4px 0; }
+#mode-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.mode-opt { display: flex; gap: 10px; align-items: center; text-align: left; border: 2px solid #e3e7ec; background: #fff; border-radius: 12px; padding: 8px 10px; cursor: pointer; font-family: inherit; color: #222; }
+.mode-opt.on { border-color: #ff7043; background: #fff3e0; }
+.mode-opt .mi { font-size: 28px; }
+#mode-banner { position: fixed; top: 22%; left: 50%; transform: translateX(-50%); z-index: 16; background: rgba(10,15,40,.88); color: #fff; border: 3px solid #ffd54f; border-radius: 18px; padding: 14px 20px; text-align: center; font-size: 18px; width: min(460px, 88vw); pointer-events: none; animation: pop .3s ease-out; }
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 29; }
 #speedo { position: fixed; right: 24px; bottom: 26px; font-size: 44px; font-weight: 900; text-shadow: 0 3px 8px #000; z-index: 5; }
 #speedo small { font-size: 16px; margin-left: 4px; }
