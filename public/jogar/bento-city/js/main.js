@@ -795,7 +795,9 @@ function removeRemote(id) {
 }
 net.on('welcome', (m) => { for (const p of m.players) addRemote(p); toast(m.players.length ? `Você entrou na partida ${m.room}. Jogadores: ${m.players.length + 1}` : `Partida ${m.room} criada! Passe o código para seus amigos.`); });
 net.on('join', (m) => { addRemote(m); toast(`${m.name} entrou na cidade 👋`); sfx.chat(); });
-net.on('leave', (m) => { const r = remotes.get(m.id); if (r) toast(`${r.name} saiu.`); removeRemote(m.id); });
+net.on('leave', (m) => { const r = remotes.get(m.id); if (r) toast(`${r.name} saiu.`); modes.onLeave(m.id); removeRemote(m.id); });
+net.on('m', (m) => modes.onState(m));   // state of a mode, sent by whoever created the room
+net.on('ma', (m) => modes.onAction(m)); // a friend's action in a mode (only the creator uses it)
 net.on('look', (m) => { const r = remotes.get(m.id); if (r) r.char.setLook(m.look); });
 net.on('s', (m) => {
   const r = remotes.get(m.id); if (!r) return;
@@ -1164,8 +1166,15 @@ const modes = new ModeManager({
   openPanel: (...a) => openPanel(...a), closePanel: () => closePanel(), panelOpen: () => panelOpen,
   exitVehicle: () => exitVehicle(), returnPoint: modeRocket,
   darken: (o) => { $('#fade').style.opacity = o; },
+  net, isHost: () => criouSala,
+  myName: () => (mode === 'online' && apelidoAtual) || save.name || 'Você',
+  remotes: () => [...remotes.values()],
+  remoteChar: (id) => remotes.get(id)?.char || null,
+  remoteName: (id) => remotes.get(id)?.name || null,
+  prepareWorld: (key) => prepareModeWorld(key),
 });
 let gameMode = MODES[save.lastMode] ? save.lastMode : 'cidade';
+let criouSala = false;
 // A mode happens in the city centre with no jobs, people, missions or gifts (and no cars in hide-and-seek / tag)
 function prepareModeWorld(key) {
   if (jobs.current) jobs.quit(true);
@@ -1184,9 +1193,7 @@ function updateModeButton() {
   const m = MODES[gameMode];
   $('#btn-mode').textContent = `🎮 Modo: ${m.icon} ${m.name}`;
   const special = gameMode !== 'cidade';
-  $('#btn-online').disabled = special;
   $('#mode-note').classList.toggle('hidden', !special);
-  if (special) $('#online-panel').classList.add('hidden');
 }
 function showModes() {
   const el = $('#mode-list');
@@ -1252,7 +1259,8 @@ function startGame(m, nomeOnline) {
   if (input.isTouch) $('#touch').style.display = 'block';
   camTarget.copy(player.pos);
   player.hasJetpack = save.look.back === 'jetpack';
-  if (gameMode !== 'cidade') { prepareModeWorld(gameMode); modes.start(gameMode); return; }
+  // Online: whoever created the room chooses the mode; the others follow it when its state arrives
+  if (gameMode !== 'cidade' && (m === 'offline' || criouSala)) { prepareModeWorld(gameMode); modes.start(gameMode); return; }
   toast(`Bem-vindo(a) a Bento City, ${nome}! 🏙️`);
   setTimeout(() => toast('Aperte J para ver os empregos · M para o mapa'), 1500);
   if (!save.stats.tutorial) { setTimeout(() => toast('Dica: há 40 presentes 🎁 escondidos pela cidade!'), 4500); save.stats.tutorial = 1; }
@@ -1317,6 +1325,7 @@ async function connectOnline(opts) {
       if (!r.ok) throw new Error('Não consegui criar a partida agora. Tente de novo.');
       codigo = (await r.json()).codigo;
     } else status(`Entrando na partida ${codigo}...`);
+    criouSala = opts.mode === 'create';
     await net.connect(`${base}/sala/${codigo}?modo=${opts.mode === 'create' ? 'criar' : 'entrar'}`, { mode: opts.mode, room: codigo }, apelido, save.look);
     $('#online-pill').classList.remove('hidden');
     $('#code-pill').classList.remove('hidden'); $('#code-text').textContent = net.room;
