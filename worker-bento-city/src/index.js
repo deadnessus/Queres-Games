@@ -3,7 +3,9 @@
 // Regras deste servidor (site infantil):
 //  - só entra quem está LOGADO na conta do site (cookie qg_sessao); o nome mostrado é o APELIDO da conta,
 //    nunca um texto digitado;
-//  - NÃO existe chat: só passam as mensagens fixas do jogo (posição, veículos, buzina, visual);
+//  - NÃO existe chat: só passam as mensagens fixas do jogo (posição, veículos, buzina, visual) e as dos
+//    modos (estado da brincadeira, mandado só por quem criou a sala, e ações dos jogadores), que levam
+//    só números e os códigos dos jogadores (texto é descartado);
 //  - guarda só o necessário para a sala existir (nada de IP, nome real ou histórico); a sala some 10 min
 //    depois que o último jogador sai;
 //  - entra quem tem o código (até 16 jogadores por sala).
@@ -19,7 +21,9 @@ const MAX_JOGADORES = 16;
 const MAX_BYTES = 4096;
 const SALA_EXPIRA_MS = 10 * 60 * 1000;
 const BASE = '/online/bento-city';
-const TIPOS_REPASSADOS = new Set(['s', 'v', 'vdel', 'honk', 'look']);
+const TIPOS_REPASSADOS = new Set(['s', 'v', 'vdel', 'honk', 'look', 'm', 'ma']);
+// Códigos de jogador que podem aparecer no estado de um modo: os do servidor ('u' + 6) e os robôs ('b0'..'b9').
+const ID_JOGADOR_RE = /^(u[0-9a-f-]{6}|b[0-9])$/;
 
 const json = (obj, status = 200, extra = {}) =>
   new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...extra } });
@@ -101,6 +105,15 @@ export default {
 
 const numero = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const limparLook = (l) => (l && typeof l === 'object' && !Array.isArray(l) ? l : {});
+const inteiro = (v, min, max, d = 0) => (Number.isInteger(v) && v >= min && v <= max ? v : d);
+// Estado de um modo (Pega-pega, Esconde-esconde, Infiltrados): só números inteiros e códigos de jogador.
+const limparModo = (m) => ({
+  t: 'm',
+  d: (Array.isArray(m.d) ? m.d.slice(0, 400) : []).map((n) => (typeof n === 'number' && Number.isFinite(n) ? Math.round(n) : 0)),
+  ids: (Array.isArray(m.ids) ? m.ids.slice(0, 24) : []).map((x) => (typeof x === 'string' && ID_JOGADOR_RE.test(x) ? x : '')),
+});
+// Ação de um jogador num modo (nocautear, reportar, alarme, votar, tarefa): dois números pequenos.
+const limparAcao = (m) => ({ t: 'ma', a: inteiro(m.a, 0, 20), p: inteiro(m.p, -1, 30, -1) });
 
 export class Sala {
   constructor(ctx, env) {
@@ -154,7 +167,7 @@ export class Sala {
     const presentes = outros.filter(({ a }) => a.conta !== conta).length;
     if (presentes >= MAX_JOGADORES) return recusar(`Essa partida está cheia (${MAX_JOGADORES} jogadores).`);
 
-    servidor.serializeAttachment({ id: 'u' + crypto.randomUUID().slice(0, 6), conta, name: apelido, look: {}, s: null, entrou: false });
+    servidor.serializeAttachment({ id: 'u' + crypto.randomUUID().slice(0, 6), conta, name: apelido, look: {}, s: null, entrou: false, anfitriao: modo === 'criar' });
     await this.ctx.storage.deleteAlarm();
     return new Response(null, { status: 101, webSocket: cliente });
   }
@@ -190,6 +203,8 @@ export class Sala {
 
     if (m.t === 's') { a.s = { x: numero(m.x), y: numero(m.y), z: numero(m.z) }; ws.serializeAttachment(a); }
     else if (m.t === 'look') { a.look = limparLook(m.look); ws.serializeAttachment(a); }
+    else if (m.t === 'm') { if (!a.anfitriao) return; m = limparModo(m); } // só quem criou a sala manda o estado do modo
+    else if (m.t === 'ma') m = limparAcao(m);
     m.id = a.id;
     this.enviarTodos(m, ws);
   }
