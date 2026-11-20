@@ -24,29 +24,31 @@ export function hash2(ix, iy, semente) {
 const suave = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 const misturar = (a, b, t) => a + (b - a) * t;
 
-function gradiente(ix, iy, semente, dx, dy) {
+function gradiente(ix, iy, semente, dx, dy, periodo) {
+  if (periodo) { ix = ((ix % periodo) + periodo) % periodo; iy = ((iy % periodo) + periodo) % periodo; }
   const ang = hash2(ix, iy, semente) * Math.PI * 2;
   return Math.cos(ang) * dx + Math.sin(ang) * dy;
 }
 
 // Ruído de gradiente 2D (tipo Perlin). Devolve um valor em [-1, 1], suave e contínuo.
-export function ruido2(x, y, semente = 0) {
+// Com "periodo" (inteiro), o ruído se repete a cada "periodo" unidades: sem emenda quando o mundo dá a volta.
+export function ruido2(x, y, semente = 0, periodo = 0) {
   const ix = Math.floor(x), iy = Math.floor(y);
   const fx = x - ix, fy = y - iy;
   const u = suave(fx), v = suave(fy);
-  const n00 = gradiente(ix, iy, semente, fx, fy);
-  const n10 = gradiente(ix + 1, iy, semente, fx - 1, fy);
-  const n01 = gradiente(ix, iy + 1, semente, fx, fy - 1);
-  const n11 = gradiente(ix + 1, iy + 1, semente, fx - 1, fy - 1);
+  const n00 = gradiente(ix, iy, semente, fx, fy, periodo);
+  const n10 = gradiente(ix + 1, iy, semente, fx - 1, fy, periodo);
+  const n01 = gradiente(ix, iy + 1, semente, fx, fy - 1, periodo);
+  const n11 = gradiente(ix + 1, iy + 1, semente, fx - 1, fy - 1, periodo);
   const n = misturar(misturar(n00, n10, u), misturar(n01, n11, u), v);
   return Math.max(-1, Math.min(1, n * 1.4142));
 }
 
 // Várias camadas de ruído somadas (fBm): detalhes grandes e pequenos. Valor em [-1, 1].
-export function fbm(x, y, semente = 0, oitavas = 4, ganho = 0.5, lacunaridade = 2) {
+export function fbm(x, y, semente = 0, oitavas = 4, ganho = 0.5, lacunaridade = 2, periodo = 0) {
   let soma = 0, amp = 1, freq = 1, total = 0;
   for (let i = 0; i < oitavas; i++) {
-    soma += ruido2(x * freq, y * freq, semente + i * 101) * amp;
+    soma += ruido2(x * freq, y * freq, semente + i * 101, periodo ? Math.round(periodo * freq) : 0) * amp;
     total += amp;
     amp *= ganho;
     freq *= lacunaridade;

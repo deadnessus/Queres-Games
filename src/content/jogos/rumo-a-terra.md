@@ -1,6 +1,6 @@
 ---
 titulo: "Rumo à Terra"
-descricao: "Aventura em primeira pessoa num planeta alienígena: um meteoro acerta sua nave e você cai em Lúmen. Versão de teste: assista à queda, explore o Vale, pegue madeira e pedra, crie ferramentas e construa com blocos."
+descricao: "Aventura em primeira pessoa num planeta alienígena: um meteoro acerta sua nave e você cai em Lúmen. Versão de teste: dê a volta no planeta, enfrente os aliens, pegue madeira e pedra, crie ferramentas e construa."
 status: em-desenvolvimento
 autores: [jojo]
 ordem: 16

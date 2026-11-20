@@ -159,7 +159,7 @@ export function criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som }
         t.pos.addScaledVector(t.dir, p);
         andou += p;
         for (const a of alvos.lista) {
-          if (a.ativo && t.pos.distanceTo(a.pos) < a.raio) { alvos.acertar(a); acabou = true; break; }
+          if (a.ativo && t.pos.distanceTo(a.pos) < a.raio) { a.acertar(t.dir); faiscar(t.pos, 0xff8a6a, 5); acabou = true; break; }
         }
         if (acabou) break;
         if (t.pos.y < grade.alturaEm(t.pos.x, t.pos.z) || colisoes.pontoDentro(t.pos.x, t.pos.y, t.pos.z)) {

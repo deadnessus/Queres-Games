@@ -58,6 +58,8 @@ export function criarHud({ som }) {
   const contador = $('contador-alvos');
   const debugEl = $('debug');
   const avisos = $('avisos');
+  const vidaCheia = $('vida-cheia'), vidaEl = $('vida'), danoEl = $('dano');
+  let ultimaVida = -1;
   const modoEl = $('modo-colocar'), btnCancelar = $('btn-cancelar');
 
   let fila = [], digitando = null, fechar = null;
@@ -119,6 +121,18 @@ export function criarHud({ som }) {
       }
       const alvo = avisos.lastElementChild;
       alvo._t = setTimeout(() => { alvo.classList.add('saindo'); setTimeout(() => alvo.remove(), 400); }, 2200);
+    },
+    vida(fracao) {
+      const v = Math.round(Math.max(0, Math.min(1, fracao)) * 100);
+      if (v === ultimaVida) return;
+      ultimaVida = v;
+      vidaCheia.style.transform = `scaleX(${v / 100})`;
+      vidaEl.classList.toggle('baixa', v <= 30);
+    },
+    dano() {
+      danoEl.classList.remove('ativo');
+      void danoEl.offsetWidth; // reinicia a animação
+      danoEl.classList.add('ativo');
     },
     modoColocar(texto) {
       modoEl.hidden = !texto;

@@ -34,6 +34,10 @@ import { criarPrologo } from './cenas/prologo.js';
 import { criarRecursos } from './mundo/recursos.js';
 import { criarConstrucoes } from './mundo/construcoes.js';
 import { criarColetaveis } from './entidades/coletaveis.js';
+import { criarCriaturas } from './entidades/criaturas.js';
+import { CRIATURAS } from './dados/criaturas.js';
+import { criarMapa } from './ui/mapa.js';
+import { maisPerto, embrulhar } from './logica/toro.js';
 import { mostrarTela, progresso, mostrarErro, ligarOpcoes } from './ui/telas.js';
 
 const $ = (id) => document.getElementById(id);
@@ -113,20 +117,24 @@ async function iniciar() {
   await esperarQuadro();
   const hud = criarHud({ som });
   let avisoAgua = 0;
+  // Dar a volta no mundo: conta as passagens pela emenda; voltando perto da nave sem desfazer, avisa.
+  const volta = { x: 0, z: 0, avisou: false };
   const jogador = criarJogador({
     def: vale, grade, colisoes, som,
     aoAguaFunda() {
       const agora = performance.now();
       if (agora - avisoAgua > 7000) { avisoAgua = agora; hud.mensagem('Cuidado, Comandante! A água ali é funda demais.', 3); }
     },
+    aoDarAVolta(dx, dz) { volta.x += dx; volta.z += dz; },
   });
   const alvos = criarAlvos({ def: vale, grade, cena, particulas: faiscas, som });
-  const arma = criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som });
+  const alvosTiro = { lista: [] }; // bolhas de treino + bichos (a arma e a ajuda na mira olham esta lista)
+  const arma = criarArma({ camera, cena, grade, colisoes, alvos: alvosTiro, faiscas, som });
 
   // ---- coleta, mochila, criar e construir (salvo neste aparelho) ----
   const save = carregarSave();
   const inventario = criarInventario(save ? save.inventario : []);
-  const recursos = criarRecursos({ lista: vegetacao.recursos, colisoes, lascas, som });
+  const recursos = criarRecursos({ lista: vegetacao.recursos, colisoes, lascas, som, tamanho: vale.tamanho });
   const construcoes = criarConstrucoes({ cena, grade, colisoes, chamas, luz: luzFogueira, som });
   if (save) construcoes.carregar(save);
   if (save && save.pos) jogador.reposicionar(save.pos[0] / 100, save.pos[1] / 100, save.pos[2]);
@@ -149,6 +157,43 @@ async function iniciar() {
       hud.aviso(`+${n} ${ITENS[id].icone} ${ITENS[id].nome}`);
     },
   });
+
+  // ---- os aliens de Lúmen e a sua vida ----
+  let vida = 100, semDano = 99, desmaio = 0, tremor = 0;
+  const AVISOS_BICHO = {
+    saltito: 'Olha, um Saltito! É inofensivo e foge de você. Dá para caçar para comer.',
+    rastejador: 'Cuidado, Comandante! Rastejadores! Eles caçam em grupo. Perto da nave ou de uma fogueira eles não chegam.',
+    zumbidor: 'Um Zumbidor lá no alto! Ele dá rasantes: atire quando ele vier na sua direção.',
+  };
+  const criaturas = criarCriaturas({
+    cena, def: vale, grade, colisoes, som, nuvem: lascas, posNave: nave.centro,
+    fogueiras: () => construcoes.listaFogueiras(),
+    aoAtacar: (dano) => levarDano(dano),
+    aoMorrer: (c, itens, p) => { if (itens.length) coletaveis.soltar(itens, p); },
+    aoVer: (tipo) => hud.mensagem(AVISOS_BICHO[tipo], 5),
+  });
+  function levarDano(n) {
+    if (estado !== 'jogando' || desmaio > 0 || acordando > 1) return;
+    vida -= n;
+    semDano = 0;
+    tremor = 0.35;
+    hud.dano();
+    som.dor();
+    if (vida <= 0) { vida = 0; desmaio = 1.3; som.desmaio(); entrada.soltarTudo(); }
+    hud.vida(vida / 100);
+  }
+  // Desmaiou: tela preta, o drone da ÍRIS leva você para a nave (perde metade da carne que carregava).
+  function acordarNaNave() {
+    const p = nave.porta;
+    jogador.reposicionar(p.x, p.z, vale.inicio.olhar);
+    vida = 100;
+    hud.vida(1);
+    const carne = inventario.quantos('carne');
+    if (carne > 1) inventario.remover('carne', Math.floor(carne / 2));
+    acordando = TEMPO_ACORDAR;
+    hud.mensagem('Você desmaiou! Meu drone trouxe você de volta para a nave, Comandante.', 5);
+    if (carne > 1) hud.mensagem('Na correria, metade da carne ficou para trás.', 4);
+  }
 
   // ---- os dois visuais (decisão D11) ----
   const texChao = texturaDetalhe(3, 64, 1), texProps = texturaDetalhe(8, 32, 1.3), texPaineis = texturaPaineis();
@@ -240,6 +285,10 @@ async function iniciar() {
     inventario.limpar();
     construcoes.limpar();
     recursos.restaurarTudo();
+    criaturas.reiniciar();
+    vida = 100; desmaio = 0; semDano = 99;
+    hud.vida(1);
+    volta.x = volta.z = 0; volta.avisou = false;
     jogador.reposicionar(vale.inicio.x, vale.inicio.z, vale.inicio.olhar);
     tempoJogado = 0;
     apagarSave();
@@ -358,6 +407,31 @@ async function iniciar() {
     toque.ligar();
   }
   $('btn-mochila').addEventListener('click', abrirMochila);
+
+  // ---- mapa ----
+  const mapa = criarMapa({ grade, terreno, recursos });
+  function abrirMapa() {
+    if (estado !== 'jogando') return;
+    estado = 'mapa';
+    entrada.soltarTudo();
+    toque.desligar();
+    teclado.soltarTrava();
+    som.clique();
+    mapa.desenhar($('mapa-canvas'), { jogador, nave: nave.centro, fogueiras: construcoes.listaFogueiras(), blocos: construcoes.listaBlocos() });
+    mostrarTela('tela-mapa');
+  }
+  function fecharMapa() {
+    if (estado !== 'mapa') return;
+    estado = 'jogando';
+    mostrarTela(null);
+    entrada.soltarTudo();
+    toque.ligar();
+  }
+  $('btn-mapa').addEventListener('click', abrirMapa);
+  $('btn-fechar-mapa').addEventListener('click', () => { som.clique(); fecharMapa(); });
+  addEventListener('keydown', (e) => {
+    if (estado === 'mapa' && ['Escape', 'KeyM'].includes(e.code)) { e.preventDefault(); fecharMapa(); }
+  });
   $('btn-fechar-mochila').addEventListener('click', () => { som.clique(); fecharMochila(); });
   addEventListener('keydown', (e) => {
     if (estado === 'mochila' && ['Escape', 'KeyI', 'Tab'].includes(e.code)) { e.preventDefault(); fecharMochila(); }
@@ -455,7 +529,7 @@ async function iniciar() {
       const agora = performance.now();
       if (agora - avisoFalta > 2500) { avisoFalta = agora; hud.aviso(`Precisa de ${ITENS[res.falta].icone} ${ITENS[res.falta].nome}`); }
     } else if (res.quebrou) {
-      coletaveis.soltar(res.itens, { x: r.x, y: r.y + Math.min(r.altura * 0.5, 1.3), z: r.z });
+      coletaveis.soltar(res.itens, { x: hit.cx, y: r.y + Math.min(r.altura * 0.5, 1.3), z: hit.cz });
     }
   }
 
@@ -505,10 +579,28 @@ async function iniciar() {
     lerControle(dt, config.sensibilidade);
     if (entrada.pausaPedida) { entrada.pausaPedida = false; pausar(); return; }
     if (entrada.mochilaPedida) { entrada.mochilaPedida = false; abrirMochila(); return; }
+    if (entrada.mapaPedido) { entrada.mapaPedido = false; abrirMapa(); return; }
     if (entrada.cancelarPedido) { entrada.cancelarPedido = false; sairModoColocar(); }
     tempoJogado += dt;
-    jogador.passo(dt, entrada.movimento(), entrada.pularPedido);
+    if (desmaio > 0) {
+      // desmaiando: a tela escurece e não dá para fazer nada
+      desmaio -= dt;
+      $('cortina').style.opacity = String(Math.min(1, 1 - desmaio / 1.3));
+      entrada.soltarTudo();
+      if (desmaio <= 0) { desmaio = 0; acordarNaNave(); }
+    } else {
+      jogador.passo(dt, entrada.movimento(), entrada.pularPedido);
+    }
     entrada.pularPedido = false;
+    // vida volta devagar quando nada te acerta por um tempo
+    semDano += dt;
+    if (semDano > 6 && vida < 100 && desmaio <= 0) { vida = Math.min(100, vida + 6 * dt); hud.vida(vida / 100); }
+    criaturas.atualizar(dt, jogador);
+    // deu a volta no mundo e voltou perto da nave?
+    if (!volta.avisou && (volta.x || volta.z) && Math.hypot(jogador.pos.x - nave.centro.x, jogador.pos.z - nave.centro.z) < 40) {
+      volta.avisou = true;
+      hud.mensagem('Você deu a volta em Lúmen, Comandante! Andando sempre para o mesmo lado, voltamos para a nave.', 6);
+    }
     arma.atualizar(dt, entrada.atirando, ajuda);
     alvos.atualizar(dt);
     nave.atualizar(dt);
@@ -563,20 +655,42 @@ async function iniciar() {
       camera.position.set(nave.centro.x + Math.sin(a) * 27, nave.centro.y + 7.5, nave.centro.z + Math.cos(a) * 27);
       camera.lookAt(nave.centro.x, nave.centro.y + 4.5, nave.centro.z);
     }
+    if (tremor > 0 && estado === 'jogando') {
+      tremor = Math.max(0, tremor - dt * 1.5);
+      camera.position.x += (Math.random() - 0.5) * tremor * 0.3;
+      camera.position.y += (Math.random() - 0.5) * tremor * 0.3;
+    }
     camera.updateMatrixWorld();
     ceu.seguir(camera.position);
 
-    // ajuda na mira (nunca atira sozinho)
-    ajuda = estado === 'jogando' ? procurarAlvo(camera, alvos, grade, ANGULO_MIRA[config.mira]) : null;
-    entrada.fatorMira = ajuda && ajuda.angulo < ANGULO_MIRA[config.mira] * 0.7 && entrada.ultimaFonte !== 'teclado' ? 0.55 : 1;
-
-    // esconde pedaços longe (atrás da névoa)
-    if (contadorQuadros++ % 8 === 0) {
-      const longe = cena.fog.far + 20;
-      for (const lista of [terreno.pedacos, vegetacao.malhas]) {
-        for (const p of lista) p.mesh.visible = Math.hypot(p.x - camera.position.x, p.z - camera.position.z) - p.raio < longe;
+    // o mundo dá a volta: cada pedaço do mundo é desenhado na cópia mais perto da câmera
+    const cx = camera.position.x, cz = camera.position.z, T = vale.tamanho;
+    const longe = cena.fog.far + 20;
+    for (const lista of [terreno.pedacos, vegetacao.malhas, vegetacao.malhasCristais]) {
+      for (const p of lista) {
+        const ox = maisPerto(p.x, cx, T) - p.x, oz = maisPerto(p.z, cz, T) - p.z;
+        if (p.mesh.position.x !== ox || p.mesh.position.z !== oz) { p.mesh.position.set(ox, 0, oz); p.mesh.updateMatrix(); }
+        p.mesh.visible = Math.hypot(p.x + ox - cx, p.z + oz - cz) - p.raio < longe;
       }
     }
+    nave.grupo.position.x = maisPerto(vale.nave.x, cx, T);
+    nave.grupo.position.z = maisPerto(vale.nave.z, cz, T);
+    if (nave.destrocos) nave.destrocos.position.set(maisPerto(0, cx, T), 0, maisPerto(0, cz, T));
+    for (const disco of agua.grupo.children) {
+      const l = disco.userData.lago || (disco.userData.lago = { x: disco.position.x, z: disco.position.z });
+      disco.position.x = maisPerto(l.x, cx, T); disco.position.z = maisPerto(l.z, cz, T);
+    }
+    construcoes.acompanhar(camera.position);
+    criaturas.posicionar(camera.position, agora);
+    alvosTiro.lista.length = 0;
+    for (const a of alvos.lista) alvosTiro.lista.push(a);
+    for (const a of criaturas.alvos) alvosTiro.lista.push(a);
+
+    // ajuda na mira (nunca atira sozinho)
+    ajuda = estado === 'jogando' ? procurarAlvo(camera, alvosTiro, grade, ANGULO_MIRA[config.mira]) : null;
+    entrada.fatorMira = ajuda && ajuda.angulo < ANGULO_MIRA[config.mira] * 0.7 && entrada.ultimaFonte !== 'teclado' ? 0.55 : 1;
+
+    contadorQuadros++;
 
     renderer.render(cena, camera);
     const chamadas = renderer.info.render.calls, triangulos = renderer.info.render.triangles;
@@ -618,7 +732,8 @@ async function iniciar() {
     window.__rumo = {
       get estado() { return estado; }, jogador, alvos, nave, renderer, config, entrada, comecar, pausar,
       inventario, recursos, construcoes, grade, abrirMochila, fecharMochila, entrarModoColocar, salvarAgora,
-      prologo, iniciarNovoJogo, atualizarMenu,
+      prologo, iniciarNovoJogo, atualizarMenu, criaturas, abrirMapa, fecharMapa, levarDano,
+      get vida() { return vida; },
       aplicarVisual: (v) => { config.visual = v; aplicarVisual(); },
     };
   }

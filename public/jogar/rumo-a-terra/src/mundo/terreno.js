@@ -95,5 +95,9 @@ export function criarTerreno(grade, relevo) {
     }
   }
 
-  return { grupo, pedacos };
+  // Cor de um ponto da grade (para o mapa): número hexadecimal sRGB.
+  const corMapa = new THREE.Color();
+  function corDoMapa(i, j) { corDoPonto(i, j, corMapa); return corMapa.getHex(); }
+
+  return { grupo, pedacos, corDoMapa };
 }

@@ -18,6 +18,7 @@ export const entrada = {
   acaoSegurandoControle: false,
   cancelarPedido: false,
   mochilaPedida: false,
+  mapaPedido: false,
   pausaPedida: false,
   fatorMira: 1, // o jogo baixa quando a mira está em cima de um alvo (ajuda na mira no toque)
   inverterY: false,
@@ -49,7 +50,7 @@ export const entrada = {
   soltarTudo() {
     for (const f of Object.values(this.fontes)) { f.x = 0; f.y = 0; f.correr = false; }
     this.atirandoToque = this.atirandoMouse = this.atirandoControle = false;
-    this.pularPedido = this.acaoPedida = this.acaoSegurando = this.acaoSegurandoControle = this.cancelarPedido = this.mochilaPedida = false;
+    this.pularPedido = this.acaoPedida = this.acaoSegurando = this.acaoSegurandoControle = this.cancelarPedido = this.mochilaPedida = this.mapaPedido = false;
     this.giroRumo = this.giroInclinacao = 0;
   },
 };

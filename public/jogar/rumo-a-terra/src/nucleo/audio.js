@@ -95,6 +95,14 @@ export const som = {
   clique() { if (!pronto()) return; tom('sine', 900, 700, 0.05, 0.08); },
   mensagem() { if (!pronto()) return; tom('sine', 1200, 1200, 0.04, 0.05); setTimeout(() => pronto() && tom('sine', 1600, 1600, 0.05, 0.05), 70); },
 
+  // ---- bichos ----
+  rosnado() { if (!pronto()) return; tom('sawtooth', 120, 70, 0.3, 0.08); chiado(0.25, 500, 0.08, 2, 'bandpass'); },
+  zumbido() { if (!pronto()) return; tom('sawtooth', 210, 260, 0.5, 0.06); tom('square', 420, 380, 0.5, 0.03); },
+  bichoAcertado(tipo) { if (!pronto()) return; tom(tipo === 'saltito' ? 'sine' : 'square', tipo === 'saltito' ? 900 : 300, tipo === 'saltito' ? 1300 : 160, 0.12, 0.1); },
+  bichoCaiu(tipo) { if (!pronto()) return; tom('triangle', tipo === 'saltito' ? 700 : 220, 80, 0.4, 0.12); chiado(0.3, 800, 0.08, 0.7); },
+  dor() { if (!pronto()) return; tom('sine', 260, 120, 0.25, 0.2); chiado(0.12, 600, 0.12, 1); },
+  desmaio() { if (!pronto()) return; tom('sine', 400, 60, 1.2, 0.18); },
+
   // ---- sons da abertura (no espaço) ----
   alarme() { if (!pronto()) return; tom('square', 880, 880, 0.18, 0.06); setTimeout(() => pronto() && tom('square', 660, 660, 0.18, 0.06), 220); },
   explosao(forte = 1) {

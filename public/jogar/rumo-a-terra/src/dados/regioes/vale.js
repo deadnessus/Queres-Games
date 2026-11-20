@@ -1,26 +1,31 @@
 // Vale da Queda: a região onde a Andorinha caiu (base central do jogo).
 // Coordenadas em metros. x = leste, z = sul (no Three.js, -z é o norte). y = altura.
+// O Vale DÁ A VOLTA (decisão D21): andando sempre para o mesmo lado, você volta ao mesmo lugar.
+// Por isso não há paredões nas bordas e o relevo se repete a cada "tamanho" metros, sem emenda.
 // Etapa 0: relevo, lago, trilha, plantas, pedras, a nave caída (provisória) e alvos de treino.
 export default {
   id: 'vale',
   nome: 'Vale da Queda',
   semente: 1207,
-  tamanho: 384,
+  tamanho: 512,
   passo: 2,
   nivelAgua: 0,
 
   terreno: {
-    base: { altura: 4.5, amplitude: 8, escala: 110, detalhe: 1.4, escalaDetalhe: 21 },
-    bordaParedao: 36,
-    alturaParedao: 34,
+    base: { altura: 4.5, amplitude: 10, escala: 128, detalhe: 1.4, escalaDetalhe: 21.3 },
+    bordaParedao: 0, // sem paredões: o mundo dá a volta
+    alturaParedao: 0,
     ops: [
       { tipo: 'achatar', x: 0, z: 0, raio: 20, borda: 26, altura: 3.2 }, // clareira da nave
       { tipo: 'lago', x: 82, z: -52, raio: 40, prof: 4.5, borda: 16 },
-      { tipo: 'trilha', pontos: [[2, 10], [-18, 60], [-6, 118], [0, 186]], largura: 4.5, borda: 6 }, // para a Floresta (sul)
+      { tipo: 'trilha', pontos: [[2, 10], [-18, 60], [-6, 118], [10, 170]], largura: 4.5, borda: 6 }, // rumo ao sul
       { tipo: 'trilha', pontos: [[10, -6], [44, -26], [58, -30]], largura: 3.5, borda: 5 }, // até o lago
       { tipo: 'colina', x: 104, z: 46, raio: 36, altura: 10 }, // colina da bateria (Etapa 1)
       { tipo: 'colina', x: -112, z: -70, raio: 54, altura: 16 },
       { tipo: 'colina', x: -60, z: 120, raio: 40, altura: 8 },
+      { tipo: 'colina', x: 170, z: -150, raio: 70, altura: 22 }, // morro grande do outro lado do mundo
+      { tipo: 'colina', x: -190, z: 190, raio: 60, altura: 14 },
+      { tipo: 'lago', x: -150, z: 40, raio: 30, prof: 3.5, borda: 12 },
       { tipo: 'sulco', de: [-46, 44], ate: [-5, 5], largura: 8, prof: 1.3 }, // rastro da queda
     ],
   },
@@ -32,11 +37,11 @@ export default {
   nave: { x: 0, z: 0, giro: 50, inclinacao: 7, afundar: 0.9 },
 
   vegetacao: {
-    gramaPena: { densidade: 0.07 }, // tufos de "grama-pena" roxa por m²
-    arbustoChama: { quantidade: 260 },
-    arvoreTaca: { quantidade: 130 },
-    pedras: { quantidade: 170, grandes: 22 },
-    cristais: { quantidade: 40 },
+    gramaPena: { densidade: 0.045, maximo: 10000 }, // tufos de "grama-pena" roxa por m²
+    arbustoChama: { quantidade: 440 },
+    arvoreTaca: { quantidade: 230 },
+    pedras: { quantidade: 300, grandes: 38 },
+    cristais: { quantidade: 70 },
   },
 
   // Alvos de treino (Etapa 0): bolhas de cristal que flutuam e estouram com um tiro.

@@ -1,7 +1,7 @@
 // Telas por cima do jogo: carregando, início, pausa, opções, "gire o aparelho" e erro.
 // Todas as opções ficam guardadas só neste aparelho.
 const $ = (id) => document.getElementById(id);
-const TELAS = ['tela-carregando', 'tela-inicio', 'tela-pausa', 'tela-opcoes', 'tela-mochila', 'tela-erro'];
+const TELAS = ['tela-carregando', 'tela-inicio', 'tela-pausa', 'tela-opcoes', 'tela-mochila', 'tela-mapa', 'tela-erro'];
 
 export function mostrarTela(qual) {
   for (const t of TELAS) $(t).hidden = t !== qual;
