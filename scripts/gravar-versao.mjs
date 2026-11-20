@@ -2,7 +2,7 @@
 // O build usa isso para marcar os números da telemetria com a "versão" (compare antes e depois de cada atualização).
 //
 // Uso:  node scripts/gravar-versao.mjs <slug> <pasta-dentro-do-repositorio-do-jogo> [--origem dono/repositorio]
-//   ex.: node scripts/gravar-versao.mjs invasao-estelar ../Jojo-5/invasao-estelar --origem deadnessus/Jojo-5
+//   ex.: node scripts/gravar-versao.mjs invasao-estelar ../megamania --origem deadnessus/Megamania
 // Rode DEPOIS de copiar os arquivos do jogo (e do commit certo já em checkout). Se o repositório do jogo tiver um
 // arquivo qg-eventos.json na raiz ({ "eventos": ["fase_concluida"] }), a lista vai junto: é ela que libera QG.evento().
 // Não grava o endereço do repositório lido da configuração do git (pode conter credenciais): só o que você passar em --origem.
