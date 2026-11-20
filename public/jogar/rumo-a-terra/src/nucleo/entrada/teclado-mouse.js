@@ -22,6 +22,7 @@ export function iniciarTecladoMouse({ canvas, config, podeJogar }) {
     if (e.code === 'KeyE' && !e.repeat) { entrada.acaoPedida = true; entrada.acaoSegurando = true; }
     if ((e.code === 'KeyI' || e.code === 'Tab') && !e.repeat) { entrada.mochilaPedida = true; e.preventDefault(); }
     if (e.code === 'KeyQ' && !e.repeat) entrada.cancelarPedido = true;
+    if (e.code === 'KeyM' && !e.repeat) entrada.mapaPedido = true;
     if (e.code === 'Escape' || e.code === 'KeyP') entrada.pausaPedida = true;
     teclas.add(e.code);
     recalcular();

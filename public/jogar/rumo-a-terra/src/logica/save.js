@@ -5,7 +5,7 @@ import { ITENS } from '../dados/itens.js';
 import { MAX_POR_ITEM } from './inventario.js';
 
 export const JOGO = 'rumo-a-terra';
-export const VERSAO_SAVE = 1;
+export const VERSAO_SAVE = 2; // 2: o Vale passou a dar a volta (512 m); saves da versão 1 mantêm só a mochila
 export const TIPOS_BLOCO = ['madeira', 'pedra', 'cristal'];
 const MAX_BLOCOS = 3000, MAX_FOGUEIRAS = 40;
 
@@ -26,12 +26,14 @@ export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0, pos
 
 // Confere um save lido do aparelho. Devolve o save limpo ou null (estragado ou de outro jogo).
 export function validarSave(s) {
-  if (!s || typeof s !== 'object' || s.jogo !== JOGO || s.versao_save !== VERSAO_SAVE) return null;
+  if (!s || typeof s !== 'object' || s.jogo !== JOGO || ![1, VERSAO_SAVE].includes(s.versao_save)) return null;
+  // versão 1: o relevo era outro, então as construções e a posição não servem mais; a mochila continua
+  if (s.versao_save === 1) s = { ...s, blocos: [], fogueiras: [], pos: null };
   const inventario = Array.isArray(s.inventario)
     ? s.inventario.filter((e) => Array.isArray(e) && ITENS[e[0]] && inteiro(e[1], 1, MAX_POR_ITEM)).map(([id, n]) => [id, n])
     : [];
   const blocos = Array.isArray(s.blocos)
-    ? s.blocos.slice(0, MAX_BLOCOS).filter((b) => Array.isArray(b) && TIPOS_BLOCO.includes(b[0]) && inteiro(b[1], -300, 300) && inteiro(b[2], -300, 300) && inteiro(b[3], -10000, 100000))
+    ? s.blocos.slice(0, MAX_BLOCOS).filter((b) => Array.isArray(b) && TIPOS_BLOCO.includes(b[0]) && inteiro(b[1], -256, 255) && inteiro(b[2], -256, 255) && inteiro(b[3], -10000, 100000))
       .map(([t, i, j, base]) => [t, i, j, base])
     : [];
   const fogueiras = Array.isArray(s.fogueiras)

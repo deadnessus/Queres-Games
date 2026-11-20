@@ -1,15 +1,19 @@
 // Colisões feitas à mão (sem biblioteca): o chão vem da grade do relevo; os obstáculos são cilindros
-// (troncos, pedras) e caixas giradas (a nave), guardados numa grade espacial para achar rápido os de perto.
+// (troncos, pedras) e caixas giradas (a nave, os blocos), guardados numa grade espacial para achar rápido os de perto.
+// O mundo dá a volta (toro): a grade também dá a volta e as distâncias usam o caminho mais curto.
+import { embrulhar } from '../logica/toro.js';
+
 const CELULA = 8;
 
 export function criarColisoes(tamanho) {
-  const n = Math.ceil(tamanho / CELULA) + 1;
+  const n = Math.max(1, Math.round(tamanho / CELULA)); // células por lado (dá a volta)
   const meio = tamanho / 2;
   const grade = new Map();
   const todos = [];
 
+  const idx = (v) => ((Math.floor((v + meio) / CELULA) % n) + n) % n;
   const chave = (i, j) => i * 10007 + j;
-  const idx = (v) => Math.max(0, Math.min(n - 1, Math.floor((v + meio) / CELULA)));
+  const d = (a, b) => embrulhar(a - b, tamanho); // a - b pelo caminho mais curto
 
   function adicionar(c) {
     c.ativo = true;
@@ -21,9 +25,12 @@ export function criarColisoes(tamanho) {
     } else c.alcance = c.r;
     todos.push(c);
     const a = c.alcance;
-    for (let i = idx(c.x - a); i <= idx(c.x + a); i++) {
-      for (let j = idx(c.z - a); j <= idx(c.z + a); j++) {
-        const k = chave(i, j);
+    const celulas = new Set();
+    for (let x = c.x - a; x <= c.x + a + CELULA; x += CELULA) {
+      for (let z = c.z - a; z <= c.z + a + CELULA; z += CELULA) {
+        const k = chave(idx(Math.min(x, c.x + a)), idx(Math.min(z, c.z + a)));
+        if (celulas.has(k)) continue;
+        celulas.add(k);
         if (!grade.has(k)) grade.set(k, []);
         grade.get(k).push(c);
       }
@@ -35,13 +42,21 @@ export function criarColisoes(tamanho) {
 
   function perto(x, z, raio) {
     const vistos = new Set();
-    for (let i = idx(x - raio); i <= idx(x + raio); i++) {
-      for (let j = idx(z - raio); j <= idx(z + raio); j++) {
-        const l = grade.get(chave(i, j));
+    const passos = Math.ceil(raio / CELULA);
+    const i0 = idx(x), j0 = idx(z);
+    for (let di = -passos; di <= passos; di++) {
+      for (let dj = -passos; dj <= passos; dj++) {
+        const l = grade.get(chave((i0 + di + n) % n, (j0 + dj + n) % n));
         if (l) for (const c of l) if (c.ativo) vistos.add(c);
       }
     }
     return vistos;
+  }
+
+  // Posição do ponto no "espaço da caixa" (já levando em conta o mundo que dá a volta).
+  function local(c, x, z) {
+    const dx = d(x, c.x), dz = d(z, c.z);
+    return [dx * c.cos - dz * c.sin, dx * c.sin + dz * c.cos];
   }
 
   // Empurra um círculo (raio r, de "pes" até "cabeca" de altura) para fora dos obstáculos. Mexe em pos.x/pos.z.
@@ -50,31 +65,26 @@ export function criarColisoes(tamanho) {
     for (const c of perto(pos.x, pos.z, r + 4)) {
       if (cabeca < c.base || pes > c.topo) continue;
       if (c.tipo === 'cilindro') {
-        const dx = pos.x - c.x, dz = pos.z - c.z;
-        const d = Math.hypot(dx, dz), min = c.r + r;
-        if (d < min) {
-          const k = d > 1e-5 ? (min - d) / d : 0;
-          pos.x += d > 1e-5 ? dx * k : min;
-          pos.z += dz * k;
+        const dx = d(pos.x, c.x), dz = d(pos.z, c.z);
+        const dist = Math.hypot(dx, dz), min = c.r + r;
+        if (dist < min) {
+          if (dist > 1e-5) { const k = (min - dist) / dist; pos.x += dx * k; pos.z += dz * k; } else pos.x += min;
           bateu = true;
         }
       } else {
-        // caixa girada: leva o ponto para o "espaço da caixa"
-        const dx = pos.x - c.x, dz = pos.z - c.z;
-        const lx = dx * c.cos - dz * c.sin, lz = dx * c.sin + dz * c.cos;
+        const [lx, lz] = local(c, pos.x, pos.z);
         const px = Math.max(-c.meioX, Math.min(c.meioX, lx)), pz = Math.max(-c.meioZ, Math.min(c.meioZ, lz));
-        let ox = lx - px, oz = lz - pz;
-        let d = Math.hypot(ox, oz);
+        const ox = lx - px, oz = lz - pz;
+        const dist = Math.hypot(ox, oz);
         let nx, nz;
-        if (d > 1e-5) {
-          if (d >= r) continue;
-          nx = ox / d * (r - d); nz = oz / d * (r - d);
+        if (dist > 1e-5) {
+          if (dist >= r) continue;
+          nx = (ox / dist) * (r - dist); nz = (oz / dist) * (r - dist);
         } else {
           // dentro da caixa: sai pelo lado mais perto
           const sx = c.meioX - Math.abs(lx), sz = c.meioZ - Math.abs(lz);
           if (sx < sz) { nx = Math.sign(lx || 1) * (sx + r); nz = 0; } else { nx = 0; nz = Math.sign(lz || 1) * (sz + r); }
         }
-        // volta para o mundo
         pos.x += nx * c.cos + nz * c.sin;
         pos.z += -nx * c.sin + nz * c.cos;
         bateu = true;
@@ -88,10 +98,9 @@ export function criarColisoes(tamanho) {
     for (const c of perto(x, z, 1)) {
       if (y < c.base || y > c.topo) continue;
       if (c.tipo === 'cilindro') {
-        if (Math.hypot(x - c.x, z - c.z) < c.r) return true;
+        if (Math.hypot(d(x, c.x), d(z, c.z)) < c.r) return true;
       } else {
-        const dx = x - c.x, dz = z - c.z;
-        const lx = dx * c.cos - dz * c.sin, lz = dx * c.sin + dz * c.cos;
+        const [lx, lz] = local(c, x, z);
         if (Math.abs(lx) < c.meioX && Math.abs(lz) < c.meioZ) return true;
       }
     }
@@ -103,12 +112,11 @@ export function criarColisoes(tamanho) {
     let melhor = -Infinity;
     for (const c of perto(x, z, 1)) {
       if (!c.pisavel || c.topo > yMax || c.topo <= melhor) continue;
-      const dx = x - c.x, dz = z - c.z;
-      const lx = dx * c.cos - dz * c.sin, lz = dx * c.sin + dz * c.cos;
+      const [lx, lz] = local(c, x, z);
       if (Math.abs(lx) <= c.meioX + margem && Math.abs(lz) <= c.meioZ + margem) melhor = c.topo;
     }
     return melhor;
   }
 
-  return { adicionar, remover, empurrar, pontoDentro, perto, topoSob, get total() { return todos.length; } };
+  return { adicionar, remover, empurrar, pontoDentro, perto, topoSob, local, get total() { return todos.length; } };
 }

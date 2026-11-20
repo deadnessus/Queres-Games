@@ -5,6 +5,7 @@
 // gerarGrade(relevo, def) amostra essas alturas numa grade e devolve consultas rápidas (alturaEm, normalEm)
 // que batem EXATAMENTE com a malha desenhada (mesmos triângulos), para o jogador nunca afundar nem flutuar.
 import { fbm, ruido2 } from './ruido.js';
+import { embrulhar } from './toro.js';
 
 const limitar = (v, a, b) => (v < a ? a : v > b ? b : v);
 const misturar = (a, b, t) => a + (b - a) * t;
@@ -62,9 +63,13 @@ export function criarRelevo(def) {
     return p;
   }
 
+  // Períodos do ruído: o relevo se repete a cada "tamanho" metros (o mundo dá a volta sem emenda).
+  const perGrande = Math.round(tamanho / base.escala), perDetalhe = Math.round(tamanho / base.escalaDetalhe);
+  const escGrande = tamanho / perGrande, escDetalhe = tamanho / perDetalhe;
+
   function altura(x, z) {
-    const grande = base.altura + fbm(x / base.escala, z / base.escala, semente, 4) * base.amplitude;
-    const detalhe = fbm(x / base.escalaDetalhe, z / base.escalaDetalhe, semente + 7, 2) * base.detalhe;
+    const grande = base.altura + fbm(x / escGrande, z / escGrande, semente, 4, 0.5, 2, perGrande) * base.amplitude;
+    const detalhe = fbm(x / escDetalhe, z / escDetalhe, semente + 7, 2, 0.5, 2, perDetalhe) * base.detalhe;
     let h = grande + detalhe * (1 - 0.85 * pesoTrilha(x, z));
 
     for (const o of outras) {
@@ -87,9 +92,9 @@ export function criarRelevo(def) {
       }
     }
 
-    // Paredões nas bordas: o jogador não sai da região.
+    // Paredões nas bordas (só se a região tiver; o Vale dá a volta e não tem).
     const dBorda = meio - Math.max(Math.abs(x), Math.abs(z));
-    if (dBorda < t.bordaParedao) {
+    if (t.bordaParedao && dBorda < t.bordaParedao) {
       const k = 1 - Math.max(0, dBorda) / t.bordaParedao;
       h += k * k * t.alturaParedao * (0.75 + 0.5 * (ruido2(x / 18, z / 18, semente + 55) * 0.5 + 0.5));
     }
@@ -108,11 +113,14 @@ export function gerarGrade(relevo, passo) {
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) alturas[j * n + i] = relevo.altura(origem + i * passo, origem + j * passo);
   }
-  const h = (i, j) => alturas[limitar(j, 0, n - 1) * n + limitar(i, 0, n - 1)];
+  // Índices que dão a volta: o ponto n-1 é igual ao ponto 0 (relevo periódico).
+  const per = n - 1;
+  const h = (i, j) => alturas[(((j % per) + per) % per) * n + (((i % per) + per) % per)];
 
   // Localiza a célula e a posição dentro dela. Cada célula tem 2 triângulos: (a, b, c) e (b, c, d),
   // com a=(i,j), b=(i+1,j), c=(i,j+1), d=(i+1,j+1). É a mesma divisão da malha do terreno.
   function celula(x, z) {
+    x = embrulhar(x, tamanho); z = embrulhar(z, tamanho);
     const gx = limitar((x - origem) / passo, 0, n - 1);
     const gz = limitar((z - origem) / passo, 0, n - 1);
     const i = Math.min(Math.floor(gx), n - 2), j = Math.min(Math.floor(gz), n - 2);

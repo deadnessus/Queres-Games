@@ -2,10 +2,11 @@
 // Elas fazem parte das malhas juntadas da vegetação; aqui mexemos só nos vértices de cada uma
 // (tremer a cada golpe, encolher e sumir ao quebrar, crescer de novo depois de um tempo).
 import { COLETA } from '../dados/itens.js';
+import { maisPerto } from '../logica/toro.js';
 
 const ALCANCE = 3.4; // metros a partir do olho
 
-export function criarRecursos({ lista, colisoes, lascas, som }) {
+export function criarRecursos({ lista, colisoes, lascas, som, tamanho }) {
   for (const r of lista) {
     const attr = r.mesh.geometry.attributes.position;
     r.attr = attr;
@@ -33,18 +34,20 @@ export function criarRecursos({ lista, colisoes, lascas, som }) {
   }
 
   // O que o jogador está mirando (até ALCANCE metros). Testa pontos ao longo da mira.
+  // Usa a cópia de cada coisa mais perto do jogador (o mundo dá a volta).
   function mirar(origem, dir) {
     const perto = [];
     for (const r of lista) {
       if (r.estado !== 'inteiro') continue;
-      if (Math.abs(r.x - origem.x) < ALCANCE + 3 && Math.abs(r.z - origem.z) < ALCANCE + 3) perto.push(r);
+      const rx = maisPerto(r.x, origem.x, tamanho), rz = maisPerto(r.z, origem.z, tamanho);
+      if (Math.abs(rx - origem.x) < ALCANCE + 3 && Math.abs(rz - origem.z) < ALCANCE + 3) perto.push([r, rx, rz]);
     }
     if (!perto.length) return null;
     for (let d = 0.2; d <= ALCANCE; d += 0.08) {
       const x = origem.x + dir.x * d, y = origem.y + dir.y * d, z = origem.z + dir.z * d;
-      for (const r of perto) {
+      for (const [r, rx, rz] of perto) {
         if (y < r.y - 0.3 || y > r.y + r.altura) continue;
-        if ((x - r.x) ** 2 + (z - r.z) ** 2 <= r.raio * r.raio) return { recurso: r, distancia: d, ponto: { x, y, z } };
+        if ((x - rx) ** 2 + (z - rz) ** 2 <= r.raio * r.raio) return { recurso: r, distancia: d, ponto: { x, y, z }, cx: rx, cz: rz };
       }
     }
     return null;
@@ -71,9 +74,10 @@ export function criarRecursos({ lista, colisoes, lascas, som }) {
     r.t = 0;
     if (r.colisor) colisoes.remover(r.colisor);
     if (som) som.quebrar(regra.som);
+    const cx = maisPerto(r.x, ponto.x, tamanho), cz = maisPerto(r.z, ponto.z, tamanho);
     for (let k = 0; k < 16; k++) {
       lascas.soltar({
-        x: r.x + (Math.random() - 0.5) * r.raio, y: r.y + Math.random() * Math.min(r.altura, 2.5), z: r.z + (Math.random() - 0.5) * r.raio,
+        x: cx + (Math.random() - 0.5) * r.raio, y: r.y + Math.random() * Math.min(r.altura, 2.5), z: cz + (Math.random() - 0.5) * r.raio,
         vx: (Math.random() - 0.5) * 4, vy: 1.5 + Math.random() * 3, vz: (Math.random() - 0.5) * 4,
         vida: 0.8 + Math.random() * 0.5, tamanho: 0.22, cresce: -0.15, cor: regra.lasca, alfa: 1, gravidade: 10,
       });
@@ -99,7 +103,7 @@ export function criarRecursos({ lista, colisoes, lascas, som }) {
         if (s === 0) { r.estado = 'sumiu'; r.t = 0; }
       } else if (r.estado === 'sumiu') {
         r.t += dt;
-        const longe = Math.hypot(posJogador.x - r.x, posJogador.z - r.z) > 14;
+        const longe = Math.hypot(maisPerto(r.x, posJogador.x, tamanho) - posJogador.x, maisPerto(r.z, posJogador.z, tamanho) - posJogador.z) > 14;
         if (r.regra.volta && r.t > r.regra.volta && longe) { r.estado = 'crescendo'; r.t = 0; }
       } else if (r.estado === 'crescendo') {
         r.t += dt;

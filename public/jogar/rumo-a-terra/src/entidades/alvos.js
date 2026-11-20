@@ -21,7 +21,9 @@ export function criarAlvos({ def, grade, cena, particulas, som }) {
     const base = new THREE.Vector3(a.x, grade.alturaEm(a.x, a.z) + a.alturaExtra, a.z);
     grupo.position.copy(base);
     cena.add(grupo);
-    return { grupo, casca, anel, base, fase: i * 1.7, ativo: true, volta: 0, raio: 0.8, pos: grupo.position };
+    const bolha = { grupo, casca, anel, base, fase: i * 1.7, ativo: true, volta: 0, raio: 0.8, pos: grupo.position };
+    bolha.acertar = () => acertar(bolha);
+    return bolha;
   });
 
   function acertar(alvo) {

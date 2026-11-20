@@ -5,6 +5,8 @@ export const ITENS = {
   fibra: { nome: 'Fibra', icone: '🌿', tipo: 'material', texto: 'Dos arbustos laranja.' },
   pedra: { nome: 'Pedra', icone: '🪨', tipo: 'material', texto: 'Das pedras pequenas. As grandes precisam de picareta.' },
   cristal: { nome: 'Cristal', icone: '💎', tipo: 'material', texto: 'Dos cristais azuis que brilham. Precisa de picareta.' },
+  carne: { nome: 'Carne crua', icone: '🥩', tipo: 'comida', texto: 'De caça (Saltitos e Rastejadores). Logo vai dar para assar na fogueira.' },
+  carapaca: { nome: 'Carapaça', icone: '🪲', tipo: 'material', texto: 'Dos Zumbidores. Vai servir para fazer armadura.' },
   machado: { nome: 'Machado de pedra', icone: '🪓', tipo: 'ferramenta', texto: 'Corta árvores bem mais rápido.' },
   picareta: { nome: 'Picareta de pedra', icone: '⛏️', tipo: 'ferramenta', texto: 'Quebra pedras grandes e cristais.' },
   fogueira: { nome: 'Fogueira', icone: '🔥', tipo: 'colocavel', texto: 'Coloque no chão: ilumina e esquenta. Depois vai servir para cozinhar.' },

@@ -1,6 +1,7 @@
 // O jogador em primeira pessoa: anda, corre, pula (gravidade de Lúmen = 0,8 da Terra), sobe rampas suaves,
 // escorrega nas íngremes, não atravessa troncos, pedras nem a nave, e não entra na água funda.
 import * as THREE from 'three';
+import { embrulhar } from '../logica/toro.js';
 
 const GRAU = Math.PI / 180;
 export const GRAVIDADE = 9.81 * 0.8;
@@ -8,7 +9,7 @@ const RAIO = 0.4, ALTURA = 1.75, OLHO = 1.62;
 const ANDAR = 4.4, CORRER = 7.0, PULO = 4.8;
 const limitar = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-export function criarJogador({ def, grade, colisoes, som, aoAguaFunda }) {
+export function criarJogador({ def, grade, colisoes, som, aoAguaFunda, aoDarAVolta }) {
   const pos = new THREE.Vector3(def.inicio.x, 0, def.inicio.z);
   pos.y = grade.alturaEm(pos.x, pos.z);
   const anterior = pos.clone();
@@ -16,7 +17,7 @@ export function criarJogador({ def, grade, colisoes, som, aoAguaFunda }) {
   let rumo = def.inicio.olhar * GRAU; // radianos, sentido horário a partir do norte
   let inclinacao = -0.04;
   let noChao = true, tempoNoAr = 0, pedidoPulo = 0, distPasso = 0, balanco = 0, afundo = 0, velHoriz = 0;
-  const meio = grade.tamanho / 2 - 10;
+  const tamanho = grade.tamanho;
   // Chão = o terreno ou o topo de um bloco construído (o que for mais alto, até um degrau acima dos pés).
   const chaoEm = (x, z, yPes) => Math.max(grade.alturaEm(x, z), colisoes.topoSob(x, z, yPes + 0.45));
 
@@ -72,12 +73,18 @@ export function criarJogador({ def, grade, colisoes, som, aoAguaFunda }) {
       vel.x = (pos.x - anterior.x) / dt;
       vel.z = (pos.z - anterior.z) / dt;
     }
-    pos.x = limitar(pos.x, -meio, meio);
-    pos.z = limitar(pos.z, -meio, meio);
+    // o mundo dá a volta: passou da borda, aparece do outro lado (e a câmera vai junto, sem tranco)
+    const ex = embrulhar(pos.x, tamanho), ez = embrulhar(pos.z, tamanho);
+    if (ex !== pos.x || ez !== pos.z) {
+      const sx = -Math.sign(ex - pos.x), sz = -Math.sign(ez - pos.z); // para que lado passou da borda
+      anterior.x += ex - pos.x; anterior.z += ez - pos.z;
+      pos.x = ex; pos.z = ez;
+      if (aoDarAVolta) aoDarAVolta(sx, sz);
+    }
 
     // água funda: volta (a não ser que haja blocos fazendo ponte)
     if (grade.nivelAgua - chaoEm(pos.x, pos.z, pos.y) > 1.3) {
-      pos.x = anterior.x; pos.z = anterior.z; vel.x = 0; vel.z = 0;
+      pos.x = embrulhar(anterior.x, tamanho); pos.z = embrulhar(anterior.z, tamanho); vel.x = 0; vel.z = 0;
       if (aoAguaFunda) aoAguaFunda();
     }
 

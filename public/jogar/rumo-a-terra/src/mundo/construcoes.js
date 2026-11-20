@@ -5,13 +5,16 @@ import * as THREE from 'three';
 import { texturaBloco } from '../desenho/texturas.js';
 import { preparar, mesclar, matriz } from '../desenho/geometria.js';
 import { TIPOS_BLOCO } from '../logica/save.js';
+import { embrulhar, maisPerto } from '../logica/toro.js';
 
 const MAX_BLOCOS_TIPO = 1000;
 const ALCANCE_COLOCAR = 5;
 const RAIO_JOGADOR = 0.4, ALTURA_JOGADOR = 1.75;
 
 export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
-  const limite = grade.tamanho / 2 - 14;
+  const T = grade.tamanho;
+  const celula = (v) => embrulhar(v + 0.5, T) - 0.5; // índice de célula dentro do mundo (dá a volta)
+  const ref = { x: 0, z: 0 }; // perto de onde a câmera está: as cópias desenhadas ficam do lado certo da emenda
   const geoBloco = new THREE.BoxGeometry(1, 1, 1);
   const malhas = {};
   for (const tipo of TIPOS_BLOCO) {
@@ -31,7 +34,7 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
   // ---- blocos ----
   function reescreverTipo(tipo) {
     const { mesh, blocos: lista } = malhas[tipo];
-    lista.forEach((b, k) => { m4.makeTranslation(b.i + 0.5, b.base + 0.5, b.j + 0.5); mesh.setMatrixAt(k, m4); });
+    lista.forEach((b, k) => { m4.makeTranslation(maisPerto(b.i + 0.5, ref.x, T), b.base + 0.5, maisPerto(b.j + 0.5, ref.z, T)); mesh.setMatrixAt(k, m4); });
     mesh.count = lista.length;
     mesh.instanceMatrix.needsUpdate = true;
   }
@@ -59,9 +62,9 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
   function raioBlocos(origem, dir, alcance) {
     let melhor = null;
     for (const b of blocos) {
-      const cx = b.i + 0.5, cz = b.j + 0.5;
+      const cx = maisPerto(b.i + 0.5, origem.x, T), cz = maisPerto(b.j + 0.5, origem.z, T);
       if (Math.abs(cx - origem.x) > alcance + 1 || Math.abs(cz - origem.z) > alcance + 1) continue;
-      const min = [b.i, b.base, b.j], max = [b.i + 1, b.base + 1, b.j + 1];
+      const min = [cx - 0.5, b.base, cz - 0.5], max = [cx + 0.5, b.base + 1, cz + 0.5];
       const o = [origem.x, origem.y, origem.z], d = [dir.x, dir.y, dir.z];
       let tEntra = -Infinity, tSai = Infinity, eixo = -1, sinal = 0;
       let ok = true;
@@ -79,7 +82,7 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
       if (!melhor || tEntra < melhor.t) {
         const normal = { x: 0, y: 0, z: 0 };
         normal[['x', 'y', 'z'][eixo]] = sinal;
-        melhor = { bloco: b, t: tEntra, normal };
+        melhor = { bloco: b, t: tEntra, normal, cx, cz };
       }
     }
     return melhor;
@@ -103,30 +106,30 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
     let alvo = null;
     if (hb && (dc === null || hb.t <= dc + 0.01)) {
       const { bloco: b, normal: n } = hb;
-      if (n.y === 1) alvo = { i: b.i, j: b.j, base: b.base + 1 };
-      else if (n.y === -1) alvo = { i: b.i, j: b.j, base: b.base - 1 };
-      else alvo = { i: b.i + n.x, j: b.j + n.z, base: b.base };
+      // cx/cz = centro da célula no lado da emenda onde o jogador está (para a prévia e as contas)
+      if (n.y === 1) alvo = { i: b.i, j: b.j, base: b.base + 1, cx: hb.cx, cz: hb.cz };
+      else if (n.y === -1) alvo = { i: b.i, j: b.j, base: b.base - 1, cx: hb.cx, cz: hb.cz };
+      else alvo = { i: celula(b.i + n.x), j: celula(b.j + n.z), base: b.base, cx: hb.cx + n.x, cz: hb.cz + n.z };
     } else if (dc !== null) {
       const x = origem.x + dir.x * dc, z = origem.z + dir.z * dc;
-      const i = Math.floor(x), j = Math.floor(z);
-      alvo = { i, j, base: Math.round((grade.alturaEm(i + 0.5, j + 0.5) - 0.08) * 100) / 100 };
+      const fx = Math.floor(x), fz = Math.floor(z);
+      alvo = { i: celula(fx), j: celula(fz), base: Math.round((grade.alturaEm(fx + 0.5, fz + 0.5) - 0.08) * 100) / 100, cx: fx + 0.5, cz: fz + 0.5 };
     }
     if (!alvo) return null;
     alvo.valido = validarBloco(alvo, posJogador);
     return alvo;
   }
 
-  function validarBloco({ i, j, base }, p) {
-    if (Math.abs(i + 0.5) > limite || Math.abs(j + 0.5) > limite) return false;
+  function validarBloco({ i, j, base, cx, cz }, p) {
     if (!celulaLivre(i, j, base)) return false;
-    const chao = grade.alturaEm(i + 0.5, j + 0.5);
+    const chao = grade.alturaEm(cx, cz);
     if (base < chao - 1.2 || base > chao + 40) return false;
     // não em cima do jogador
-    const px = Math.max(i, Math.min(i + 1, p.x)), pz = Math.max(j, Math.min(j + 1, p.z));
+    const px = Math.max(cx - 0.5, Math.min(cx + 0.5, p.x)), pz = Math.max(cz - 0.5, Math.min(cz + 0.5, p.z));
     if (Math.hypot(p.x - px, p.z - pz) < RAIO_JOGADOR && p.y < base + 1 && p.y + ALTURA_JOGADOR > base) return false;
     // não dentro da nave, de árvores ou pedras
-    for (const [dx, dz] of [[0.5, 0.5], [0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85]]) {
-      for (const dy of [0.2, 0.8]) if (dentroDeObstaculo(i + dx, base + dy, j + dz)) return false;
+    for (const [dx, dz] of [[0, 0], [-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
+      for (const dy of [0.2, 0.8]) if (dentroDeObstaculo(cx + dx, base + dy, cz + dz)) return false;
     }
     return true;
   }
@@ -135,10 +138,10 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
   function dentroDeObstaculo(x, y, z) {
     for (const c of colisoes.perto(x, z, 1)) {
       if (c.pisavel || y < c.base || y > c.topo) continue;
-      if (c.tipo === 'cilindro') { if (Math.hypot(x - c.x, z - c.z) < c.r) return true; }
+      if (c.tipo === 'cilindro') { if (Math.hypot(embrulhar(x - c.x, T), embrulhar(z - c.z, T)) < c.r) return true; }
       else {
-        const dx = x - c.x, dz = z - c.z;
-        if (Math.abs(dx * c.cos - dz * c.sin) < c.meioX && Math.abs(dx * c.sin + dz * c.cos) < c.meioZ) return true;
+        const [lx, lz] = colisoes.local(c, x, z);
+        if (Math.abs(lx) < c.meioX && Math.abs(lz) < c.meioZ) return true;
       }
     }
     return false;
@@ -157,9 +160,10 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
   const matFogueira = new THREE.MeshLambertMaterial({ vertexColors: true });
 
   function adicionarFogueira(x, z) {
+    x = embrulhar(x, T); z = embrulhar(z, T);
     const y = grade.alturaEm(x, z);
     const grupo = new THREE.Mesh(geoFogueira, matFogueira);
-    grupo.position.set(x, y, z);
+    grupo.position.set(maisPerto(x, ref.x, T), y, maisPerto(z, ref.z, T));
     cena.add(grupo);
     const f = { x, y, z, grupo, relogio: 0 };
     f.colisor = { tipo: 'cilindro', x, z, r: 0.5, base: y - 1, topo: y + 0.45 };
@@ -179,10 +183,10 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
     if (d !== null) { x = origem.x + dir.x * d; z = origem.z + dir.z * d; }
     else { const m = Math.hypot(dir.x, dir.z) || 1; x = p.x + (dir.x / m) * 1.8; z = p.z + (dir.z / m) * 1.8; }
     const y = grade.alturaEm(x, z);
-    let valido = Math.abs(x) < limite && Math.abs(z) < limite && y > grade.nivelAgua + 0.15 && grade.normalEm(x, z)[1] > 0.8;
-    valido = valido && Math.hypot(x - p.x, z - p.z) > 0.95 && celulaLivre(Math.floor(x), Math.floor(z), y - 0.08);
+    let valido = y > grade.nivelAgua + 0.15 && grade.normalEm(x, z)[1] > 0.8;
+    valido = valido && Math.hypot(x - p.x, z - p.z) > 0.95 && celulaLivre(celula(Math.floor(x)), celula(Math.floor(z)), y - 0.08);
     for (const [dx, dz] of [[0, 0], [0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]]) if (valido && dentroDeObstaculo(x + dx, y + 0.2, z + dz)) valido = false;
-    if (valido && fogueiras.some((f) => Math.hypot(f.x - x, f.z - z) < 1.3)) valido = false;
+    if (valido && fogueiras.some((f) => Math.hypot(embrulhar(f.x - x, T), embrulhar(f.z - z, T)) < 1.3)) valido = false;
     return { x, y, z, valido };
   }
 
@@ -200,7 +204,7 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
     fantasmaFogueira.visible = !!alvo && tipo === 'fogueira';
     if (!alvo) return;
     matFantasma.color.setHex(alvo.valido ? 0x5ff0a0 : 0xff5a4a);
-    if (tipo === 'bloco') fantasmaBloco.position.set(alvo.i + 0.5, alvo.base + 0.5, alvo.j + 0.5);
+    if (tipo === 'bloco') fantasmaBloco.position.set(alvo.cx, alvo.base + 0.5, alvo.cz);
     else fantasmaFogueira.position.set(alvo.x, alvo.y + 0.25, alvo.z);
   }
 
@@ -209,9 +213,11 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
     const hb = raioBlocos(origem, dir, alcance);
     let melhor = hb ? { tipo: 'bloco', obj: hb.bloco, distancia: hb.t, ponto: { x: origem.x + dir.x * hb.t, y: origem.y + dir.y * hb.t, z: origem.z + dir.z * hb.t } } : null;
     for (const f of fogueiras) {
+      const fx = maisPerto(f.x, origem.x, T), fz = maisPerto(f.z, origem.z, T);
+      if (Math.abs(fx - origem.x) > alcance + 1 || Math.abs(fz - origem.z) > alcance + 1) continue;
       for (let d = 0.2; d <= alcance; d += 0.1) {
         const x = origem.x + dir.x * d, y = origem.y + dir.y * d, z = origem.z + dir.z * d;
-        if (y > f.y - 0.1 && y < f.y + 0.6 && Math.hypot(x - f.x, z - f.z) < 0.55) {
+        if (y > f.y - 0.1 && y < f.y + 0.6 && Math.hypot(x - fx, z - fz) < 0.55) {
           if (!melhor || d < melhor.distancia) melhor = { tipo: 'fogueira', obj: f, distancia: d, ponto: { x, y, z } };
           break;
         }
@@ -225,13 +231,14 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
   let fogueiraDaLuz = null;
   function atualizar(dt, posJogador) {
     for (const f of fogueiras) {
-      if (Math.hypot(f.x - posJogador.x, f.z - posJogador.z) > 70) continue;
+      const fx = maisPerto(f.x, posJogador.x, T), fz = maisPerto(f.z, posJogador.z, T);
+      if (Math.hypot(fx - posJogador.x, fz - posJogador.z) > 70) continue;
       f.relogio += dt;
       while (f.relogio > 0.07) {
         f.relogio -= 0.07;
         const quente = Math.random();
         chamas.soltar({
-          x: f.x + (Math.random() - 0.5) * 0.3, y: f.y + 0.2, z: f.z + (Math.random() - 0.5) * 0.3,
+          x: fx + (Math.random() - 0.5) * 0.3, y: f.y + 0.2, z: fz + (Math.random() - 0.5) * 0.3,
           vx: (Math.random() - 0.5) * 0.3, vy: 1.1 + Math.random() * 0.8, vz: (Math.random() - 0.5) * 0.3,
           vida: 0.55 + Math.random() * 0.35, tamanho: 0.5 + Math.random() * 0.3, cresce: -0.5,
           cor: quente > 0.6 ? 0xffd27a : quente > 0.2 ? 0xff8a2a : 0xff4a1a, alfa: 0.9,
@@ -244,10 +251,10 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
       relogioLuz = 0.5;
       fogueiraDaLuz = null;
       let melhor = 30;
-      for (const f of fogueiras) { const d = Math.hypot(f.x - posJogador.x, f.z - posJogador.z); if (d < melhor) { melhor = d; fogueiraDaLuz = f; } }
+      for (const f of fogueiras) { const d = Math.hypot(embrulhar(f.x - posJogador.x, T), embrulhar(f.z - posJogador.z, T)); if (d < melhor) { melhor = d; fogueiraDaLuz = f; } }
     }
     if (fogueiraDaLuz) {
-      luz.position.set(fogueiraDaLuz.x, fogueiraDaLuz.y + 0.9, fogueiraDaLuz.z);
+      luz.position.set(maisPerto(fogueiraDaLuz.x, posJogador.x, T), fogueiraDaLuz.y + 0.9, maisPerto(fogueiraDaLuz.z, posJogador.z, T));
       luz.intensity = 22 + Math.sin(performance.now() / 70) * 3 + Math.random() * 3;
     } else luz.intensity = 0;
   }
@@ -270,6 +277,15 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
       return 'fogueira';
     },
     mirar, mostrarFantasma, atualizar,
+    listaFogueiras: () => fogueiras,
+    listaBlocos: () => blocos,
+    // Atualiza as cópias desenhadas (blocos e fogueiras) para o lado da emenda onde a câmera está.
+    acompanhar(posCamera) {
+      if (Math.hypot(posCamera.x - ref.x, posCamera.z - ref.z) < 24) return;
+      ref.x = posCamera.x; ref.z = posCamera.z;
+      for (const tipo of TIPOS_BLOCO) if (malhas[tipo].blocos.length) reescreverTipo(tipo);
+      for (const f of fogueiras) f.grupo.position.set(maisPerto(f.x, ref.x, T), f.y, maisPerto(f.z, ref.z, T));
+    },
     serializar() {
       return {
         blocos: blocos.map((b) => [b.tipo, b.i, b.j, Math.round(b.base * 100)]),
