@@ -2,7 +2,7 @@
 // Coordenadas em metros. x = leste, z = sul (no Three.js, -z é o norte). y = altura.
 // O Vale DÁ A VOLTA (decisão D21): andando sempre para o mesmo lado, você volta ao mesmo lugar.
 // Por isso não há paredões nas bordas e o relevo se repete a cada "tamanho" metros, sem emenda.
-// Etapa 0: relevo, lago, trilha, plantas, pedras, a nave caída (provisória) e alvos de treino.
+// Relevo, lagos, trilhas, plantas, pedras, a nave caída, alvos de treino e o chão dos lugares das missões.
 export default {
   id: 'vale',
   nome: 'Vale da Queda',
@@ -27,6 +27,13 @@ export default {
       { tipo: 'colina', x: -190, z: 190, raio: 60, altura: 14 },
       { tipo: 'lago', x: -150, z: 40, raio: 30, prof: 3.5, borda: 12 },
       { tipo: 'sulco', de: [-46, 44], ate: [-5, 5], largura: 8, prof: 1.3 }, // rastro da queda
+      // lugares das missões (src/dados/locais.js): chão chato para as construções
+      { tipo: 'achatar', x: -205, z: 115, raio: 16, borda: 10, altura: 5.6 }, // Base da Expedição Cruzeiro
+      { tipo: 'achatar', x: -130, z: 230, raio: 18, borda: 12, altura: 4.8 }, // Ruínas dos Antigos
+      { tipo: 'achatar', x: -70, z: -175, raio: 12, borda: 10, altura: 3.4 }, // Ninho dos Zumbidores
+      { tipo: 'achatar', x: 170, z: -150, raio: 7, borda: 6, altura: 27.4 }, // Observatório (no alto do morro grande)
+      { tipo: 'achatar', x: 150, z: 190, raio: 30, borda: 10, altura: 4.6 },
+      { tipo: 'cratera', x: 150, z: 190, raio: 24, prof: 3.6, borda: 5, aba: 2.2 }, // Cratera do Núcleo
     ],
   },
 

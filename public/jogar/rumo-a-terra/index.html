@@ -7,60 +7,67 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0b1020">
 <title>Rumo à Terra</title>
-<link rel="stylesheet" href="style.css?v=e631c5f">
+<link rel="stylesheet" href="style.css?v=edf7d29">
 <!-- A biblioteca 3D fica guardada dentro do jogo (vendor/), sem nenhum site de fora. -->
 <script type="importmap">
 {
  "imports": {
-  "three": "./vendor/three/three.module.min.js?v=e631c5f",
-  "./src/cenas/prologo.js": "./src/cenas/prologo.js?v=e631c5f",
-  "./src/dados/criaturas.js": "./src/dados/criaturas.js?v=e631c5f",
-  "./src/dados/itens.js": "./src/dados/itens.js?v=e631c5f",
-  "./src/dados/regioes/vale.js": "./src/dados/regioes/vale.js?v=e631c5f",
-  "./src/desenho/ceu.js": "./src/desenho/ceu.js?v=e631c5f",
-  "./src/desenho/geometria.js": "./src/desenho/geometria.js?v=e631c5f",
-  "./src/desenho/paleta.js": "./src/desenho/paleta.js?v=e631c5f",
-  "./src/desenho/particulas.js": "./src/desenho/particulas.js?v=e631c5f",
-  "./src/desenho/renderizador.js": "./src/desenho/renderizador.js?v=e631c5f",
-  "./src/desenho/texturas.js": "./src/desenho/texturas.js?v=e631c5f",
-  "./src/entidades/alvos.js": "./src/entidades/alvos.js?v=e631c5f",
-  "./src/entidades/arma.js": "./src/entidades/arma.js?v=e631c5f",
-  "./src/entidades/coletaveis.js": "./src/entidades/coletaveis.js?v=e631c5f",
-  "./src/entidades/criaturas.js": "./src/entidades/criaturas.js?v=e631c5f",
-  "./src/entidades/jogador.js": "./src/entidades/jogador.js?v=e631c5f",
-  "./src/fisica/colisao.js": "./src/fisica/colisao.js?v=e631c5f",
-  "./src/logica/config.js": "./src/logica/config.js?v=e631c5f",
-  "./src/logica/inventario.js": "./src/logica/inventario.js?v=e631c5f",
-  "./src/logica/joystick.js": "./src/logica/joystick.js?v=e631c5f",
-  "./src/logica/relevo.js": "./src/logica/relevo.js?v=e631c5f",
-  "./src/logica/ruido.js": "./src/logica/ruido.js?v=e631c5f",
-  "./src/logica/save.js": "./src/logica/save.js?v=e631c5f",
-  "./src/logica/toro.js": "./src/logica/toro.js?v=e631c5f",
-  "./src/main.js": "./src/main.js?v=e631c5f",
-  "./src/mundo/agua.js": "./src/mundo/agua.js?v=e631c5f",
-  "./src/mundo/construcoes.js": "./src/mundo/construcoes.js?v=e631c5f",
-  "./src/mundo/nave.js": "./src/mundo/nave.js?v=e631c5f",
-  "./src/mundo/recursos.js": "./src/mundo/recursos.js?v=e631c5f",
-  "./src/mundo/terreno.js": "./src/mundo/terreno.js?v=e631c5f",
-  "./src/mundo/vegetacao.js": "./src/mundo/vegetacao.js?v=e631c5f",
-  "./src/nucleo/audio.js": "./src/nucleo/audio.js?v=e631c5f",
-  "./src/nucleo/config.js": "./src/nucleo/config.js?v=e631c5f",
-  "./src/nucleo/entrada/controle.js": "./src/nucleo/entrada/controle.js?v=e631c5f",
-  "./src/nucleo/entrada/entrada.js": "./src/nucleo/entrada/entrada.js?v=e631c5f",
-  "./src/nucleo/entrada/teclado-mouse.js": "./src/nucleo/entrada/teclado-mouse.js?v=e631c5f",
-  "./src/nucleo/entrada/toque.js": "./src/nucleo/entrada/toque.js?v=e631c5f",
-  "./src/nucleo/laco.js": "./src/nucleo/laco.js?v=e631c5f",
-  "./src/nucleo/save-local.js": "./src/nucleo/save-local.js?v=e631c5f",
-  "./src/ui/hud.js": "./src/ui/hud.js?v=e631c5f",
-  "./src/ui/mapa.js": "./src/ui/mapa.js?v=e631c5f",
-  "./src/ui/mochila.js": "./src/ui/mochila.js?v=e631c5f",
-  "./src/ui/telas.js": "./src/ui/telas.js?v=e631c5f"
+  "three": "./vendor/three/three.module.min.js?v=edf7d29",
+  "./src/cenas/final.js": "./src/cenas/final.js?v=edf7d29",
+  "./src/cenas/prologo.js": "./src/cenas/prologo.js?v=edf7d29",
+  "./src/dados/criaturas.js": "./src/dados/criaturas.js?v=edf7d29",
+  "./src/dados/itens.js": "./src/dados/itens.js?v=edf7d29",
+  "./src/dados/locais.js": "./src/dados/locais.js?v=edf7d29",
+  "./src/dados/missoes.js": "./src/dados/missoes.js?v=edf7d29",
+  "./src/dados/regioes/vale.js": "./src/dados/regioes/vale.js?v=edf7d29",
+  "./src/desenho/ceu.js": "./src/desenho/ceu.js?v=edf7d29",
+  "./src/desenho/geometria.js": "./src/desenho/geometria.js?v=edf7d29",
+  "./src/desenho/paleta.js": "./src/desenho/paleta.js?v=edf7d29",
+  "./src/desenho/particulas.js": "./src/desenho/particulas.js?v=edf7d29",
+  "./src/desenho/renderizador.js": "./src/desenho/renderizador.js?v=edf7d29",
+  "./src/desenho/texturas.js": "./src/desenho/texturas.js?v=edf7d29",
+  "./src/entidades/alvos.js": "./src/entidades/alvos.js?v=edf7d29",
+  "./src/entidades/arma.js": "./src/entidades/arma.js?v=edf7d29",
+  "./src/entidades/coletaveis.js": "./src/entidades/coletaveis.js?v=edf7d29",
+  "./src/entidades/criaturas.js": "./src/entidades/criaturas.js?v=edf7d29",
+  "./src/entidades/jogador.js": "./src/entidades/jogador.js?v=edf7d29",
+  "./src/entidades/pecas.js": "./src/entidades/pecas.js?v=edf7d29",
+  "./src/fisica/colisao.js": "./src/fisica/colisao.js?v=edf7d29",
+  "./src/logica/config.js": "./src/logica/config.js?v=edf7d29",
+  "./src/logica/inventario.js": "./src/logica/inventario.js?v=edf7d29",
+  "./src/logica/joystick.js": "./src/logica/joystick.js?v=edf7d29",
+  "./src/logica/missoes.js": "./src/logica/missoes.js?v=edf7d29",
+  "./src/logica/relevo.js": "./src/logica/relevo.js?v=edf7d29",
+  "./src/logica/ruido.js": "./src/logica/ruido.js?v=edf7d29",
+  "./src/logica/save.js": "./src/logica/save.js?v=edf7d29",
+  "./src/logica/toro.js": "./src/logica/toro.js?v=edf7d29",
+  "./src/main.js": "./src/main.js?v=edf7d29",
+  "./src/mundo/agua.js": "./src/mundo/agua.js?v=edf7d29",
+  "./src/mundo/construcoes.js": "./src/mundo/construcoes.js?v=edf7d29",
+  "./src/mundo/locais.js": "./src/mundo/locais.js?v=edf7d29",
+  "./src/mundo/nave.js": "./src/mundo/nave.js?v=edf7d29",
+  "./src/mundo/recursos.js": "./src/mundo/recursos.js?v=edf7d29",
+  "./src/mundo/terreno.js": "./src/mundo/terreno.js?v=edf7d29",
+  "./src/mundo/vegetacao.js": "./src/mundo/vegetacao.js?v=edf7d29",
+  "./src/nucleo/audio.js": "./src/nucleo/audio.js?v=edf7d29",
+  "./src/nucleo/config.js": "./src/nucleo/config.js?v=edf7d29",
+  "./src/nucleo/entrada/controle.js": "./src/nucleo/entrada/controle.js?v=edf7d29",
+  "./src/nucleo/entrada/entrada.js": "./src/nucleo/entrada/entrada.js?v=edf7d29",
+  "./src/nucleo/entrada/teclado-mouse.js": "./src/nucleo/entrada/teclado-mouse.js?v=edf7d29",
+  "./src/nucleo/entrada/toque.js": "./src/nucleo/entrada/toque.js?v=edf7d29",
+  "./src/nucleo/laco.js": "./src/nucleo/laco.js?v=edf7d29",
+  "./src/nucleo/save-local.js": "./src/nucleo/save-local.js?v=edf7d29",
+  "./src/ui/hud.js": "./src/ui/hud.js?v=edf7d29",
+  "./src/ui/mapa.js": "./src/ui/mapa.js?v=edf7d29",
+  "./src/ui/mochila.js": "./src/ui/mochila.js?v=edf7d29",
+  "./src/ui/painel.js": "./src/ui/painel.js?v=edf7d29",
+  "./src/ui/telas.js": "./src/ui/telas.js?v=edf7d29"
  }
 }
 </script>
 </head>
 <body>
-<!-- Rumo à Terra, jogo do Jojô para o queres.games. Etapa 0: andar, olhar, pular e treinar a mira.
+<!-- Rumo à Terra, jogo do Jojô para o queres.games: consertar a Andorinha em 12 missões e voltar para a Terra.
      Plano completo em docs/README.md. Botões com id fixo: a telemetria do site conta os toques pelo id. -->
 <canvas id="tela3d" aria-label="Mundo do jogo"></canvas>
 
@@ -80,6 +87,8 @@
   <div id="dano" aria-hidden="true"></div>
   <button id="btn-pausar" type="button" aria-label="Pausar">II</button>
   <div id="vida" aria-label="Vida"><span aria-hidden="true">❤️</span><div id="vida-barra"><div id="vida-cheia"></div></div></div>
+  <button id="btn-missao" type="button" hidden><span id="missao-icone" aria-hidden="true"></span><span class="textos"><b id="missao-titulo"></b><span id="missao-texto"></span><small id="missao-progresso"></small></span></button>
+  <div id="chefe" hidden><b id="chefe-nome"></b><div id="chefe-barra"><div id="chefe-cheia"></div></div></div>
   <button id="btn-mapa" type="button" aria-label="Mapa"><span aria-hidden="true">🗺️</span></button>
   <button id="btn-mochila" type="button" aria-label="Mochila e criar"><span aria-hidden="true">🎒</span></button>
   <button id="btn-cancelar" type="button" aria-label="Parar de colocar" hidden>✕</button>
@@ -108,11 +117,11 @@
       <button id="btn-opcoes" type="button">Opções</button>
     </div>
     <div id="confirmar-novo" class="pilha" hidden>
-      <p class="aviso-novo">Começar um jogo novo? A mochila e as construções guardadas neste aparelho vão ser apagadas.</p>
+      <p class="aviso-novo">Começar um jogo novo? As missões, a mochila e as construções guardadas neste aparelho vão ser apagadas.</p>
       <button id="btn-confirmar-novo" class="grande perigo" type="button">Sim, começar de novo</button>
       <button id="btn-cancelar-novo" type="button">Voltar</button>
     </div>
-    <p class="nota">Versão de teste: a queda da nave, explorar o Vale, pegar madeira e pedra, criar e construir.</p>
+    <p class="nota">Em desenvolvimento: 12 missões para consertar a Andorinha e voltar para a Terra.</p>
   </div>
 </section>
 
@@ -137,6 +146,8 @@
       <div class="grupo"><button type="button" data-qualidade="auto">Automática</button><button type="button" data-qualidade="leve">Leve</button><button type="button" data-qualidade="bonita">Bonita</button></div></div>
     <div class="linha">Ajuda na mira
       <div class="grupo"><button type="button" data-mira="forte">Forte</button><button type="button" data-mira="media">Média</button><button type="button" data-mira="desligada">Desligada</button></div></div>
+    <div class="linha">Botão de atirar
+      <div class="grupo"><button type="button" data-atirar="esquerda">Na esquerda</button><button type="button" data-atirar="direita">Na direita</button></div></div>
     <div class="linha">Tamanho dos botões
       <div class="grupo"><button type="button" data-botoes="normal">Normal</button><button type="button" data-botoes="grande">Grande</button></div></div>
     <label class="linha caixa"><input id="opt-tremor" type="checkbox"> Reduzir o balanço da câmera</label>
@@ -152,11 +163,13 @@
       <div class="abas" role="tablist">
         <button id="aba-mochila" type="button" role="tab" aria-selected="true">🎒 Mochila</button>
         <button id="aba-criar" type="button" role="tab" aria-selected="false">🔨 Criar</button>
+        <button id="aba-missoes" type="button" role="tab" aria-selected="false">📜 Missões</button>
       </div>
       <button id="btn-fechar-mochila" type="button" aria-label="Voltar ao jogo">✕</button>
     </div>
     <div id="painel-mochila" class="grade-itens"></div>
     <div id="painel-criar" class="lista-receitas" hidden></div>
+    <div id="painel-missoes" class="lista-missoes" hidden></div>
   </div>
 </section>
 
@@ -170,7 +183,41 @@
       <canvas id="mapa-canvas" width="512" height="512" aria-label="Mapa do Vale visto de cima"></canvas>
       <span class="norte" aria-hidden="true">N 🪐</span>
     </div>
-    <p class="nota legenda-mapa">A seta azul é você. O triângulo branco é a Andorinha. Pontos laranja são fogueiras. O Colosso fica sempre ao norte (para cima). O mundo dá a volta: saindo por uma borda do mapa, você entra pela outra.</p>
+    <p class="nota legenda-mapa">A seta azul é você. O triângulo branco é a Andorinha. A ⭐ é o objetivo da missão e os losangos são lugares que você já conhece. Pontos laranja são fogueiras. O Colosso fica sempre ao norte (para cima). O mundo dá a volta: saindo por uma borda do mapa, você entra pela outra.</p>
+  </div>
+</section>
+
+<section id="tela-painel" class="tela" hidden>
+  <div class="cartao painel">
+    <div class="topo-mapa">
+      <h2>Painel da Andorinha</h2>
+      <button id="btn-fechar-painel" type="button" aria-label="Voltar ao jogo">✕</button>
+    </div>
+    <div id="painel-conteudo">
+      <div id="painel-missao" class="caixa-missao"></div>
+      <p id="painel-falta" class="nota" hidden></p>
+      <button id="btn-instalar" class="grande" type="button" hidden>🔧 Instalar</button>
+      <button id="btn-calibrar" class="grande" type="button" hidden>🔭 Calibrar o rastreador</button>
+      <button id="btn-decolar" class="grande" type="button" hidden>🚀 Decolar!</button>
+      <div id="painel-tanque" hidden><span>⚗️ Tanque</span><div class="barra-tanque"><div id="tanque-cheio"></div></div><b id="tanque-texto"></b></div>
+      <div id="painel-sistemas" class="sistemas"></div>
+    </div>
+    <div id="minijogo" hidden>
+      <p id="minijogo-texto"></p>
+      <div id="ceu-minijogo"><svg id="linhas-minijogo" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+      <button id="btn-sair-minijogo" type="button">Voltar</button>
+    </div>
+  </div>
+</section>
+
+<section id="tela-final" class="tela fundo-escuro" hidden>
+  <div class="cartao">
+    <h1 class="titulo">VOCÊ VOLTOU!</h1>
+    <p class="subtitulo">A Andorinha chegou na Terra. Missão cumprida, Comandante!</p>
+    <p id="final-tempo" class="nota"></p>
+    <p class="nota">Rumo à Terra — um jogo do Jojô · queres.games</p>
+    <button id="btn-final-explorar" class="grande" type="button">Continuar explorando Lúmen</button>
+    <button id="btn-final-inicio" type="button">Voltar ao início</button>
   </div>
 </section>
 
@@ -188,6 +235,10 @@
   <div id="prologo-fala" hidden><span id="prologo-quem" class="quem" hidden></span><span id="prologo-texto"></span></div>
   <button id="btn-pular-prologo" type="button">Pular ▶▶</button>
 </div>
+<div id="final" hidden>
+  <div id="final-fala" hidden><span id="final-quem" class="quem" hidden></span><span id="final-texto"></span></div>
+  <button id="btn-pular-final" type="button">Pular ▶▶</button>
+</div>
 <div id="cortina" aria-hidden="true"></div>
 
 <section id="tela-girar" hidden>
@@ -201,6 +252,6 @@
     document.getElementById('carregando-texto').textContent = 'Este navegador é antigo demais para o jogo. Atualize o iOS (16.4 ou mais novo).';
   }
 </script>
-<script type="module" src="src/main.js?v=e631c5f"></script>
+<script type="module" src="src/main.js?v=edf7d29"></script>
 </body>
 </html>

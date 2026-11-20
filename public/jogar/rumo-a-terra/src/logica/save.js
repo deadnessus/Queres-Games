@@ -3,15 +3,16 @@
 // Sem DOM: dá para testar no Node. A leitura e a gravação no aparelho ficam em src/nucleo/save-local.js.
 import { ITENS } from '../dados/itens.js';
 import { MAX_POR_ITEM } from './inventario.js';
+import { MISSOES, SISTEMAS } from '../dados/missoes.js';
 
 export const JOGO = 'rumo-a-terra';
-export const VERSAO_SAVE = 2; // 2: o Vale passou a dar a volta (512 m); saves da versão 1 mantêm só a mochila
+export const VERSAO_SAVE = 3; // 2: o Vale passou a dar a volta (512 m); 3: missões. Saves da versão 1 mantêm só a mochila
 export const TIPOS_BLOCO = ['madeira', 'pedra', 'cristal'];
 const MAX_BLOCOS = 3000, MAX_FOGUEIRAS = 40;
 
 const inteiro = (v, a, b) => Number.isInteger(v) && v >= a && v <= b;
 
-export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0, pos = null }) {
+export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0, pos = null, missao = null }) {
   return {
     jogo: JOGO,
     versao_save: VERSAO_SAVE,
@@ -21,12 +22,13 @@ export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0, pos
     blocos, // [[tipo, i, j, base em centímetros]]
     fogueiras, // [[x em cm, z em cm]]
     ...(pos ? { pos } : {}), // [x em cm, z em cm, rumo em graus]
+    ...(missao ? { missao } : {}), // { m, p, n, pegos, sistemas, combustivel, porta } (src/logica/missoes.js)
   };
 }
 
 // Confere um save lido do aparelho. Devolve o save limpo ou null (estragado ou de outro jogo).
 export function validarSave(s) {
-  if (!s || typeof s !== 'object' || s.jogo !== JOGO || ![1, VERSAO_SAVE].includes(s.versao_save)) return null;
+  if (!s || typeof s !== 'object' || s.jogo !== JOGO || ![1, 2, VERSAO_SAVE].includes(s.versao_save)) return null;
   // versão 1: o relevo era outro, então as construções e a posição não servem mais; a mochila continua
   if (s.versao_save === 1) s = { ...s, blocos: [], fogueiras: [], pos: null };
   const inventario = Array.isArray(s.inventario)
@@ -42,9 +44,21 @@ export function validarSave(s) {
   const pos = Array.isArray(s.pos) && s.pos.length === 3 && inteiro(s.pos[0], -30000, 30000) && inteiro(s.pos[1], -30000, 30000) && inteiro(s.pos[2], -720, 720)
     ? [s.pos[0], s.pos[1], s.pos[2]] : null;
   return {
-    jogo: JOGO, versao_save: VERSAO_SAVE, pos,
+    jogo: JOGO, versao_save: VERSAO_SAVE, pos, missao: validarMissao(s.missao),
     salvo_em: inteiro(s.salvo_em, 0, 1e11) ? s.salvo_em : 0,
     tempo_jogado_s: inteiro(s.tempo_jogado_s, 0, 1e9) ? s.tempo_jogado_s : 0,
     inventario, blocos, fogueiras,
   };
 }
+
+const CODIGO = /^[a-z0-9_]{1,24}(:[0-9]{1,3})?$/;
+// Progresso das missões: só números e códigos. Estragado: volta para o começo (null).
+function validarMissao(x) {
+  if (!x || typeof x !== 'object') return null;
+  if (!inteiro(x.m, 0, MISSOES.length) || !inteiro(x.p, 0, 30) || !inteiro(x.n, 0, 999) || !inteiro(x.combustivel, 0, 100)) return null;
+  const ids = SISTEMAS.map((s) => s.id);
+  const sistemas = Array.isArray(x.sistemas) ? x.sistemas.filter((v) => Array.isArray(v) && ids.includes(v[0]) && inteiro(v[1], 0, 5)).map(([a, b]) => [a, b]) : [];
+  const pegos = Array.isArray(x.pegos) ? x.pegos.filter((v) => typeof v === 'string' && CODIGO.test(v)).slice(0, 50) : [];
+  return { m: x.m, p: x.p, n: x.n, combustivel: x.combustivel, porta: x.porta === true, sistemas, pegos };
+}
+

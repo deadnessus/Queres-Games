@@ -1,4 +1,5 @@
-// Mapa do Vale (botão 🗺️): o Vale visto de cima, gerado a partir do relevo, com você, a nave e as fogueiras.
+// Mapa do Vale (botão 🗺️): o Vale visto de cima, gerado a partir do relevo, com você, a nave, as fogueiras,
+// os lugares das missões que você já conhece (losangos) e o objetivo da missão de agora (⭐).
 // O norte (onde fica o Colosso) é para cima. O mundo dá a volta: as bordas do mapa se encontram.
 import { embrulhar } from '../logica/toro.js';
 
@@ -27,7 +28,7 @@ export function criarMapa({ grade, terreno, recursos }) {
   }
 
   // Desenha o mapa no canvas da tela, com as marcas por cima.
-  function desenhar(canvas, { jogador, nave, fogueiras, blocos }) {
+  function desenhar(canvas, { jogador, nave, fogueiras, blocos, locais = [], objetivo = null }) {
     const ctx = canvas.getContext('2d');
     const L = canvas.width;
     const paraTela = (x, z) => [((embrulhar(x, T) + T / 2) / T) * L, ((embrulhar(z, T) + T / 2) / T) * L];
@@ -42,6 +43,22 @@ export function criarMapa({ grade, terreno, recursos }) {
       const [x, y] = paraTela(f.x, f.z);
       ctx.fillStyle = '#ff8a2a'; ctx.beginPath(); ctx.arc(x, y, 5 * e, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffe07a'; ctx.beginPath(); ctx.arc(x, y, 2.5 * e, 0, Math.PI * 2); ctx.fill();
+    }
+    // lugares conhecidos das missões
+    ctx.font = `bold ${Math.round(12 * e)}px system-ui, sans-serif`; ctx.textAlign = 'center';
+    for (const l of locais) {
+      const [x, y] = paraTela(l.x, l.z);
+      ctx.fillStyle = '#e2a2cf'; ctx.strokeStyle = '#2a1030'; ctx.lineWidth = 2 * e;
+      ctx.beginPath(); ctx.moveTo(x, y - 7 * e); ctx.lineTo(x + 6 * e, y); ctx.lineTo(x, y + 7 * e); ctx.lineTo(x - 6 * e, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 3 * e; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.strokeText(l.nome, x, y + 19 * e);
+      ctx.fillStyle = '#ffe0f2'; ctx.fillText(l.nome, x, y + 19 * e);
+    }
+    // o objetivo da missão
+    if (objetivo) {
+      const [x, y] = paraTela(objetivo.x, objetivo.z);
+      ctx.font = `${Math.round(26 * e)}px system-ui, sans-serif`;
+      ctx.lineWidth = 4 * e; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText('⭐', x, y + 9 * e);
+      ctx.fillStyle = '#ffd04a'; ctx.fillText('⭐', x, y + 9 * e);
     }
     // a nave
     const [nx, ny] = paraTela(nave.x, nave.z);

@@ -8,6 +8,7 @@ export const PADRAO = Object.freeze({
   qualidade: 'auto', // 'auto', 'leve' ou 'bonita'
   mira: 'media', // ajuda na mira: 'forte', 'media' ou 'desligada' (nunca atira sozinho)
   botoes: 'normal', // tamanho dos botões de toque: 'normal' ou 'grande'
+  atirar: 'esquerda', // lado do botão de atirar (pedido do dono): 'esquerda' ou 'direita'
   reduzirTremor: false, // tira o balanço da câmera ao andar
   volume: 7, // 0 a 10
 });
@@ -17,6 +18,7 @@ const OPCOES = {
   qualidade: ['auto', 'leve', 'bonita'],
   mira: ['forte', 'media', 'desligada'],
   botoes: ['normal', 'grande'],
+  atirar: ['esquerda', 'direita'],
 };
 
 const inteiroEntre = (v, a, b, padrao) => (Number.isInteger(v) && v >= a && v <= b ? v : padrao);

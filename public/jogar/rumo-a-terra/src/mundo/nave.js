@@ -1,9 +1,10 @@
-// A Andorinha caída (modelo provisório da Etapa 0): casco hexagonal branco com faixa azul-marinho,
-// nariz laranja, uma asa quebrada, o motor sem o bocal (é uma das peças a achar), destroços e fumaça.
+// A Andorinha caída: casco hexagonal branco com faixa azul-marinho, nariz laranja, uma asa quebrada,
+// o motor sem o bocal (é uma das peças a achar), destroços e fumaça.
+// Conforme as missões consertam os sistemas, a nave muda: luzes, remendos, bocal, antena, tanques, escudo...
 import * as THREE from 'three';
 import { COR } from '../desenho/paleta.js';
 import { preparar, mesclar, matriz, misturarHex, brilhoHex } from '../desenho/geometria.js';
-import { texturaLetreiro } from '../desenho/texturas.js';
+import { texturaLetreiro, texturaParticula } from '../desenho/texturas.js';
 import { criarAleatorio } from '../logica/ruido.js';
 
 const GRAU = Math.PI / 180;
@@ -112,8 +113,84 @@ export function criarNave({ def, grade, colisoes, particulas }) {
     }
   }
 
-  // Ponto de "Examinar" (a porta da nave).
-  const porta = paraMundo(2.6, 1.2, 1.2);
+  // ---------- peças consertadas (aparecem conforme as missões) ----------
+  const extras = [];
+  const parte = (geos) => { const m = new THREE.Mesh(mesclar(geos)); m.visible = false; grupo.add(m); extras.push(m); return m; };
+  const remendos = parte([
+    peca(new THREE.BoxGeometry(0.1, 0.85, 1.6), matriz(1.38, 1.5, -3.6), 0x9a7a5a),
+    peca(new THREE.BoxGeometry(0.1, 0.75, 1.1), matriz(-1.38, 1.7, 2.0), 0x9a7a5a),
+    ...[-4.2, -3.6, -3.0].map((z) => peca(new THREE.BoxGeometry(0.12, 0.08, 0.08), matriz(1.42, 1.85, z), 0x5a5f6a)),
+  ]);
+  const escudo = parte([-3, -1, 1, 3].flatMap((z) => [-1, 1].map((l) => peca(new THREE.BoxGeometry(0.9, 0.08, 1.7), matriz(l * 0.7, 0.32, z, 0, 0, l * 0.5), (x) => (Math.abs(x) < 0.05 ? 0x5a2a10 : 0xffa040)))));
+  const bocal = parte([
+    peca(new THREE.CylinderGeometry(1.0, 1.35, 1.4, 8, 1, true), matriz(0, 1.6, -7.8, Math.PI / 2, 0, 0), (x, y, z) => misturarHex(0x3a3f4b, 0x8a909c, (z + 8.5) / 1.4)),
+    peca(new THREE.TorusGeometry(1.05, 0.08, 5, 10), matriz(0, 1.6, -7.15), 0x5a606c),
+  ]);
+  const antena = parte([
+    peca(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 4), matriz(0.3, 4.0, 1.0), COR.motor),
+    peca(new THREE.CylinderGeometry(0.75, 0.1, 0.3, 10, 1, true), matriz(0.3, 4.9, 1.0, 0.5, 0, 0), 0xdfe2e8),
+  ]);
+  const suporte = parte([-1, 1].map((k) => peca(new THREE.CylinderGeometry(0.32, 0.32, 1.5, 8), matriz(-1.55, 1.2, -2.4 + k * 0.8, Math.PI / 2, 0, 0), 0x3aa860)));
+  const tanque = parte([
+    peca(new THREE.CylinderGeometry(0.55, 0.55, 3.4, 10), matriz(0, 3.35, -2.6, Math.PI / 2, 0, 0), (x, y) => misturarHex(0x8a909c, 0xdfe2e8, y + 0.5)),
+    peca(new THREE.BoxGeometry(1.3, 0.12, 0.2), matriz(0, 3.05, -3.6), COR.faixa),
+    peca(new THREE.BoxGeometry(1.3, 0.12, 0.2), matriz(0, 3.05, -1.6), COR.faixa),
+  ]);
+  const sensor = parte([
+    peca(new THREE.SphereGeometry(0.35, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), matriz(0, 3.15, 2.2), 0xdfe2e8),
+    peca(new THREE.CircleGeometry(0.16, 8), matriz(0, 3.3, 2.5, -0.5, 0, 0), 0x2a50c0),
+  ]);
+  // partes que brilham (luzes da nave, reator e cristal de salto)
+  const matLuz = new THREE.MeshBasicMaterial({ vertexColors: true });
+  const luz = (geos) => { const m = new THREE.Mesh(mesclar(geos), matLuz); m.visible = false; grupo.add(m); return m; };
+  const luzes = luz([
+    peca(new THREE.BoxGeometry(1.45, 0.45, 2.2), matriz(0, 2.79, 3.71, -0.24, 0, 0), 0x8fe6ff), // cabine acesa
+    peca(new THREE.OctahedronGeometry(0.12, 0), matriz(-6.5, 1.25, -1.3), 0xff3030), // luz da ponta da asa
+    peca(new THREE.OctahedronGeometry(0.12, 0), matriz(3.3, 1.2, -1.3), 0x30ff60),
+    peca(new THREE.BoxGeometry(0.08, 0.1, 0.5), matriz(1.42, 2.35, 1.2), 0xffe080), // luz da porta
+  ]);
+  const cristal = luz([
+    peca(new THREE.OctahedronGeometry(0.4, 0), matriz(0, 3.6, -4.3, 0, 0, 0, 1, 1.8, 1), 0xff8af0),
+    peca(new THREE.TorusGeometry(0.6, 0.06, 5, 12), matriz(0, 3.6, -4.3, 0, 0, 0), 0x5ff0ff),
+  ]);
+  const brilhoReator = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaParticula(), color: 0x6dc8ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.85 }));
+  brilhoReator.position.set(0, 1.6, -7.4);
+  brilhoReator.scale.setScalar(2.4);
+  brilhoReator.visible = false;
+  grupo.add(brilhoReator);
 
-  return { grupo, casco, letreiro, destrocos, atualizar, porta, centro: new THREE.Vector3(n.x, yChao, n.z) };
+  let semFumaca = false;
+  // Mostra o que já foi consertado. "s" = { energia, casco, motor, comunicacao, suporte, combustivel, navegacao, salto }.
+  function mostrarSistemas(s) {
+    luzes.visible = s.energia >= 1;
+    brilhoReator.visible = s.energia >= 2;
+    remendos.visible = s.casco >= 1;
+    escudo.visible = s.casco >= 2;
+    bocal.visible = s.motor >= 1;
+    antena.visible = s.comunicacao >= 1;
+    suporte.visible = s.suporte >= 1;
+    tanque.visible = s.combustivel >= 1;
+    sensor.visible = s.navegacao >= 1;
+    cristal.visible = s.salto >= 1;
+    semFumaca = s.motor >= 1; // com o motor consertado, para de sair fumaça
+  }
+  const atualizarAntes = atualizar;
+  function atualizarNave(dt) {
+    if (!semFumaca) atualizarAntes(dt);
+    if (cristal.visible) cristal.rotation.y += dt * 0.8;
+  }
+
+  // Ponto da porta da nave (onde aparece "Falar com a ÍRIS" e "Painel da nave").
+  const porta = paraMundo(2.6, 1.2, 1.2);
+  // Saída do motor (para o fogo da decolagem), no espaço da nave.
+  const saidaMotor = new THREE.Vector3(0, 1.6, -8.4);
+  const pose = { y: grupo.position.y, rotacao: grupo.rotation.clone() };
+
+  return {
+    grupo, casco, letreiro, destrocos, extras, atualizar: atualizarNave, porta, mostrarSistemas, saidaMotor, giro,
+    centro: new THREE.Vector3(n.x, yChao, n.z),
+    // Volta a nave para o lugar e a posição de antes da decolagem.
+    voltarAoLugar() { grupo.position.y = pose.y; grupo.rotation.copy(pose.rotacao); },
+    get poseOriginal() { return pose; },
+  };
 }

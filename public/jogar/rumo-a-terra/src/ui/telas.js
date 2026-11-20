@@ -1,7 +1,7 @@
 // Telas por cima do jogo: carregando, início, pausa, opções, "gire o aparelho" e erro.
 // Todas as opções ficam guardadas só neste aparelho.
 const $ = (id) => document.getElementById(id);
-const TELAS = ['tela-carregando', 'tela-inicio', 'tela-pausa', 'tela-opcoes', 'tela-mochila', 'tela-mapa', 'tela-erro'];
+const TELAS = ['tela-carregando', 'tela-inicio', 'tela-pausa', 'tela-opcoes', 'tela-mochila', 'tela-mapa', 'tela-erro', 'tela-painel', 'tela-final'];
 
 export function mostrarTela(qual) {
   for (const t of TELAS) $(t).hidden = t !== qual;
@@ -25,7 +25,7 @@ export function ligarOpcoes(config, aoMudar) {
     vol.value = config.volume;
     inv.checked = config.inverterY;
     tremor.checked = config.reduzirTremor;
-    for (const grupo of ['visual', 'qualidade', 'mira', 'botoes']) {
+    for (const grupo of ['visual', 'qualidade', 'mira', 'botoes', 'atirar']) {
       document.querySelectorAll(`[data-${grupo}]`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset[grupo] === config[grupo])));
     }
     $('opt-sensibilidade-valor').textContent = config.sensibilidade;
@@ -35,7 +35,7 @@ export function ligarOpcoes(config, aoMudar) {
   vol.addEventListener('input', () => { config.volume = Number(vol.value); preencher(); aoMudar(config); });
   inv.addEventListener('change', () => { config.inverterY = inv.checked; aoMudar(config); });
   tremor.addEventListener('change', () => { config.reduzirTremor = tremor.checked; aoMudar(config); });
-  for (const grupo of ['visual', 'qualidade', 'mira', 'botoes']) {
+  for (const grupo of ['visual', 'qualidade', 'mira', 'botoes', 'atirar']) {
     document.querySelectorAll(`[data-${grupo}]`).forEach((b) => b.addEventListener('click', () => {
       config[grupo] = b.dataset[grupo];
       preencher();

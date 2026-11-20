@@ -1,5 +1,5 @@
 // O que aparece por cima do jogo (HTML + CSS): bússola, mira, calor da arma, botão de ação,
-// mensagens da ÍRIS, contador dos alvos de treino e o painel de desempenho (?debug=1).
+// mensagens da ÍRIS, contador dos alvos de treino, a missão atual, a vida do chefe e o painel de desempenho (?debug=1).
 const $ = (id) => document.getElementById(id);
 
 const PONTOS = [['N', 0], ['NE', 45], ['L', 90], ['SE', 135], ['S', 180], ['SO', 225], ['O', 270], ['NO', 315]];
@@ -40,6 +40,8 @@ export function criarHud({ som }) {
       m.el.style.opacity = Math.abs(r) > CAMPO_BUSSOLA / 2 ? 0 : 1 - Math.abs(r) / (CAMPO_BUSSOLA / 2) * 0.6;
       m.el.style.transform = `translateX(${px(m.rumo)}px)`;
     }
+    const usados = new Set(extras.map((x) => x.id));
+    for (const [id, m] of marcadores) m.el.hidden = !usados.has(id);
     for (const x of extras) {
       const m = marcador(x.id, x.icone, x.texto);
       if (m.texto !== x.texto) { m.texto = x.texto; m.legenda.textContent = x.texto; }
@@ -83,6 +85,9 @@ export function criarHud({ som }) {
   }
 
   let ultimoAcao = null, ultimoCalor = -1, ultimaMira = null, ultimoContador = -1;
+  const btnMissao = $('btn-missao'), missaoIcone = $('missao-icone'), missaoTitulo = $('missao-titulo'), missaoTexto = $('missao-texto'), missaoProg = $('missao-progresso');
+  const chefeEl = $('chefe'), chefeNome = $('chefe-nome'), chefeCheia = $('chefe-cheia');
+  let ultimaMissao = '', ultimoChefe = '';
 
   return {
     bussola,
@@ -148,5 +153,34 @@ export function criarHud({ som }) {
       contador.textContent = `Bolhas de treino: ${n}`;
     },
     debug(texto) { if (debugEl.hidden) debugEl.hidden = false; debugEl.textContent = texto; },
+    // A missão atual (canto de cima, à esquerda). null esconde.
+    missao(m) {
+      const chave = m ? `${m.icone}|${m.titulo}|${m.texto}|${m.progresso}` : '';
+      if (chave === ultimaMissao) return;
+      ultimaMissao = chave;
+      btnMissao.hidden = !m;
+      if (!m) return;
+      missaoIcone.textContent = m.icone;
+      missaoTitulo.textContent = m.titulo;
+      missaoTexto.textContent = m.texto;
+      missaoProg.textContent = m.progresso || '';
+      missaoProg.hidden = !m.progresso;
+    },
+    // Pisca a caixa da missão (passo novo).
+    destacarMissao() {
+      btnMissao.classList.remove('novo');
+      void btnMissao.offsetWidth;
+      btnMissao.classList.add('novo');
+    },
+    // Barra de vida do chefe por perto (embaixo, no meio). null esconde.
+    chefe(c) {
+      const chave = c ? `${c.nome}|${Math.round(c.fracao * 100)}` : '';
+      if (chave === ultimoChefe) return;
+      ultimoChefe = chave;
+      chefeEl.hidden = !c;
+      if (!c) return;
+      chefeNome.textContent = c.nome;
+      chefeCheia.style.transform = `scaleX(${c.fracao})`;
+    },
   };
 }
