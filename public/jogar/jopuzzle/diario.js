@@ -48,9 +48,12 @@ const ICONES = {
   prox: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   voltar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
   trocar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>',
+  compartilhar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>',
+  balao: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19l1.4-4A8 8 0 1 1 9 18.6z"/></svg>',
+  copiar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
 };
-const botao = (rotulo, onclick, { icone, tipo = '', desligado = false, depois = false } = {}) => {
-  const b = h('button', { class: 'pn-btn ' + tipo, type: 'button', onclick, disabled: desligado });
+const botao = (rotulo, onclick, { icone, tipo = '', desligado = false, depois = false, id } = {}) => {
+  const b = h('button', { class: 'pn-btn ' + tipo, type: 'button', onclick, disabled: desligado, id });
   if (icone && !depois) b.insertAdjacentHTML('beforeend', ICONES[icone]);
   b.append(rotulo);
   if (icone && depois) b.insertAdjacentHTML('beforeend', ICONES[icone]);
@@ -91,6 +94,64 @@ function semConexao(tentar) {
   );
 }
 
+/* ---------- compartilhar o resultado (WhatsApp, Messenger ou o menu do celular) ---------- */
+// O texto leva só o dia, o tempo e a posição: nunca o apelido nem o código da conta.
+// O link abre o jogo direto no desafio do dia (#desafio).
+const LINK_DO_DESAFIO = (() => {
+  try { return new URL('./#desafio', location.href).href; } catch (e) { return 'https://queres.games/jogar/jopuzzle/#desafio'; }
+})();
+const MEDALHA = ['🥇', '🥈', '🥉'];
+function textoDoResultado(d) {
+  const lugar = `${MEDALHA[d.posicao - 1] || '🏁'} ${d.posicao}º de ${d.total} até agora`;
+  return `🧩 JoPuzzle · Desafio do dia ${dd_mm(d.dia)}\n⏱️ Resolvi em ${tempoLongo(d.tempoMs)}\n${lugar}\nConsegue mais rápido?\n${LINK_DO_DESAFIO}`;
+}
+const celular = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+
+function abrirFora(url) {
+  // sem 'noopener' na chamada: com ele o navegador sempre devolve null e não daria para saber se abriu
+  const w = window.open(url, '_blank');
+  if (w) { try { w.opener = null; } catch (e) { /* nada */ } } else location.href = url; // bloqueador de janelas: abre na mesma aba
+}
+
+async function copiar(texto) {
+  try { await navigator.clipboard.writeText(texto); return true; } catch (e) { /* tenta do jeito antigo */ }
+  const t = h('textarea', { readonly: true, style: 'position:fixed;top:0;left:0;opacity:0' });
+  t.value = texto;
+  document.body.append(t);
+  t.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { /* sem cópia */ }
+  t.remove();
+  return ok;
+}
+
+function blocoDeCompartilhar(d) {
+  const texto = textoDoResultado(d);
+  const aviso = h('p', { class: 'pn-sub pn-aviso', 'aria-live': 'polite' });
+  const avisar = (msg) => { aviso.textContent = msg; };
+  const linhas = [];
+  if (navigator.share) {
+    linhas.push(h('div', { class: 'pn-linha' }, botao('Compartilhar', async () => {
+      try { await navigator.share({ text: texto }); } catch (e) { /* a pessoa cancelou */ }
+    }, { icone: 'compartilhar', tipo: 'principal', id: 'jp-compartilhar' })));
+  }
+  const apps = [botao('WhatsApp', () => abrirFora('https://wa.me/?text=' + encodeURIComponent(texto)), { icone: 'balao', tipo: 'compacto zap', id: 'jp-whatsapp' })];
+  if (celular()) {
+    // O Messenger só recebe o link (a prévia vem da página do jogo). Sem o aplicativo instalado, não abre nada.
+    apps.push(botao('Messenger', () => {
+      location.href = 'fb-messenger://share/?link=' + encodeURIComponent(LINK_DO_DESAFIO);
+      setTimeout(() => {
+        if (document.visibilityState === 'visible') avisar('Não achei o Messenger neste aparelho. Use "Copiar" e cole a mensagem lá.');
+      }, 1800);
+    }, { icone: 'balao', tipo: 'compacto messenger', id: 'jp-messenger' }));
+  }
+  apps.push(botao('Copiar', async () => {
+    avisar(await copiar(texto) ? 'Copiado! Agora é só colar na conversa.' : 'Não consegui copiar neste aparelho.');
+  }, { icone: 'copiar', tipo: 'compacto suave', id: 'jp-copiar' }));
+  linhas.push(h('div', { class: 'pn-linha pn-apps' }, ...apps), aviso);
+  return linhas;
+}
+
 /* ---------- desafio do dia ---------- */
 async function abrirDiario() {
   carregando();
@@ -126,6 +187,7 @@ async function abrirDiario() {
       h('p', { class: 'pn-sub' }, 'Seu tempo'),
       h('div', { class: 'pn-grande' }, tempoLongo(d.tempoMs)),
       h('p', { class: 'pn-sub' }, `${d.posicao}º de ${d.total} ${d.total === 1 ? 'jogador' : 'jogadores'} hoje. Volte amanhã para um novo desafio!`),
+      ...blocoDeCompartilhar(d),
       rodape);
   } else {
     mostrar(...topo,
@@ -314,6 +376,8 @@ $('btn-ranking').addEventListener('click', () => abrirRanking());
   if (r.dados.logado) {
     eu = { apelido: r.dados.apelido };
     abrirDiario(); // quem já está logada vê o desafio assim que abre o jogo
+  } else if (location.hash === '#desafio') {
+    abrirLogin(); // veio por um link compartilhado: já mostra como entrar no desafio
   }
 })();
 })();
