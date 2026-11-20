@@ -138,3 +138,35 @@ export function texturaLetreiro(texto) {
   g.fillText(texto, 128, 26);
   return comoTextura(c, { cor: true });
 }
+
+// Texturas dos blocos de construir (32 px, pixeladas): tábuas de madeira, tijolos de pedra e cristal.
+export function texturaBloco(tipo) {
+  const T = 32;
+  const [c, g] = canvas(T, T);
+  const rnd = criarAleatorio(tipo === 'madeira' ? 11 : tipo === 'pedra' ? 12 : 13);
+  const px = (x, y, r, gg, b) => { g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(x, y, 1, 1); };
+  for (let y = 0; y < T; y++) {
+    for (let x = 0; x < T; x++) {
+      const v = (rnd() - 0.5) * 22;
+      if (tipo === 'madeira') {
+        const tabua = Math.floor(y / 8);
+        const veio = Math.sin((x + tabua * 7) * 0.7 + Math.sin(y * 1.3) * 0.8) * 10;
+        const emenda = y % 8 === 0 || (x + tabua * 11) % 32 === 0;
+        const base = emenda ? [70, 44, 28] : [150 + veio, 98 + veio * 0.7, 58];
+        px(x, y, base[0] + v, base[1] + v * 0.7, base[2] + v * 0.4);
+      } else if (tipo === 'pedra') {
+        const linha = Math.floor(y / 8);
+        const junta = y % 8 === 0 || (x + (linha % 2) * 8) % 16 === 0;
+        const base = junta ? [72, 66, 84] : [132, 126, 150];
+        px(x, y, base[0] + v, base[1] + v, base[2] + v);
+      } else {
+        const faceta = (x + y) % 16 === 0 || (x - y + 32) % 16 === 0;
+        const borda = x === 0 || y === 0 || x === T - 1 || y === T - 1;
+        const base = borda ? [40, 160, 200] : faceta ? [200, 255, 255] : [90, 220, 245];
+        px(x, y, base[0] + v * 0.5, base[1] + v * 0.3, base[2]);
+      }
+    }
+  }
+  if (tipo === 'madeira') { g.fillStyle = 'rgb(60,50,45)'; for (const [x, y] of [[2, 3], [29, 3], [2, 11], [29, 11], [2, 19], [29, 19], [2, 27], [29, 27]]) g.fillRect(x, y, 1, 1); }
+  return comoTextura(c, { pixelada: true, cor: true });
+}

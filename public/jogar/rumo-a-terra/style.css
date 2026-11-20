@@ -67,7 +67,7 @@ html, body {
 #calor.travada { animation: piscar 0.25s steps(2) infinite; }
 @keyframes piscar { 50% { background: rgba(255, 60, 40, 0.8); } }
 
-#contador-alvos { position: absolute; top: calc(var(--seg-cima) + 10px); right: calc(var(--seg-dir) + 16px); padding: 6px 10px; border-radius: 12px; background: rgba(8, 12, 28, 0.5); font-size: 13px; font-weight: 700; color: var(--ciano); }
+#contador-alvos { position: absolute; top: calc(var(--seg-cima) + 64px); right: calc(var(--seg-dir) + 16px); padding: 6px 10px; border-radius: 12px; background: rgba(8, 12, 28, 0.5); font-size: 13px; font-weight: 700; color: var(--ciano); }
 #contador-alvos[hidden] { display: none; }
 
 #mensagem {
@@ -166,3 +166,53 @@ button:focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
   button { min-height: 46px; }
   #mensagem { font-size: 15px; top: calc(var(--seg-cima) + 50px); }
 }
+
+/* ---------- coleta, mochila e construir ---------- */
+#btn-mochila {
+  position: absolute; top: calc(var(--seg-cima) + 10px); right: calc(var(--seg-dir) + 14px);
+  width: 52px; height: 52px; border-radius: 50%; padding: 0; font-size: 26px;
+  background: rgba(8, 12, 28, 0.5); border: 2px solid rgba(255, 179, 71, 0.75);
+}
+#btn-cancelar {
+  position: absolute; right: calc(var(--seg-dir) + 22px + 150px); bottom: calc(var(--seg-baixo) + 30px + var(--b-atirar) + 18px);
+  width: var(--b-acao); height: var(--b-acao); border-radius: 50%; padding: 0; font-size: 24px; font-weight: 900;
+  background: rgba(255, 80, 60, 0.3); border: 3px solid rgba(255, 180, 170, 0.8);
+}
+#btn-cancelar[hidden] { display: none; }
+body:not(.com-toque) #btn-cancelar { display: none; }
+#btn-acao.bloqueado { background: rgba(120, 120, 140, 0.35); border-color: rgba(200, 200, 215, 0.6); }
+#avisos { position: absolute; left: 50%; bottom: calc(var(--seg-baixo) + 108px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.aviso { padding: 6px 14px; border-radius: 14px; background: rgba(8, 14, 32, 0.82); border: 1px solid rgba(255, 179, 71, 0.6); font-size: 16px; font-weight: 800; white-space: nowrap; animation: aviso-entra 0.2s ease-out; transition: opacity 0.4s; }
+.aviso.saindo { opacity: 0; }
+@keyframes aviso-entra { from { transform: translateY(8px); opacity: 0; } }
+#modo-colocar { position: absolute; left: 50%; bottom: calc(var(--seg-baixo) + 64px); transform: translateX(-50%); padding: 6px 14px; border-radius: 12px; background: rgba(8, 14, 32, 0.82); border-left: 4px solid #5ff0a0; font-size: 15px; font-weight: 700; white-space: nowrap; }
+#modo-colocar[hidden] { display: none; }
+
+.cartao.mochila { max-width: 760px; text-align: left; }
+.topo-mochila { display: flex; gap: 10px; align-items: center; position: sticky; top: -22px; z-index: 2; margin: -22px -22px 0; padding: 22px 22px 10px; background: #0f1530; border-radius: 16px 16px 0 0; }
+@media (max-height: 430px) { .topo-mochila { top: -14px; margin: -14px -18px 0; padding: 14px 18px 8px; } }
+.abas { display: flex; gap: 6px; flex: 1; }
+.abas button { flex: 1; min-height: 46px; font-size: 16px; }
+.abas button[aria-selected="true"] { background: var(--acento); color: #1a1020; border-color: #ffe0b0; font-weight: 800; }
+#btn-fechar-mochila { width: 46px; min-height: 46px; padding: 0; font-size: 20px; font-weight: 900; }
+.grade-itens { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; padding: 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); }
+.item .icone { font-size: 28px; grid-row: span 2; }
+.item b { font-size: 15px; }
+.item .qtd { font-weight: 800; color: var(--acento); }
+.item small { grid-column: 2 / 4; color: var(--suave); font-size: 12px; line-height: 1.3; }
+.item button { grid-column: 1 / 4; margin-top: 6px; }
+.vazio { margin: 6px 0; color: var(--suave); font-size: 15px; line-height: 1.4; }
+.lista-receitas { display: flex; flex-direction: column; gap: 8px; }
+.receita { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); opacity: 0.8; }
+.receita.pode { opacity: 1; border-color: rgba(95, 240, 160, 0.6); background: rgba(95, 240, 160, 0.08); }
+.receita .icone { font-size: 30px; flex: none; width: 40px; text-align: center; }
+.receita .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.receita .info small { color: var(--suave); font-size: 12px; }
+.custos { display: flex; flex-wrap: wrap; gap: 5px; }
+.custo { padding: 2px 7px; border-radius: 8px; background: rgba(255, 90, 70, 0.18); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.custo.ok { background: rgba(95, 240, 160, 0.18); }
+button.pequeno { min-height: 40px; padding: 6px 14px; font-size: 15px; font-weight: 800; background: #2a3a70; }
+.receita.pode button.pequeno { background: #5ff0a0; color: #062016; border-color: #c8ffe2; }
+button:disabled { opacity: 0.55; cursor: default; }
+

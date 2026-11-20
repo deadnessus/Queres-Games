@@ -14,6 +14,7 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
   const qtdPedacos = Math.round(grade.tamanho / LADO_PEDACO);
   const baldes = new Map(); // pedaço -> { geos: [], tufos: { p: [], c: [] } }
   const cristais = [];
+  const recursos = []; // coisas que dá para quebrar (ver src/mundo/recursos.js)
   const limite = grade.tamanho / 2 - 22;
   const corT = new THREE.Color();
 
@@ -79,6 +80,7 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
     const r = 0.5 + rnd() * 0.7;
     const y = grade.alturaEm(x, z);
     const geo = tremer(new THREE.IcosahedronGeometry(1, 1), 0.35, rnd);
+    recursos.push({ tipo: 'arbusto', x, y, z, raio: r * 0.95, altura: r * 1.2, balde: balde(x, z), g0: balde(x, z).geos.length, ng: 1 });
     balde(x, z).geos.push(preparar(geo, (vx, vy) => misturarHex(COR.arbusto, COR.arbustoPonta, (vy + 1) / 2 + (rnd() - 0.5) * 0.2),
       matriz(x, y + r * 0.45, z, 0, rnd() * 6, 0, r, r * 0.75, r)));
   }
@@ -93,6 +95,7 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
     const y = grade.alturaEm(x, z);
     const inclX = (rnd() - 0.5) * 0.18, inclZ = (rnd() - 0.5) * 0.18;
     const g = balde(x, z).geos;
+    const rec = { tipo: 'arvore', x, y, z, raio: 0.45 * s + 0.3, altura: alt + raio * 0.6, balde: balde(x, z), g0: g.length };
     const tronco = tremer(new THREE.CylinderGeometry(0.2 * s, 0.38 * s, alt, 6, 3), 0.12 * s, rnd);
     g.push(preparar(tronco, (vx, vy) => brilhoHex(COR.tronco, 0.8 + (vy / alt + 0.5) * 0.35), matriz(x, y + alt / 2 - 0.1, z, inclX, 0, inclZ)));
     const topoX = x + Math.sin(inclZ) * -alt * 0.5, topoZ = z + Math.sin(inclX) * alt * 0.5;
@@ -105,7 +108,10 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
       const a = rnd() * Math.PI * 2, d = raio * (0.4 + rnd() * 0.45);
       g.push(preparar(new THREE.IcosahedronGeometry(0.17 * s, 0), COR.fruta, matriz(topoX + Math.cos(a) * d, y + alt + raio * 0.05 - 0.2, topoZ + Math.sin(a) * d)));
     }
-    colisoes.adicionar({ tipo: 'cilindro', x, z, r: 0.42 * s, base: y - 2, topo: y + alt + raio * 0.4 });
+    rec.ng = g.length - rec.g0;
+    rec.colisor = { tipo: 'cilindro', x, z, r: 0.42 * s, base: y - 2, topo: y + alt + raio * 0.4 };
+    colisoes.adicionar(rec.colisor);
+    recursos.push(rec);
   }
 
   // ---- pedras (algumas grandes, com cristais em volta) ----
@@ -119,9 +125,11 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
     const y = grade.alturaEm(x, z);
     const geo = tremer(new THREE.IcosahedronGeometry(1, grande ? 1 : 0), grande ? 0.32 : 0.45, rnd);
     const tom = rnd();
+    const rec = { tipo: grande || r > 1.1 ? 'pedraGrande' : 'pedra', x, y, z, raio: r * 1.05, altura: r * 0.95, balde: balde(x, z), g0: balde(x, z).geos.length, ng: 1 };
+    recursos.push(rec);
     balde(x, z).geos.push(preparar(geo, (vx, vy) => misturarHex(brilhoHex(COR.pedra, 0.78), misturarHex(COR.pedra, COR.pedraClara, tom), (vy + 1) / 2 + 0.15),
       matriz(x, y + r * 0.3, z, rnd() * 0.4, rnd() * 6, rnd() * 0.4, r * (1 + rnd() * 0.3), r * (0.55 + rnd() * 0.35), r)));
-    if (r > 0.75) colisoes.adicionar({ tipo: 'cilindro', x, z, r: r * 0.85, base: y - 2, topo: y + r * 0.9 });
+    if (r > 0.75) { rec.colisor = { tipo: 'cilindro', x, z, r: r * 0.85, base: y - 2, topo: y + r * 0.9 }; colisoes.adicionar(rec.colisor); }
     if (grande && cristais.length < def.vegetacao.cristais.quantidade && rnd() < 0.6) {
       const a = rnd() * Math.PI * 2;
       cristais.push([x + Math.cos(a) * (r + 0.4), z + Math.sin(a) * (r + 0.4)]);
@@ -153,15 +161,25 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
     if (!lista.length) continue;
     const mesh = new THREE.Mesh(mesclar(lista));
     mesh.matrixAutoUpdate = false;
+    // início (em vértices) de cada peça dentro da malha juntada
+    const inicios = [];
+    let soma = 0;
+    for (const g of lista) { inicios.push(soma); soma += g.attributes.position.count; }
+    b.mesh = mesh;
+    b.inicios = inicios;
+    b.contagens = lista.map((g) => g.attributes.position.count);
     const bs = mesh.geometry.boundingSphere;
     malhas.push({ mesh, x: bs.center.x, z: bs.center.z, raio: bs.radius, chave: k });
     grupo.add(mesh);
   }
 
   const geosCristal = [];
+  const recCristais = [];
   for (const [x, z] of cristais) {
     const y = grade.alturaEm(x, z);
-    for (let k = 0, n = 3 + Math.floor(rnd() * 3); k < n; k++) {
+    const n = 3 + Math.floor(rnd() * 3);
+    recCristais.push({ tipo: 'cristal', x, y, z, raio: 0.55, altura: 0.9, g0: geosCristal.length, ng: n });
+    for (let k = 0; k < n; k++) {
       const s = 0.6 + rnd() * 0.7;
       geosCristal.push(preparar(new THREE.OctahedronGeometry(0.16, 0), (vx, vy) => misturarHex(0x1d8fb0, COR.cristal, vy / 0.16 * 0.5 + 0.6),
         matriz(x + (rnd() - 0.5) * 0.6, y + 0.25 * s, z + (rnd() - 0.5) * 0.6, (rnd() - 0.5) * 0.8, rnd() * 6, (rnd() - 0.5) * 0.8, s, s * 3, s)));
@@ -170,5 +188,26 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
   const malhaCristais = geosCristal.length ? new THREE.Mesh(mesclar(geosCristal), new THREE.MeshBasicMaterial({ vertexColors: true })) : null;
   if (malhaCristais) { malhaCristais.matrixAutoUpdate = false; grupo.add(malhaCristais); }
 
-  return { grupo, malhas, malhaCristais };
+  // Cada recurso guarda em que malha está e quais vértices são dele (para tremer, sumir e crescer de novo).
+  for (const r of recursos) {
+    const b = r.balde;
+    r.mesh = b.mesh;
+    r.inicio = b.inicios[r.g0];
+    r.contagem = b.inicios[r.g0 + r.ng - 1] + b.contagens[r.g0 + r.ng - 1] - r.inicio;
+    delete r.balde;
+  }
+  if (malhaCristais) {
+    const inicios = [];
+    let soma = 0;
+    for (const g of geosCristal) { inicios.push(soma); soma += g.attributes.position.count; }
+    for (const r of recCristais) {
+      r.mesh = malhaCristais;
+      r.inicio = inicios[r.g0];
+      r.contagem = inicios[r.g0 + r.ng - 1] + geosCristal[r.g0 + r.ng - 1].attributes.position.count - r.inicio;
+      recursos.push(r);
+    }
+  }
+  recursos.forEach((r, i) => { r.id = i; });
+
+  return { grupo, malhas, malhaCristais, recursos };
 }

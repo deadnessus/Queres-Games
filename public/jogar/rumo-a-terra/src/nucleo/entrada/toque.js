@@ -74,7 +74,7 @@ export function iniciarToque({ camada, base, pino, btnAtirar, btnPular, btnAcao,
   }
   botao(btnAtirar, () => { entrada.atirandoToque = true; }, () => { entrada.atirandoToque = false; }, true);
   botao(btnPular, () => { entrada.pularPedido = true; });
-  botao(btnAcao, () => { entrada.acaoPedida = true; });
+  botao(btnAcao, () => { entrada.acaoPedida = true; entrada.acaoSegurando = true; }, () => { entrada.acaoSegurando = false; });
 
   addEventListener('pointermove', (e) => {
     const p = papeis.get(e.pointerId);

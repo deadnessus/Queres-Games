@@ -12,6 +12,9 @@ export function criarColisoes(tamanho) {
   const idx = (v) => Math.max(0, Math.min(n - 1, Math.floor((v + meio) / CELULA)));
 
   function adicionar(c) {
+    c.ativo = true;
+    if (c.registrado) return; // já está na grade (foi só desligado antes)
+    c.registrado = true;
     if (c.tipo === 'caixa') {
       c.cos = Math.cos(c.giro); c.sin = Math.sin(c.giro);
       c.alcance = Math.hypot(c.meioX, c.meioZ);
@@ -27,12 +30,15 @@ export function criarColisoes(tamanho) {
     }
   }
 
+  // Desliga um obstáculo (árvore cortada, bloco quebrado). Para ligar de novo, chame adicionar(c).
+  function remover(c) { if (c) c.ativo = false; }
+
   function perto(x, z, raio) {
     const vistos = new Set();
     for (let i = idx(x - raio); i <= idx(x + raio); i++) {
       for (let j = idx(z - raio); j <= idx(z + raio); j++) {
         const l = grade.get(chave(i, j));
-        if (l) for (const c of l) vistos.add(c);
+        if (l) for (const c of l) if (c.ativo) vistos.add(c);
       }
     }
     return vistos;
@@ -92,5 +98,17 @@ export function criarColisoes(tamanho) {
     return false;
   }
 
-  return { adicionar, empurrar, pontoDentro, perto, get total() { return todos.length; } };
+  // Topo mais alto de algo "pisável" (blocos) embaixo do ponto, que não esteja acima de yMax. -Infinity se nada.
+  function topoSob(x, z, yMax, margem = 0.22) {
+    let melhor = -Infinity;
+    for (const c of perto(x, z, 1)) {
+      if (!c.pisavel || c.topo > yMax || c.topo <= melhor) continue;
+      const dx = x - c.x, dz = z - c.z;
+      const lx = dx * c.cos - dz * c.sin, lz = dx * c.sin + dz * c.cos;
+      if (Math.abs(lx) <= c.meioX + margem && Math.abs(lz) <= c.meioZ + margem) melhor = c.topo;
+    }
+    return melhor;
+  }
+
+  return { adicionar, remover, empurrar, pontoDentro, perto, topoSob, get total() { return todos.length; } };
 }

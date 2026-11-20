@@ -66,6 +66,35 @@ export function criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som }
   modelo.scale.setScalar(0.5);
   cenaArma.add(modelo);
 
+  // ---- ferramentas na mão (para coletar): luva, machado de pedra e picareta de pedra ----
+  const matFerr = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const cabo = (comp) => preparar(new THREE.CylinderGeometry(0.016, 0.02, comp, 6), (x, y) => (y < -comp * 0.3 ? 0x5a3b26 : 0x8a5a3c), matriz(0, 0, 0));
+  const ferramentas = {
+    luva: new THREE.Mesh(mesclar([
+      preparar(new THREE.BoxGeometry(0.085, 0.07, 0.11), 0xd8743b, matriz(0, 0, 0)),
+      preparar(new THREE.BoxGeometry(0.085, 0.03, 0.05), 0xb85f30, matriz(0, -0.03, -0.07)),
+      preparar(new THREE.BoxGeometry(0.03, 0.035, 0.05), 0xb85f30, matriz(-0.055, -0.01, -0.01)),
+      preparar(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 8), 0x3a3f4b, matriz(0, 0.01, 0.09, Math.PI / 2, 0, 0)),
+    ]), matFerr),
+    machado: new THREE.Mesh(mesclar([
+      cabo(0.42),
+      preparar(new THREE.BoxGeometry(0.13, 0.075, 0.035), (x) => (x > 0.04 ? 0xa59fb8 : 0x77708a), matriz(0.05, 0.17, 0)),
+      preparar(new THREE.BoxGeometry(0.03, 0.05, 0.045), 0xf2a03c, matriz(-0.005, 0.17, 0)),
+    ]), matFerr),
+    picareta: new THREE.Mesh(mesclar([
+      cabo(0.44),
+      preparar(new THREE.BoxGeometry(0.3, 0.04, 0.035), (x) => (Math.abs(x) > 0.1 ? 0xa59fb8 : 0x77708a), matriz(0, 0.19, 0, 0, 0, 0)),
+      preparar(new THREE.BoxGeometry(0.035, 0.05, 0.045), 0xf2a03c, matriz(0, 0.19, 0)),
+    ]), matFerr),
+  };
+  const POS_MAO = new THREE.Vector3(0.24, -0.26, -0.42);
+  const mao = new THREE.Group();
+  for (const f of Object.values(ferramentas)) { f.visible = false; mao.add(f); }
+  mao.position.copy(POS_MAO);
+  mao.visible = false;
+  cenaArma.add(mao);
+  let tempoMao = 0, golpe = 0, ferramentaAtual = 'luva';
+
   // ---- tiros (conjunto reaproveitado) ----
   const geoTiro = new THREE.BoxGeometry(0.07, 0.07, 1.1);
   const matTiro = new THREE.MeshBasicMaterial({ color: 0x8ff8ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -149,7 +178,10 @@ export function criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som }
     espera -= dt;
     calor = Math.max(0, calor - dt * (travada ? 0.5 : 0.65));
     if (travada && calor < 0.3) travada = false;
+    if (atirando) tempoMao = 0; // atirar volta para a arma na hora
     if (atirando && !travada && espera <= 0) disparar(ajuda);
+    tempoMao = Math.max(0, tempoMao - dt);
+    golpe = Math.max(0, golpe - dt * 4.5);
     atualizarTiros(dt);
     recuo = Math.max(0, recuo - dt * 9);
     tempoFlash -= dt;
@@ -165,6 +197,17 @@ export function criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som }
       POS_ARMA.z + recuo * 0.07,
     );
     modelo.rotation.set(recuo * 0.14, 0, 0);
+    // ferramenta na mão (aparece ao coletar e some sozinha depois de um tempinho)
+    const comFerramenta = tempoMao > 0;
+    modelo.visible = !comFerramenta;
+    mao.visible = comFerramenta;
+    if (comFerramenta) {
+      for (const [id, f] of Object.entries(ferramentas)) f.visible = id === ferramentaAtual;
+      // golpe: levanta e desce rápido
+      const g = golpe > 0.5 ? (1 - golpe) * 2 : golpe * 2; // 0 -> 1 -> 0
+      mao.position.set(POS_MAO.x + Math.cos(balanco) * 0.01 * k, POS_MAO.y + g * 0.05, POS_MAO.z - g * 0.05);
+      mao.rotation.set(ferramentaAtual === 'luva' ? -0.2 - g * 0.6 : 0.35 - g * 1.4, 0.25, ferramentaAtual === 'luva' ? 0 : 0.35);
+    }
     flash.visible = tempoFlash > 0;
     flash.rotation.z = Math.random() * Math.PI;
     matTira.color.copy(corFria).lerp(corQuente, calor);
@@ -183,6 +226,9 @@ export function criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som }
 
   return {
     atualizar, desenhar,
+    // Mostra a ferramenta e dá um golpe ('luva', 'machado' ou 'picareta').
+    golpear(ferramenta) { ferramentaAtual = ferramentas[ferramenta] ? ferramenta : 'luva'; tempoMao = 1.4; golpe = 1; },
+    mostrarFerramenta(ferramenta) { ferramentaAtual = ferramentas[ferramenta] ? ferramenta : 'luva'; tempoMao = Math.max(tempoMao, 0.6); },
     ajustarTela(aspecto, fov) { cameraArma.aspect = aspecto; cameraArma.fov = Math.max(50, fov * 0.95); cameraArma.updateProjectionMatrix(); },
     get calor() { return calor; },
     get travada() { return travada; },

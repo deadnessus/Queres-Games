@@ -13,7 +13,11 @@ export const entrada = {
   atirandoMouse: false,
   atirandoControle: false,
   pularPedido: false,
-  acaoPedida: false,
+  acaoPedida: false, // tocou agora (uma vez)
+  acaoSegurando: false, // continua segurando (para cortar/quebrar sem parar)
+  acaoSegurandoControle: false,
+  cancelarPedido: false,
+  mochilaPedida: false,
   pausaPedida: false,
   fatorMira: 1, // o jogo baixa quando a mira está em cima de um alvo (ajuda na mira no toque)
   inverterY: false,
@@ -27,6 +31,7 @@ export const entrada = {
     return melhor;
   },
   get atirando() { return this.atirandoToque || this.atirandoMouse || this.atirandoControle; },
+  get segurandoAcao() { return this.acaoSegurando || this.acaoSegurandoControle; },
 
   girar(rumo, inclinacao) {
     this.giroRumo += rumo;
@@ -44,7 +49,7 @@ export const entrada = {
   soltarTudo() {
     for (const f of Object.values(this.fontes)) { f.x = 0; f.y = 0; f.correr = false; }
     this.atirandoToque = this.atirandoMouse = this.atirandoControle = false;
-    this.pularPedido = this.acaoPedida = false;
+    this.pularPedido = this.acaoPedida = this.acaoSegurando = this.acaoSegurandoControle = this.cancelarPedido = this.mochilaPedida = false;
     this.giroRumo = this.giroInclinacao = 0;
   },
 };

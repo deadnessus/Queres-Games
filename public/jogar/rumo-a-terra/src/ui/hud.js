@@ -57,6 +57,8 @@ export function criarHud({ som }) {
   const caixa = $('mensagem'), caixaTexto = $('mensagem-texto');
   const contador = $('contador-alvos');
   const debugEl = $('debug');
+  const avisos = $('avisos');
+  const modoEl = $('modo-colocar'), btnCancelar = $('btn-cancelar');
 
   let fila = [], digitando = null, fechar = null;
   function proxima() {
@@ -91,11 +93,37 @@ export function criarHud({ som }) {
       calorEl.classList.toggle('travada', travada);
       calorBarra.style.transform = `scaleX(${valor})`;
     },
-    acao(texto) {
-      if (texto === ultimoAcao) return;
-      ultimoAcao = texto;
+    acao(texto, bloqueado = false) {
+      const chave = texto + (bloqueado ? '!' : '');
+      if (chave === ultimoAcao) return;
+      ultimoAcao = chave;
       btnAcao.hidden = !texto;
+      btnAcao.classList.toggle('bloqueado', bloqueado);
       if (texto) btnAcaoTexto.textContent = texto;
+    },
+    // Aviso rápido embaixo ("+3 🪵 Madeira"). Junta avisos iguais seguidos.
+    aviso(texto) {
+      const ultimo = avisos.lastElementChild;
+      if (ultimo && ultimo.dataset.base === texto && !ultimo.classList.contains('saindo')) {
+        ultimo.dataset.vezes = String(Number(ultimo.dataset.vezes) + 1);
+        ultimo.textContent = `${texto} (×${ultimo.dataset.vezes})`;
+        clearTimeout(ultimo._t);
+      } else {
+        const e = document.createElement('div');
+        e.className = 'aviso';
+        e.dataset.base = texto;
+        e.dataset.vezes = '1';
+        e.textContent = texto;
+        avisos.append(e);
+        while (avisos.children.length > 3) avisos.firstElementChild.remove();
+      }
+      const alvo = avisos.lastElementChild;
+      alvo._t = setTimeout(() => { alvo.classList.add('saindo'); setTimeout(() => alvo.remove(), 400); }, 2200);
+    },
+    modoColocar(texto) {
+      modoEl.hidden = !texto;
+      btnCancelar.hidden = !texto;
+      if (texto) modoEl.textContent = texto;
     },
     mensagem(texto, segundos = 5) { fila.push({ texto, segundos }); proxima(); },
     limparMensagens() { fila = []; clearInterval(digitando); digitando = null; clearTimeout(fechar); caixa.hidden = true; },

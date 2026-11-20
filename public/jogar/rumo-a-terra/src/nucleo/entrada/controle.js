@@ -26,6 +26,9 @@ export function lerControle(dt, sensibilidade) {
   entrada.atirandoControle = b(7) || b(5);
   if (novo(0)) entrada.pularPedido = true;
   if (novo(2)) entrada.acaoPedida = true;
+  entrada.acaoSegurandoControle = b(2);
+  if (novo(3)) entrada.mochilaPedida = true; // Y abre a mochila
+  if (novo(1)) entrada.cancelarPedido = true; // B cancela
   if (novo(9)) entrada.pausaPedida = true;
   antes = {};
   c.buttons.forEach((x, i) => { antes[i] = x.pressed; });

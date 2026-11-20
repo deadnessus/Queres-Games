@@ -17,6 +17,8 @@ export function criarJogador({ def, grade, colisoes, som, aoAguaFunda }) {
   let inclinacao = -0.04;
   let noChao = true, tempoNoAr = 0, pedidoPulo = 0, distPasso = 0, balanco = 0, afundo = 0, velHoriz = 0;
   const meio = grade.tamanho / 2 - 10;
+  // Chão = o terreno ou o topo de um bloco construído (o que for mais alto, até um degrau acima dos pés).
+  const chaoEm = (x, z, yPes) => Math.max(grade.alturaEm(x, z), colisoes.topoSob(x, z, yPes + 0.45));
 
   function girar(dRumo, dIncl) {
     rumo += dRumo;
@@ -73,14 +75,14 @@ export function criarJogador({ def, grade, colisoes, som, aoAguaFunda }) {
     pos.x = limitar(pos.x, -meio, meio);
     pos.z = limitar(pos.z, -meio, meio);
 
-    // água funda: volta
-    if (grade.nivelAgua - grade.alturaEm(pos.x, pos.z) > 1.3) {
+    // água funda: volta (a não ser que haja blocos fazendo ponte)
+    if (grade.nivelAgua - chaoEm(pos.x, pos.z, pos.y) > 1.3) {
       pos.x = anterior.x; pos.z = anterior.z; vel.x = 0; vel.z = 0;
       if (aoAguaFunda) aoAguaFunda();
     }
 
     // chão
-    const yChao = grade.alturaEm(pos.x, pos.z);
+    const yChao = chaoEm(pos.x, pos.z, pos.y);
     if (pos.y <= yChao) {
       if (!noChao && vel.y < -5) { afundo = Math.min(0.22, -vel.y * 0.025); if (som) som.aterrissar(); }
       pos.y = yChao; vel.y = 0; noChao = true; tempoNoAr = 0;
