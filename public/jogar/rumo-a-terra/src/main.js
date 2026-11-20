@@ -29,7 +29,8 @@ import { criarTelaMochila } from './ui/mochila.js';
 import { ITENS } from './dados/itens.js';
 import { criarInventario, criar } from './logica/inventario.js';
 import { montarSave } from './logica/save.js';
-import { carregarSave, gravarSave } from './nucleo/save-local.js';
+import { carregarSave, gravarSave, apagarSave } from './nucleo/save-local.js';
+import { criarPrologo } from './cenas/prologo.js';
 import { criarRecursos } from './mundo/recursos.js';
 import { criarConstrucoes } from './mundo/construcoes.js';
 import { criarColetaveis } from './entidades/coletaveis.js';
@@ -45,7 +46,7 @@ if (params.visual) config.visual = params.visual;
 entrada.inverterY = config.inverterY;
 definirVolume(config.volume);
 
-let estado = 'carregando'; // carregando | inicio | jogando | pausa
+let estado = 'carregando'; // carregando | inicio | prologo | jogando | pausa | mochila
 let voltarDasOpcoes = 'inicio';
 let jaJogou = false;
 
@@ -128,13 +129,16 @@ async function iniciar() {
   const recursos = criarRecursos({ lista: vegetacao.recursos, colisoes, lascas, som });
   const construcoes = criarConstrucoes({ cena, grade, colisoes, chamas, luz: luzFogueira, som });
   if (save) construcoes.carregar(save);
+  if (save && save.pos) jogador.reposicionar(save.pos[0] / 100, save.pos[1] / 100, save.pos[2]);
   let tempoJogado = save ? save.tempo_jogado_s : 0;
   let sujo = false, relogioSave = 0;
   const marcarSujo = () => { sujo = true; };
   inventario.aoMudar(marcarSujo);
   function salvarAgora() {
     if (!sujo) return;
-    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado }));
+    const rumo = ((((jogador.rumo * 180) / Math.PI) % 360) + 540) % 360 - 180;
+    const pos = [Math.round(jogador.pos.x * 100), Math.round(jogador.pos.z * 100), Math.round(rumo)];
+    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado, pos }));
   }
   const coletaveis = criarColetaveis({
     cena,
@@ -186,8 +190,10 @@ async function iniciar() {
     arma.ajustarTela(aspecto, vfov);
     const altura = renderer.domElement.height;
     for (const p of [fumaca, faiscas, lascas, chamas]) p.definirEscala(altura, vfov);
+    prologo.ajustarTela(aspecto, altura);
     verificarGiro();
   }
+  const prologo = criarPrologo({ renderer, som });
   addEventListener('resize', () => setTimeout(ajustarTela, 50));
   aplicarVisual();
 
@@ -212,9 +218,64 @@ async function iniciar() {
     salvarConfig(c);
   });
 
-  function comecar() {
-    destravarAudio();
+  // ---- menu: novo jogo, continuar ----
+  const temJogoSalvo = () => !!carregarSave() || inventario.lista().length > 0 || construcoes.total > 0;
+  function atualizarMenu() {
+    salvarAgora();
+    const tem = temJogoSalvo();
+    $('btn-continuar-jogo').hidden = !tem;
+    $('btn-novo-jogo').classList.toggle('grande', !tem);
+    const info = $('info-save');
+    info.hidden = !tem;
+    if (tem) {
+      const itens = inventario.lista().reduce((soma, [, n]) => soma + n, 0);
+      info.textContent = `Guardado neste aparelho: ${itens} ${itens === 1 ? 'item' : 'itens'} na mochila e ${construcoes.total} ${construcoes.total === 1 ? 'construção' : 'construções'}.`;
+    }
+    $('botoes-inicio').hidden = false;
+    $('confirmar-novo').hidden = true;
+  }
+
+  function resetarMundo() {
+    sairModoColocar();
+    inventario.limpar();
+    construcoes.limpar();
+    recursos.restaurarTudo();
+    jogador.reposicionar(vale.inicio.x, vale.inicio.z, vale.inicio.olhar);
+    tempoJogado = 0;
+    apagarSave();
+    sujo = false;
+    jaJogou = false;
+    hud.limparMensagens();
+  }
+
+  function pedirNovoJogo() {
     som.clique();
+    if (temJogoSalvo()) { $('botoes-inicio').hidden = true; $('confirmar-novo').hidden = false; return; }
+    iniciarNovoJogo();
+  }
+
+  // Novo jogo: a abertura no espaço (a queda) e depois acordar no Vale.
+  function iniciarNovoJogo() {
+    destravarAudio();
+    resetarMundo();
+    estado = 'prologo';
+    mostrarTela(null);
+    $('hud').hidden = true;
+    $('prologo').hidden = false;
+    prologo.iniciar(acordar);
+  }
+
+  let acordando = 0;
+  const TEMPO_ACORDAR = 3.8;
+  function acordar() {
+    $('prologo').hidden = true;
+    acordando = TEMPO_ACORDAR;
+    comecar({ acordou: true });
+  }
+
+  function comecar({ acordou = false } = {}) {
+    destravarAudio();
+    if (!acordou) som.clique();
     som.ligarVento();
     estado = 'jogando';
     mostrarTela(null);
@@ -223,7 +284,11 @@ async function iniciar() {
     toque.ligar();
     if (!jaJogou) {
       jaJogou = true;
-      hud.mensagem('Comandante, está me ouvindo? A Andorinha caiu, mas você está inteiro!', 4);
+      if (!acordou && inventario.lista().length + construcoes.total > 0) {
+        hud.mensagem('Bem-vindo de volta, Comandante! Suas coisas estão onde você deixou.', 4);
+        return;
+      }
+      hud.mensagem('Comandante... está me ouvindo? A Andorinha caiu, mas você está inteiro!', 4);
       hud.mensagem(entrada.ultimaFonte === 'toque' || ehToque()
         ? 'Dedão esquerdo: andar. Dedão direito: arrastar para olhar em volta.'
         : 'W A S D para andar, o mouse para olhar, Espaço para pular.', 5);
@@ -257,6 +322,8 @@ async function iniciar() {
     estado = 'inicio';
     $('hud').hidden = true;
     hud.limparMensagens();
+    jaJogou = false;
+    atualizarMenu();
     mostrarTela('tela-inicio');
     retomarAudio();
   }
@@ -320,7 +387,11 @@ async function iniciar() {
   }
   $('btn-cancelar').addEventListener('click', () => { som.clique(); sairModoColocar(); });
 
-  $('btn-jogar').addEventListener('click', comecar);
+  $('btn-novo-jogo').addEventListener('click', pedirNovoJogo);
+  $('btn-continuar-jogo').addEventListener('click', () => comecar());
+  $('btn-confirmar-novo').addEventListener('click', () => { som.clique(); iniciarNovoJogo(); });
+  $('btn-cancelar-novo').addEventListener('click', () => { som.clique(); atualizarMenu(); });
+  $('btn-pular-prologo').addEventListener('click', () => prologo.pular());
   $('btn-opcoes').addEventListener('click', () => { voltarDasOpcoes = 'tela-inicio'; opcoes.preencher(); mostrarTela('tela-opcoes'); });
   $('btn-opcoes-pausa').addEventListener('click', () => { voltarDasOpcoes = 'tela-pausa'; opcoes.preencher(); mostrarTela('tela-opcoes'); });
   $('btn-voltar-opcoes').addEventListener('click', () => { som.clique(); mostrarTela(voltarDasOpcoes); });
@@ -422,6 +493,10 @@ async function iniciar() {
   }
 
   function atualizar(dt) {
+    if (estado === 'prologo') {
+      if (!document.hidden) prologo.atualizar(dt);
+      return;
+    }
     if (estado !== 'jogando') {
       nave.atualizar(dt);
       fumaca.atualizar(dt);
@@ -459,10 +534,29 @@ async function iniciar() {
   let tempoMenu = 0;
   function desenhar(alfa, dt) {
     const agora = performance.now();
+    if (estado === 'prologo') {
+      prologo.desenhar();
+      render.medir(dt, agora);
+      return;
+    }
     if (estado === 'jogando') {
       const [gr, gi] = entrada.consumirGiro();
       jogador.girar(gr, gi);
       jogador.posicionarCamera(camera, alfa, config.reduzirTremor);
+      // acordando depois da queda: olhos abrindo (tela preta clareando), deitado e levantando
+      if (acordando > 0) {
+        acordando = Math.max(0, acordando - dt);
+        const e = TEMPO_ACORDAR - acordando; // segundos desde que acordou
+        // deitado olhando o céu, depois senta e levanta
+        const sobe = Math.min(1, Math.max(0, (e - 1.0) / 2.6));
+        const k = 1 - sobe * sobe * (3 - 2 * sobe);
+        camera.position.y -= 1.3 * k;
+        camera.rotation.x += 0.55 * k;
+        camera.rotation.z += 0.5 * k;
+        // dois piscares de olhos e a tela clareando
+        const cortina = e < 1.4 ? 0.4 + 0.6 * Math.abs(Math.cos((e * Math.PI) / 0.7)) : Math.max(0, 1 - (e - 1.4) / 1.6) * 0.4;
+        $('cortina').style.opacity = acordando === 0 ? '0' : String(cortina);
+      }
     } else if (estado === 'inicio' || estado === 'carregando') {
       tempoMenu += dt;
       const a = -0.6 + tempoMenu * 0.045;
@@ -515,6 +609,7 @@ async function iniciar() {
   progresso(1, 'Pronto!');
   await esperarQuadro();
   estado = 'inicio';
+  atualizarMenu();
   mostrarTela('tela-inicio');
   laco.iniciar();
 
@@ -523,6 +618,7 @@ async function iniciar() {
     window.__rumo = {
       get estado() { return estado; }, jogador, alvos, nave, renderer, config, entrada, comecar, pausar,
       inventario, recursos, construcoes, grade, abrirMochila, fecharMochila, entrarModoColocar, salvarAgora,
+      prologo, iniciarNovoJogo, atualizarMenu,
       aplicarVisual: (v) => { config.visual = v; aplicarVisual(); },
     };
   }

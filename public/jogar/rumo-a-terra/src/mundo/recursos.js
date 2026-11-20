@@ -114,5 +114,15 @@ export function criarRecursos({ lista, colisoes, lascas, som }) {
     }
   }
 
-  return { lista, mirar, bater, atualizar, ALCANCE };
+  // Jogo novo: tudo volta ao lugar, inteiro.
+  function restaurarTudo() {
+    for (const r of lista) {
+      if (r.estado === 'inteiro' && !r.mexido) continue;
+      r.estado = 'inteiro'; r.vida = r.regra.vida; r.tremor = 0; r.t = 0;
+      escrever(r, 1, 0, 0);
+      if (r.colisor) colisoes.adicionar(r.colisor);
+    }
+  }
+
+  return { lista, mirar, bater, atualizar, restaurarTudo, ALCANCE };
 }

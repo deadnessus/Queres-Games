@@ -280,6 +280,11 @@ export function criarConstrucoes({ cena, grade, colisoes, chamas, luz, som }) {
       for (const [tipo, i, j, base] of save.blocos || []) adicionarBloco(tipo, i, j, base / 100);
       for (const [x, z] of save.fogueiras || []) adicionarFogueira(x / 100, z / 100);
     },
+    limpar() {
+      for (const b of [...blocos]) removerBloco(b);
+      for (const f of [...fogueiras]) removerFogueira(f);
+      luz.intensity = 0;
+    },
     get total() { return blocos.length + fogueiras.length; },
   };
 }

@@ -60,7 +60,9 @@ export function texturaPaineis(tam = 64) {
 }
 
 // Listras do planeta gigante Colosso (creme, laranja e marrom, com redemoinhos).
+let cacheColosso = null, cacheAneis = null;
 export function texturaColosso() {
+  if (cacheColosso) return cacheColosso;
   const L = 512, A = 256;
   const [c, g] = canvas(L, A);
   const img = g.createImageData(L, A);
@@ -93,11 +95,13 @@ export function texturaColosso() {
     }
   }
   g.putImageData(img, 0, 0);
-  return comoTextura(c, { cor: true });
+  cacheColosso = comoTextura(c, { cor: true });
+  return cacheColosso;
 }
 
 // Anéis do Colosso: faixa com transparência (de dentro para fora).
 export function texturaAneis() {
+  if (cacheAneis) return cacheAneis;
   const L = 256;
   const [c, g] = canvas(L, 4);
   const img = g.createImageData(L, 4);
@@ -109,6 +113,32 @@ export function texturaAneis() {
     for (let y = 0; y < 4; y++) {
       const i = (y * L + x) * 4;
       img.data[i] = 236; img.data[i + 1] = 214; img.data[i + 2] = 178; img.data[i + 3] = Math.round(a * 255);
+    }
+  }
+  g.putImageData(img, 0, 0);
+  cacheAneis = comoTextura(c, { cor: true });
+  return cacheAneis;
+}
+
+// A lua Lúmen vista do espaço: terras roxas, mares azul-esverdeados, nuvens e polos claros.
+export function texturaLumen() {
+  const L = 512, A = 256;
+  const [c, g] = canvas(L, A);
+  const img = g.createImageData(L, A);
+  for (let y = 0; y < A; y++) {
+    for (let x = 0; x < L; x++) {
+      const ang = (x / L) * Math.PI * 2, lat = y / A;
+      const u = Math.cos(ang) * 1.8, v = Math.sin(ang) * 1.8, w = lat * 4;
+      const terra = fbm(u + w * 0.6, v + w, 31, 4);
+      let cor;
+      if (terra < -0.08) cor = [36 + terra * 30, 128 + terra * 60, 132 + terra * 40]; // mar
+      else if (terra < 0) cor = [196, 168, 110]; // praia
+      else cor = [88 + terra * 60, 56 + terra * 30, 140 + terra * 40]; // terra roxa
+      const nuvem = Math.max(0, fbm(u * 2 + 7, v * 2 + w * 2, 32, 3) - 0.12) * 2.2;
+      const polo = Math.max(0, Math.abs(lat - 0.5) * 2 - 0.8) * 5;
+      const k = Math.min(1, nuvem + polo);
+      const i = (y * L + x) * 4;
+      img.data[i] = cor[0] + (245 - cor[0]) * k; img.data[i + 1] = cor[1] + (245 - cor[1]) * k; img.data[i + 2] = cor[2] + (250 - cor[2]) * k; img.data[i + 3] = 255;
     }
   }
   g.putImageData(img, 0, 0);

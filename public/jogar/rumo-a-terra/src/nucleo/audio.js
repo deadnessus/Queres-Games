@@ -95,6 +95,41 @@ export const som = {
   clique() { if (!pronto()) return; tom('sine', 900, 700, 0.05, 0.08); },
   mensagem() { if (!pronto()) return; tom('sine', 1200, 1200, 0.04, 0.05); setTimeout(() => pronto() && tom('sine', 1600, 1600, 0.05, 0.05), 70); },
 
+  // ---- sons da abertura (no espaço) ----
+  alarme() { if (!pronto()) return; tom('square', 880, 880, 0.18, 0.06); setTimeout(() => pronto() && tom('square', 660, 660, 0.18, 0.06), 220); },
+  explosao(forte = 1) {
+    if (!pronto()) return;
+    chiado(1.4 * forte, 900, 0.5 * forte, 0.5); chiado(0.5, 3000, 0.2 * forte, 0.6, 'bandpass');
+    tom('sine', 120, 28, 1.3 * forte, 0.5 * forte);
+  },
+  meteoroPassando() { if (!pronto()) return; chiado(0.5, 500 + Math.random() * 600, 0.08, 3, 'bandpass'); },
+  // Som que fica tocando (motor, ronco da queda). Devolve { nivel(0..1), parar() }.
+  laco(tipo) {
+    if (!pronto()) return { nivel() {}, parar() {} };
+    try {
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.connect(mestre);
+      const fontes = [];
+      if (tipo === 'motor') {
+        for (const [f, tipoOnda] of [[55, 'sawtooth'], [82.5, 'triangle']]) {
+          const o = ctx.createOscillator(), filtro = ctx.createBiquadFilter();
+          o.type = tipoOnda; o.frequency.value = f; filtro.type = 'lowpass'; filtro.frequency.value = 260;
+          o.connect(filtro).connect(g); o.start(); fontes.push(o);
+        }
+      } else {
+        const s = ctx.createBufferSource(), filtro = ctx.createBiquadFilter();
+        s.buffer = ruidoBuf; s.loop = true; filtro.type = 'lowpass'; filtro.frequency.value = 380;
+        s.connect(filtro).connect(g); s.start(); fontes.push(s);
+      }
+      const max = tipo === 'motor' ? 0.12 : 0.6;
+      return {
+        nivel(n) { g.gain.setTargetAtTime(Math.max(0, Math.min(1, n)) * max, ctx.currentTime, 0.1); },
+        parar() { g.gain.setTargetAtTime(0, ctx.currentTime, 0.03); setTimeout(() => { for (const f of fontes) try { f.stop(); } catch (e) { /* já parou */ } }, 300); },
+      };
+    } catch (e) { return { nivel() {}, parar() {} }; }
+  },
+
   // Vento de fundo: ruído filtrado bem baixinho, que sobe e desce devagar.
   ligarVento() {
     if (!ctx || vento) return;

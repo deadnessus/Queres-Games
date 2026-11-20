@@ -11,7 +11,7 @@ const MAX_BLOCOS = 3000, MAX_FOGUEIRAS = 40;
 
 const inteiro = (v, a, b) => Number.isInteger(v) && v >= a && v <= b;
 
-export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0 }) {
+export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0, pos = null }) {
   return {
     jogo: JOGO,
     versao_save: VERSAO_SAVE,
@@ -20,6 +20,7 @@ export function montarSave({ inventario, blocos, fogueiras, tempoJogado = 0 }) {
     inventario, // [[id, n]]
     blocos, // [[tipo, i, j, base em centímetros]]
     fogueiras, // [[x em cm, z em cm]]
+    ...(pos ? { pos } : {}), // [x em cm, z em cm, rumo em graus]
   };
 }
 
@@ -36,8 +37,10 @@ export function validarSave(s) {
   const fogueiras = Array.isArray(s.fogueiras)
     ? s.fogueiras.slice(0, MAX_FOGUEIRAS).filter((f) => Array.isArray(f) && inteiro(f[0], -30000, 30000) && inteiro(f[1], -30000, 30000)).map(([x, z]) => [x, z])
     : [];
+  const pos = Array.isArray(s.pos) && s.pos.length === 3 && inteiro(s.pos[0], -30000, 30000) && inteiro(s.pos[1], -30000, 30000) && inteiro(s.pos[2], -720, 720)
+    ? [s.pos[0], s.pos[1], s.pos[2]] : null;
   return {
-    jogo: JOGO, versao_save: VERSAO_SAVE,
+    jogo: JOGO, versao_save: VERSAO_SAVE, pos,
     salvo_em: inteiro(s.salvo_em, 0, 1e11) ? s.salvo_em : 0,
     tempo_jogado_s: inteiro(s.tempo_jogado_s, 0, 1e9) ? s.tempo_jogado_s : 0,
     inventario, blocos, fogueiras,
