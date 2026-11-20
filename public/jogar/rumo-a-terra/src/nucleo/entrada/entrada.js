@@ -20,6 +20,8 @@ export const entrada = {
   mochilaPedida: false,
   mapaPedido: false,
   pausaPedida: false,
+  trocarArmaPedida: false, // trocar entre o Desintegrador e o Rifle de raio
+  armaPedida: null, // 'pistola' ou 'rifle' (teclas 1 e 2)
   fatorMira: 1, // o jogo baixa quando a mira está em cima de um alvo (ajuda na mira no toque)
   inverterY: false,
   ultimaFonte: 'teclado', // 'toque', 'teclado' ou 'controle' (para os textos de ajuda)
@@ -50,7 +52,8 @@ export const entrada = {
   soltarTudo() {
     for (const f of Object.values(this.fontes)) { f.x = 0; f.y = 0; f.correr = false; }
     this.atirandoToque = this.atirandoMouse = this.atirandoControle = false;
-    this.pularPedido = this.acaoPedida = this.acaoSegurando = this.acaoSegurandoControle = this.cancelarPedido = this.mochilaPedida = this.mapaPedido = false;
+    this.pularPedido = this.acaoPedida = this.acaoSegurando = this.acaoSegurandoControle = this.cancelarPedido = this.mochilaPedida = this.mapaPedido = this.trocarArmaPedida = false;
+    this.armaPedida = null;
     this.giroRumo = this.giroInclinacao = 0;
   },
 };

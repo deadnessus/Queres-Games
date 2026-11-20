@@ -8,7 +8,7 @@ import { embrulhar, maisPerto } from '../logica/toro.js';
 
 const CORES = {
   bateria: 0xffe14d, bocal: 0xff9a40, fusivel: 0xffe14d, antena: 0x9fe0ff, nucleo: 0x6dff9a, placa: 0xffa040,
-  rastreador: 0xb0c8ff, chave: 0x5ff0ff, cristal_salto: 0xff8af0, musgo: 0x8aff7a,
+  rastreador: 0xb0c8ff, chave: 0x5ff0ff, cristal_salto: 0xff8af0, musgo: 0x8aff7a, rifle: 0xff6ad5,
 };
 
 // Modelinhos (uns 50 cm) feitos com formas simples.
@@ -44,6 +44,17 @@ function modelo(item) {
     p.push(preparar(new THREE.BoxGeometry(0.04, 0.16, 0.02), 0x5ff0ff, matriz(0, 0.0, 0.14)));
   } else if (item === 'cristal_salto') {
     p.push(preparar(new THREE.OctahedronGeometry(0.22, 0), (x, y) => misturarHex(0x5ff0ff, 0xff8af0, y + 0.5), matriz(0, 0, 0, 0, 0, 0, 1, 1.9, 1)));
+  } else if (item === 'rifle') {
+    // o Rifle de raio deitado no chão (grande)
+    p.push(preparar(new THREE.BoxGeometry(0.16, 0.18, 0.75), (x, y) => (y > 0.04 ? 0x4a5060 : 0x2e323c), matriz(0, 0, 0)));
+    p.push(preparar(new THREE.CylinderGeometry(0.055, 0.065, 0.75, 10), 0x2a2d35, matriz(0, 0.02, -0.72, Math.PI / 2, 0, 0)));
+    p.push(preparar(new THREE.BoxGeometry(0.12, 0.16, 0.36), 0x7a4a8a, matriz(0, -0.03, 0.52)));
+    p.push(preparar(new THREE.BoxGeometry(0.17, 0.05, 0.24), 0xff9a40, matriz(0, -0.07, -0.2)));
+    for (const z of [-0.5, -0.7, -0.9]) p.push(preparar(new THREE.TorusGeometry(0.08, 0.022, 6, 12), 0xff8ae8, matriz(0, 0.02, z)));
+    const g = mesclar(p);
+    g.rotateZ(Math.PI / 2);
+    g.scale(0.8, 0.8, 0.8);
+    return g;
   } else if (item === 'musgo') {
     for (let k = 0; k < 6; k++) p.push(preparar(new THREE.IcosahedronGeometry(0.1 + (k % 3) * 0.03, 0), k % 2 ? 0x5fd060 : 0x8aff7a, matriz(Math.cos(k) * 0.14, (k % 3) * 0.05 - 0.15, Math.sin(k) * 0.14)));
   } else {
@@ -83,7 +94,7 @@ export function criarPecas({ cena, grade }) {
       const y = d.y ?? grade.alturaEm(d.x, d.z);
       grupo.position.set(d.x, y, d.z);
       cena.add(grupo);
-      lista.push({ id: d.id, item: d.item, x: d.x, z: d.z, y, grupo, corpo, fase: lista.length });
+      lista.push({ id: d.id, item: d.item, x: d.x, z: d.z, y, grupo, corpo, fase: lista.length, extra: !!d.extra });
     }
   }
 
@@ -105,10 +116,11 @@ export function criarPecas({ cena, grade }) {
     return melhor;
   }
 
-  // A peça mais perto de qualquer distância (para a estrela da bússola).
+  // A peça de missão mais perto de qualquer distância (para a estrela da bússola). Não conta as "extras" (o rifle).
   function maisProxima(pos) {
     let melhor = null, dm = Infinity;
     for (const p of lista) {
+      if (p.extra) continue;
       const d = Math.hypot(embrulhar(p.x - pos.x, T), embrulhar(p.z - pos.z, T));
       if (d < dm) { dm = d; melhor = p; }
     }

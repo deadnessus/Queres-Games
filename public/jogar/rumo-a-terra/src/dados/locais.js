@@ -11,7 +11,12 @@ export const LOCAIS = {
   monolito1: { nome: 'Monólito do Leste', x: 230, z: 60, construcao: 'monolito', raio: 8 },
   monolito2: { nome: 'Monólito do Oeste', x: -240, z: -60, construcao: 'monolito', raio: 8 },
   monolito3: { nome: 'Monólito do Norte', x: 40, z: -235, construcao: 'monolito', raio: 8 },
+  // O esqueleto do Tavares (Expedição Cruzeiro), perto da nave, ao lado da trilha do lago. O Rifle de raio fica com ele.
+  esqueleto: { nome: 'Traje antigo', x: 24, z: -8, construcao: 'esqueleto', raio: 3 },
 };
+
+// Onde o Rifle de raio fica no chão, ao lado do esqueleto.
+export const RIFLE_NO_CHAO = { x: 25.6, z: -6.6 };
 
 // Pontos onde aparecem peças espalhadas (só durante a missão que precisa delas).
 export const PONTOS = {

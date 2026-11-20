@@ -87,11 +87,17 @@ export function criarHud({ som }) {
   let ultimoAcao = null, ultimoCalor = -1, ultimaMira = null, ultimoContador = -1;
   const btnMissao = $('btn-missao'), missaoIcone = $('missao-icone'), missaoTitulo = $('missao-titulo'), missaoTexto = $('missao-texto'), missaoProg = $('missao-progresso');
   const chefeEl = $('chefe'), chefeNome = $('chefe-nome'), chefeCheia = $('chefe-cheia');
+  const cargaEl = $('carga'), cargaBarra = $('carga-barra');
+  const btnTrocar = $('btn-trocar-arma'), trocarIcone = $('trocar-icone');
+  let ultimaCarga = -1, ultimaArma = '';
   let ultimaMissao = '', ultimoChefe = '';
 
   return {
     bussola,
-    mira(estado) { if (estado !== ultimaMira) { mira.className = estado; ultimaMira = estado; } },
+    mira(estado) {
+      const classe = estado + (ultimaArma.startsWith('rifle') ? ' rifle' : '');
+      if (classe !== ultimaMira) { mira.className = classe; ultimaMira = classe; }
+    },
     calor(valor, travada) {
       const v = Math.round(valor * 50) / 50;
       if (v === ultimoCalor && !travada) return;
@@ -153,6 +159,24 @@ export function criarHud({ som }) {
       contador.textContent = `Bolhas de treino: ${n}`;
     },
     debug(texto) { if (debugEl.hidden) debugEl.hidden = false; debugEl.textContent = texto; },
+    // Barra de carga do Rifle de raio (embaixo da mira).
+    carga(valor) {
+      const v = Math.round(valor * 50) / 50;
+      if (v === ultimaCarga) return;
+      ultimaCarga = v;
+      cargaEl.classList.toggle('visivel', valor > 0.02);
+      cargaEl.classList.toggle('cheia', valor > 0.97);
+      cargaBarra.style.transform = `scaleX(${valor})`;
+    },
+    // Qual arma está na mão e o botão de trocar (só aparece depois de pegar o rifle).
+    arma(atual, temRifle) {
+      const chave = `${atual}|${temRifle}`;
+      if (chave === ultimaArma) return;
+      ultimaArma = chave;
+      btnTrocar.hidden = !temRifle;
+      trocarIcone.textContent = atual === 'rifle' ? '✦' : '💥'; // mostra a outra arma
+      btnTrocar.setAttribute('aria-label', atual === 'rifle' ? 'Trocar para o Desintegrador' : 'Trocar para o Rifle de raio');
+    },
     // A missão atual (canto de cima, à esquerda). null esconde.
     missao(m) {
       const chave = m ? `${m.icone}|${m.titulo}|${m.texto}|${m.progresso}` : '';

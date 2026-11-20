@@ -113,6 +113,33 @@ export const som = {
   cristalVoando() { if (!pronto()) return; tom('sine', 1800, 700, 0.35, 0.06); tom('triangle', 2400, 1200, 0.3, 0.04); },
   estrela() { if (!pronto()) return; tom('sine', 1320, 1760, 0.2, 0.08); },
 
+  // ---- Rifle de raio ----
+  tiroForte() {
+    if (!pronto()) return;
+    tom('sawtooth', 900, 60, 0.5, 0.16); tom('sine', 220, 40, 0.6, 0.3); chiado(0.35, 2400, 0.14, 0.8, 'bandpass');
+  },
+  trocarArma() { if (!pronto()) return; chiado(0.06, 1800, 0.12, 1); setTimeout(() => pronto() && tom('square', 500, 760, 0.08, 0.05), 160); },
+  // Zumbido que sobe enquanto o rifle carrega. Devolve { definir(0..1), parar() }.
+  carga() {
+    if (!pronto()) return { definir() {}, parar() {} };
+    try {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+      o.type = 'sawtooth'; o2.type = 'triangle'; f.type = 'lowpass'; f.frequency.value = 1800;
+      o.frequency.value = 160; o2.frequency.value = 320; g.gain.value = 0;
+      o.connect(f); o2.connect(f); f.connect(g).connect(mestre);
+      o.start(); o2.start();
+      return {
+        definir(k) {
+          const t = ctx.currentTime;
+          o.frequency.setTargetAtTime(160 + 640 * k, t, 0.03);
+          o2.frequency.setTargetAtTime(320 + 1300 * k, t, 0.03);
+          g.gain.setTargetAtTime(0.02 + 0.06 * k, t, 0.05);
+        },
+        parar() { g.gain.setTargetAtTime(0, ctx.currentTime, 0.03); setTimeout(() => { try { o.stop(); o2.stop(); } catch (e) { /* já parou */ } }, 250); },
+      };
+    } catch (e) { return { definir() {}, parar() {} }; }
+  },
+
   // ---- sons da abertura (no espaço) ----
   alarme() { if (!pronto()) return; tom('square', 880, 880, 0.18, 0.06); setTimeout(() => pronto() && tom('square', 660, 660, 0.18, 0.06), 220); },
   explosao(forte = 1) {

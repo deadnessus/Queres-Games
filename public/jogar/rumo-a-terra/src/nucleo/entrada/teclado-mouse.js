@@ -1,5 +1,5 @@
 // Teclado e mouse (computador): WASD ou setas para andar, mouse para olhar (com a "trava" do ponteiro),
-// clique para atirar, Espaço para pular, Shift para correr, E para ação, Esc para pausar.
+// clique para atirar, Espaço para pular, Shift para correr, E para ação, R (ou 1 e 2) para trocar de arma, Esc para pausar.
 import { entrada } from './entrada.js';
 
 export function iniciarTecladoMouse({ canvas, config, podeJogar }) {
@@ -23,6 +23,9 @@ export function iniciarTecladoMouse({ canvas, config, podeJogar }) {
     if ((e.code === 'KeyI' || e.code === 'Tab') && !e.repeat) { entrada.mochilaPedida = true; e.preventDefault(); }
     if (e.code === 'KeyQ' && !e.repeat) entrada.cancelarPedido = true;
     if (e.code === 'KeyM' && !e.repeat) entrada.mapaPedido = true;
+    if (e.code === 'KeyR' && !e.repeat) entrada.trocarArmaPedida = true;
+    if (e.code === 'Digit1' && !e.repeat) entrada.armaPedida = 'pistola';
+    if (e.code === 'Digit2' && !e.repeat) entrada.armaPedida = 'rifle';
     if (e.code === 'Escape' || e.code === 'KeyP') entrada.pausaPedida = true;
     teclas.add(e.code);
     recalcular();

@@ -23,6 +23,7 @@ export const ITENS = {
   rastreador: { nome: 'Rastreador de estrelas', icone: '🔭', tipo: 'peca', texto: 'Uma câmera que reconhece as estrelas para saber o caminho.' },
   chave: { nome: 'Pedra-chave dos Antigos', icone: '🗝️', tipo: 'peca', texto: 'Abre a porta das Ruínas dos Antigos.' },
   cristal_salto: { nome: 'Cristal de Salto', icone: '💠', tipo: 'peca', texto: 'O coração do motor de salto. Com ele dá para viajar entre as estrelas.' },
+  rifle: { nome: 'Rifle de raio', icone: '💥', tipo: 'arma', texto: 'Era do Tavares, da Expedição Cruzeiro. Segure o tiro: em 2 segundos ele carrega e solta um raio bem forte.' },
   machado: { nome: 'Machado de pedra', icone: '🪓', tipo: 'ferramenta', texto: 'Corta árvores bem mais rápido.' },
   picareta: { nome: 'Picareta de pedra', icone: '⛏️', tipo: 'ferramenta', texto: 'Quebra pedras grandes e cristais.' },
   fogueira: { nome: 'Fogueira', icone: '🔥', tipo: 'colocavel', texto: 'Coloque no chão: ilumina e esquenta. Depois vai servir para cozinhar.' },

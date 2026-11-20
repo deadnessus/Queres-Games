@@ -121,7 +121,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
       alvo: { pos: new THREE.Vector3(), raio: d.raio, ativo: false, criatura: null, acertar: null },
     };
     c.alvo.criatura = c;
-    c.alvo.acertar = (dir) => acertar(c, 1, dir);
+    c.alvo.acertar = (dir, dano = 1) => acertar(c, dano, dir);
     if (c.voa) c.altura = d.chefe ? 8 : 6 + rnd() * 3;
     lista.push(c);
     alvos.push(c.alvo);
@@ -314,8 +314,9 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
   function acertar(c, dano, dir) {
     if (!c.vivo || c.estado === 'caindo') return;
     c.vida -= dano;
-    c.pisca = 0.15;
-    if (!c.voa && !c.d.chefe && dir) { c.pos.x = embrulhar(c.pos.x + dir.x * 0.5, T); c.pos.z = embrulhar(c.pos.z + dir.z * 0.5, T); }
+    c.pisca = dano > 1 ? 0.3 : 0.15;
+    const empurra = dano > 1 ? 1.4 : 0.5; // o raio do rifle empurra mais
+    if (!c.voa && !c.d.chefe && dir) { c.pos.x = embrulhar(c.pos.x + dir.x * empurra, T); c.pos.z = embrulhar(c.pos.z + dir.z * empurra, T); }
     if (som) som.bichoAcertado(c.tipo);
     if (c.vida <= 0) { c.estado = 'caindo'; c.t = 0; if (som) som.bichoCaiu(c.tipo); return; }
     if (c.comp === 'rastejador' && !['preparando', 'investida'].includes(c.estado)) {
