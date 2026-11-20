@@ -37,6 +37,7 @@ export function criarVegetacao({ def, grade, relevo, colisoes, livres }) {
     if (grade.normalEm(x, z)[1] < inclinacaoMin) return false;
     if (relevo.pesoTrilha(x, z) > 0.25) return false;
     if (relevo.pesoQueimado(x, z) > queimado) return false;
+    if (relevo.pesoVulcao(x, z).p > 0.05) return false; // nada cresce no Vulcão
     for (const l of livres) if (Math.hypot(x - l.x, z - l.z) < Math.max(livre, l.r)) return false;
     return true;
   }

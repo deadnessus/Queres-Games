@@ -13,7 +13,19 @@ export const CRIATURAS = {
     quantidade: 12, grupo: 3, da: [['carne', 1, 2, 1], ['cristal', 1, 1, 0.5]],
     curiosidade: 'Caça em grupo, como os lobos. Tem medo de fogo: fique perto de uma fogueira.',
   },
-  // ---- chefes (aparecem nas missões, não voltam depois de derrotados) ----
+  // ---- chefes (um em cada peça da nave; aparecem nas missões e não voltam depois de derrotados) ----
+  reiRastejador: {
+    nome: 'Rei Rastejador', base: 'rastejador', chefe: true, vida: 18, dano: 14, vel: 2.6, velCaca: 5.6, visao: 30, raio: 1.3, alturaAlvo: 0.9,
+    escala: 2.1, cor: 0xffd27a, quantidade: 0, grupo: 1, da: [['carne', 3, 4, 1], ['cristal', 2, 3, 1]], chama: 'rastejador', ajudantes: 2,
+  },
+  saltitao: {
+    nome: 'Saltitão', base: 'saltito', chefe: true, vida: 30, dano: 18, vel: 3, visao: 34, raio: 1.6, alturaAlvo: 1.4,
+    escala: 3.6, cor: 0xffb0b0, quantidade: 0, grupo: 1, da: [['carne', 5, 6, 1]],
+  },
+  magma: {
+    nome: 'Gigante de Magma', base: 'guardiao', chefe: true, vida: 50, dano: 12, vel: 2.2, visao: 45, raio: 1.9, alturaAlvo: 2.6,
+    escala: 1.25, cor: 0xff8a50, brilho: 0x3a0e00, corTiro: 0xff7a20, quantidade: 0, grupo: 1, da: [['cristal', 6, 8, 1]],
+  },
   rainha: {
     nome: 'Rainha Zumbidora', base: 'zumbidor', chefe: true, vida: 30, dano: 14, vel: 7, velRasante: 15, visao: 45, raio: 1.6, alturaAlvo: 0,
     escala: 2.6, cor: 0xffb070, quantidade: 0, grupo: 1, da: [['carapaca', 3, 4, 1]], chama: 'zumbidor',

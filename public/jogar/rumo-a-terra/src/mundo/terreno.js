@@ -16,6 +16,7 @@ export function criarTerreno(grade, relevo) {
   const cores = {
     grama1: c(COR.grama1), grama2: c(COR.grama2), gramaEscura: c(COR.gramaEscura), terra: c(COR.terra), terraClara: c(COR.terraClara),
     areia: c(COR.areia), fundo: c(COR.fundoLago), rocha: c(COR.rocha), rochaClara: c(COR.rochaClara), paredao: c(COR.rochaParedao), queimado: c(COR.queimado),
+    basalto: c(0x2e2a30), basaltoClaro: c(0x524648), brasa: c(0x7a2e18),
   };
   const tmp = new THREE.Color();
 
@@ -36,6 +37,12 @@ export function criarTerreno(grade, relevo) {
     // rampas íngremes e paredões viram rocha
     alvo.lerp(tmp.copy(cores.rocha).lerp(cores.rochaClara, hash2(j, i, semente + 3)), degrau(0.22, 0.42, inclinacao));
     if (y > 16) alvo.lerp(cores.paredao, degrau(16, 26, y) * 0.8);
+    // o Vulcão: rocha escura (basalto), avermelhada perto da cratera
+    const pv = relevo.pesoVulcao(x, z);
+    if (pv.p > 0) {
+      alvo.lerp(tmp.copy(cores.basalto).lerp(cores.basaltoClaro, hash2(i, j, semente + 5) * 0.7), pv.p * 0.92);
+      if (pv.quente > 0) alvo.lerp(cores.brasa, pv.quente * 0.7);
+    }
     // rastro queimado da queda
     const pq = relevo.pesoQueimado(x, z);
     if (pq > 0) alvo.lerp(cores.queimado, pq * 0.85);

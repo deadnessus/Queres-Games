@@ -1,6 +1,7 @@
 // Painel da Andorinha (porta da nave → "Painel da nave"): a missão de agora, os sistemas da nave (consertados ou não),
 // o tanque de combustível, o botão de instalar as peças, o minijogo das estrelas e o botão de decolar.
 // Minijogo: tocar nas 5 estrelas do Cruzeiro do Sul na ordem certa (os navegadores antigos se guiavam por elas).
+// O mesmo minijogo é o segredo do telescópio do Observatório (abrirEstrelas).
 import { SISTEMAS } from '../dados/missoes.js';
 import { ITENS } from '../dados/itens.js';
 
@@ -64,7 +65,8 @@ export function criarPainel({ missoes, inventario, som, aoInstalar, aoMinijogo, 
   }
 
   // ---------- minijogo das estrelas ----------
-  let proxima = 0;
+  let proxima = 0, modoTelescopio = null;
+  const titulo = $('painel-titulo');
   function montarCeu() {
     for (const b of ceu.querySelectorAll('button')) b.remove();
     linhas.replaceChildren();
@@ -103,7 +105,10 @@ export function criarPainel({ missoes, inventario, som, aoInstalar, aoMinijogo, 
       if (proxima === 4) linha(CRUZEIRO[2], CRUZEIRO[3]);
       if (proxima >= CRUZEIRO.length) {
         textoMini.textContent = 'Calibrado! Esse é o Cruzeiro do Sul.';
-        setTimeout(() => { fecharMinijogo(); aoMinijogo(); }, 1100);
+        setTimeout(() => {
+          if (modoTelescopio) { const m = modoTelescopio; modoTelescopio = null; m.aoTerminar(); return; }
+          fecharMinijogo(); aoMinijogo();
+        }, 1100);
       } else pedir();
     } else if (!b.classList.contains('certa')) {
       som.negado();
@@ -118,10 +123,16 @@ export function criarPainel({ missoes, inventario, som, aoInstalar, aoMinijogo, 
   btnInstalar.addEventListener('click', () => { if (!btnInstalar.disabled) { aoInstalar(); desenhar(); } });
   btnCalibrar.addEventListener('click', () => { som.clique(); abrirMinijogo(); });
   btnDecolar.addEventListener('click', () => aoDecolar());
-  $('btn-sair-minijogo').addEventListener('click', () => { som.clique(); fecharMinijogo(); });
+  $('btn-sair-minijogo').addEventListener('click', () => {
+    som.clique();
+    if (modoTelescopio) { const m = modoTelescopio; modoTelescopio = null; m.aoSair(); return; }
+    fecharMinijogo();
+  });
 
   return {
-    abrir() { minijogo.hidden = true; conteudo.hidden = false; desenhar(); },
+    abrir() { modoTelescopio = null; titulo.textContent = 'Painel da Andorinha'; minijogo.hidden = true; conteudo.hidden = false; desenhar(); },
+    // O telescópio do Observatório (segredo): só o minijogo das estrelas.
+    abrirEstrelas(modo) { modoTelescopio = modo; titulo.textContent = 'Telescópio do Observatório'; abrirMinijogo(); },
     desenhar,
     // Para os testes automáticos.
     get estrelas() { return CRUZEIRO.map((e) => e.id); },

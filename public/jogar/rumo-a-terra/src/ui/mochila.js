@@ -4,10 +4,11 @@
 import { ITENS, RECEITAS } from '../dados/itens.js';
 import { podeCriar } from '../logica/inventario.js';
 import { MISSOES } from '../dados/missoes.js';
+import { SEGREDOS } from '../dados/locais.js';
 
 const $ = (id) => document.getElementById(id);
 
-export function criarTelaMochila({ inventario, missoes, aoCriar, aoColocar }) {
+export function criarTelaMochila({ inventario, missoes, segredos, aoCriar, aoColocar }) {
   const painelMochila = $('painel-mochila'), painelCriar = $('painel-criar'), painelMissoes = $('painel-missoes');
   const abaMochila = $('aba-mochila'), abaCriar = $('aba-criar'), abaMissoes = $('aba-missoes');
   let aba = 'mochila';
@@ -64,7 +65,7 @@ export function criarTelaMochila({ inventario, missoes, aoCriar, aoColocar }) {
   function desenharMissoes() {
     painelMissoes.replaceChildren();
     const atual = missoes.indice, est = missoes.estado;
-    painelMissoes.append(el('p', 'vazio', missoes.fim ? '🌍 Você completou as 12 missões!' : `Missão ${atual + 1} de ${MISSOES.length}. Cada missão conserta uma parte da Andorinha.`));
+    painelMissoes.append(el('p', 'vazio', missoes.fim ? `🌍 Você completou as ${MISSOES.length} missões!` : `Missão ${atual + 1} de ${MISSOES.length}. Cada missão conserta uma parte da Andorinha.`));
     MISSOES.forEach((m, i) => {
       const card = el('div', 'missao-item' + (i < atual ? ' feita' : i === atual ? ' atual' : ''));
       if (i > atual) { card.append(el('b', null, `🔒 Missão ${i + 1}: ???`)); painelMissoes.append(card); return; }
@@ -80,6 +81,15 @@ export function criarTelaMochila({ inventario, missoes, aoCriar, aoColocar }) {
       }
       painelMissoes.append(card);
     });
+    // segredos (não são obrigatórios)
+    if (segredos) {
+      const card = el('div', 'missao-item segredos');
+      card.append(el('b', null, `🔍 Segredos achados: ${segredos.quantos} de ${segredos.total}`));
+      const ol = el('ol');
+      for (const sg of SEGREDOS) ol.append(el('li', segredos.achou(sg.id) ? 'feito-segredo' : null, segredos.achou(sg.id) ? `✅ ${sg.nome}` : '??? (procure pelo mundo)'));
+      card.append(ol);
+      painelMissoes.append(card);
+    }
   }
 
   function desenhar() {
