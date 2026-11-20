@@ -145,6 +145,33 @@ export function texturaLumen() {
   return comoTextura(c, { cor: true });
 }
 
+// A Terra vista do espaço (para o final): oceanos azuis, continentes verdes e marrons, gelo nos polos e nuvens.
+export function texturaTerra() {
+  const L = 512, A = 256;
+  const [c, g] = canvas(L, A);
+  const img = g.createImageData(L, A);
+  for (let y = 0; y < A; y++) {
+    for (let x = 0; x < L; x++) {
+      const ang = (x / L) * Math.PI * 2, lat = y / A;
+      const u = Math.cos(ang) * 1.6, v = Math.sin(ang) * 1.6, w = lat * 3.4;
+      const terra = fbm(u + w * 0.5 + 3, v + w + 1, 77, 5);
+      const seco = fbm(u * 2 + 9, v * 2 + w, 78, 3);
+      let cor;
+      if (terra < 0.02) cor = [20 + terra * 40, 70 + terra * 80, 160 + terra * 60]; // oceano
+      else if (terra < 0.05) cor = [200, 190, 140]; // praia
+      else if (seco > 0.15) cor = [170 + seco * 40, 140 + seco * 20, 90]; // deserto
+      else cor = [50 + terra * 60, 120 + terra * 50, 50 + terra * 20]; // mata
+      const nuvem = Math.max(0, fbm(u * 2.2 + 5, v * 2.2 + w * 2.4, 79, 4) - 0.1) * 2.4;
+      const polo = Math.max(0, Math.abs(lat - 0.5) * 2 - 0.82) * 6;
+      const k = Math.min(1, nuvem + polo);
+      const i = (y * L + x) * 4;
+      img.data[i] = cor[0] + (250 - cor[0]) * k; img.data[i + 1] = cor[1] + (252 - cor[1]) * k; img.data[i + 2] = cor[2] + (255 - cor[2]) * k; img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return comoTextura(c, { cor: true });
+}
+
 // Bolinha macia para fumaça e faíscas.
 export function texturaParticula() {
   const [c, g] = canvas(32, 32);

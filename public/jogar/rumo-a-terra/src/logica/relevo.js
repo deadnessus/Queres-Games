@@ -86,6 +86,13 @@ export function criarRelevo(def) {
           const fundo = nivelAgua - o.prof * (1 - (d / raio) * (d / raio));
           h = misturar(h, Math.min(h, fundo), 1 - degrau(raio * 0.75, raio + o.borda, d));
         }
+      } else if (o.tipo === 'cratera') {
+        // fundo chato no meio, paredes e uma borda levantada em volta (como a cratera de um meteoro)
+        const d = Math.hypot(x - o.x, z - o.z);
+        if (d < o.raio + o.borda * 3) {
+          h -= o.prof * (1 - degrau(o.raio * 0.5, o.raio, d));
+          h += o.aba * Math.exp(-(((d - o.raio) / o.borda) ** 2));
+        }
       } else if (o.tipo === 'sulco') {
         const { d, t: ao } = distSegmento(x, z, o.de[0], o.de[1], o.ate[0], o.ate[1]);
         h -= o.prof * (1 - degrau(0, o.largura / 2, d)) * (0.3 + 0.7 * ao);

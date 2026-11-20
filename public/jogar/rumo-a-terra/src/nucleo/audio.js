@@ -103,6 +103,16 @@ export const som = {
   dor() { if (!pronto()) return; tom('sine', 260, 120, 0.25, 0.2); chiado(0.12, 600, 0.12, 1); },
   desmaio() { if (!pronto()) return; tom('sine', 400, 60, 1.2, 0.18); },
 
+  // ---- missões ----
+  objetivo() { if (!pronto()) return; tom('triangle', 660, 660, 0.12, 0.08); setTimeout(() => pronto() && tom('triangle', 990, 990, 0.18, 0.08), 110); },
+  missaoCompleta() {
+    if (!pronto()) return;
+    [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => pronto() && tom('triangle', f, f, i === 3 ? 0.5 : 0.16, 0.1), i * 120));
+  },
+  instalar() { if (!pronto()) return; chiado(0.08, 1200, 0.15, 1); setTimeout(() => pronto() && chiado(0.08, 900, 0.15, 1), 120); setTimeout(() => pronto() && tom('sine', 300, 900, 0.4, 0.12), 260); },
+  cristalVoando() { if (!pronto()) return; tom('sine', 1800, 700, 0.35, 0.06); tom('triangle', 2400, 1200, 0.3, 0.04); },
+  estrela() { if (!pronto()) return; tom('sine', 1320, 1760, 0.2, 0.08); },
+
   // ---- sons da abertura (no espaço) ----
   alarme() { if (!pronto()) return; tom('square', 880, 880, 0.18, 0.06); setTimeout(() => pronto() && tom('square', 660, 660, 0.18, 0.06), 220); },
   explosao(forte = 1) {

@@ -1,13 +1,15 @@
-// Tela da mochila: aba "Mochila" (o que você tem, e "Colocar" para blocos e fogueira) e aba "Criar" (receitas).
+// Tela da mochila: aba "Mochila" (o que você tem, e "Colocar" para blocos e fogueira), aba "Criar" (receitas)
+// e aba "Missões" (a campanha: o que já fez, o que está fazendo e quantas faltam).
 // Os botões gerados aqui usam data-acao primeiro (a telemetria do site conta pelo primeiro data-..., um nome por ação).
 import { ITENS, RECEITAS } from '../dados/itens.js';
 import { podeCriar } from '../logica/inventario.js';
+import { MISSOES } from '../dados/missoes.js';
 
 const $ = (id) => document.getElementById(id);
 
-export function criarTelaMochila({ inventario, aoCriar, aoColocar }) {
-  const painelMochila = $('painel-mochila'), painelCriar = $('painel-criar');
-  const abaMochila = $('aba-mochila'), abaCriar = $('aba-criar');
+export function criarTelaMochila({ inventario, missoes, aoCriar, aoColocar }) {
+  const painelMochila = $('painel-mochila'), painelCriar = $('painel-criar'), painelMissoes = $('painel-missoes');
+  const abaMochila = $('aba-mochila'), abaCriar = $('aba-criar'), abaMissoes = $('aba-missoes');
   let aba = 'mochila';
 
   const el = (tag, classe, texto) => { const e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; };
@@ -37,6 +39,7 @@ export function criarTelaMochila({ inventario, aoCriar, aoColocar }) {
   function desenharCriar() {
     painelCriar.replaceChildren();
     for (const r of RECEITAS) {
+      if (!missoes.receitaLiberada(r)) continue;
       const info = ITENS[r.resultado];
       const estado = podeCriar(inventario, r);
       const linha = el('div', 'receita' + (estado.ok ? ' pode' : ''));
@@ -58,16 +61,40 @@ export function criarTelaMochila({ inventario, aoCriar, aoColocar }) {
     }
   }
 
+  function desenharMissoes() {
+    painelMissoes.replaceChildren();
+    const atual = missoes.indice, est = missoes.estado;
+    painelMissoes.append(el('p', 'vazio', missoes.fim ? '🌍 Você completou as 12 missões!' : `Missão ${atual + 1} de ${MISSOES.length}. Cada missão conserta uma parte da Andorinha.`));
+    MISSOES.forEach((m, i) => {
+      const card = el('div', 'missao-item' + (i < atual ? ' feita' : i === atual ? ' atual' : ''));
+      if (i > atual) { card.append(el('b', null, `🔒 Missão ${i + 1}: ???`)); painelMissoes.append(card); return; }
+      card.append(el('b', null, `${i < atual ? '✅' : m.icone} Missão ${i + 1}: ${m.titulo}`));
+      if (i === atual) {
+        const ol = el('ol');
+        m.passos.forEach((p, k) => {
+          const li = el('li', k < est.p ? 'feito' : k === est.p ? 'agora' : null, k <= est.p ? p.texto : '...');
+          if (k === est.p) { const prog = missoes.progresso(); if (prog) li.textContent += `  (${prog})`; }
+          ol.append(li);
+        });
+        card.append(ol);
+      }
+      painelMissoes.append(card);
+    });
+  }
+
   function desenhar() {
     abaMochila.setAttribute('aria-selected', String(aba === 'mochila'));
     abaCriar.setAttribute('aria-selected', String(aba === 'criar'));
+    abaMissoes.setAttribute('aria-selected', String(aba === 'missoes'));
     painelMochila.hidden = aba !== 'mochila';
     painelCriar.hidden = aba !== 'criar';
-    if (aba === 'mochila') desenharMochila(); else desenharCriar();
+    painelMissoes.hidden = aba !== 'missoes';
+    if (aba === 'mochila') desenharMochila(); else if (aba === 'criar') desenharCriar(); else desenharMissoes();
   }
 
   abaMochila.addEventListener('click', () => { aba = 'mochila'; desenhar(); });
   abaCriar.addEventListener('click', () => { aba = 'criar'; desenhar(); });
+  abaMissoes.addEventListener('click', () => { aba = 'missoes'; desenhar(); });
   painelCriar.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-receita]');
     if (!b || b.disabled) return;

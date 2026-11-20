@@ -24,7 +24,7 @@ const suave = (t) => t * t * (3 - 2 * t);
 const entre = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
 
 // A Andorinha inteira (antes do acidente). A asa direita é separada: ela se solta no impacto.
-function criarAndorinha() {
+export function criarAndorinha() {
   const peca = (geo, m, cor) => { geo.applyMatrix4(m); return preparar(geo, cor); };
   const casco = (x, y) => (y < 0.9 ? misturarHex(0x9aa0aa, COR.casco, (y - 0.1) / 0.8) : COR.casco);
   const corpo = mesclar([

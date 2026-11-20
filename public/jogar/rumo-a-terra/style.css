@@ -271,3 +271,88 @@ button.perigo { background: #ff7a5a; border-color: #ffd0c4; }
   .legenda-mapa { max-width: 240px; font-size: 12px; text-align: left; }
 }
 
+/* ---------- botão de atirar na esquerda (padrão; dá para trocar nas Opções) ---------- */
+body.atirar-esquerda #btn-atirar { right: auto; left: calc(var(--seg-esq) + 26px); bottom: calc(var(--seg-baixo) + 46vh - var(--b-atirar) / 2); }
+body.atirar-esquerda #btn-pular { right: calc(var(--seg-dir) + 30px); bottom: calc(var(--seg-baixo) + 30px); }
+body.atirar-esquerda #btn-acao { bottom: calc(var(--seg-baixo) + 30px + var(--b-pular) + 22px); }
+body.atirar-esquerda #btn-cancelar { bottom: calc(var(--seg-baixo) + 30px + var(--b-pular) + 22px); }
+
+
+/* ---------- missões: caixa da missão, chefe, painel da nave, minijogo e final ---------- */
+#btn-missao {
+  position: absolute; top: calc(var(--seg-cima) + 64px); left: calc(var(--seg-esq) + 14px);
+  display: flex; align-items: flex-start; gap: 8px; max-width: min(300px, 28vw); min-height: 0; padding: 8px 10px; border-radius: 12px;
+  background: rgba(8, 14, 32, 0.66); border: 1px solid rgba(255, 179, 71, 0.55); text-align: left; font-size: 13px; line-height: 1.3;
+}
+#btn-missao[hidden] { display: none; }
+#missao-icone { font-size: 22px; line-height: 1; }
+#btn-missao .textos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#missao-titulo { color: var(--acento); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+#missao-progresso { color: #5ff0a0; font-weight: 800; font-size: 13px; }
+#missao-progresso[hidden] { display: none; }
+#btn-missao.novo { animation: missao-nova 1.2s ease-out; }
+@keyframes missao-nova { 0%, 40% { box-shadow: 0 0 0 3px var(--acento), 0 0 18px rgba(255, 179, 71, 0.9); } 100% { box-shadow: none; } }
+#chefe { position: absolute; left: 50%; bottom: calc(var(--seg-baixo) + 20px); transform: translateX(-50%); width: min(360px, 40vw); text-align: center; text-shadow: 0 1px 3px #000; }
+#chefe[hidden] { display: none; }
+#chefe-nome { display: block; font-size: 14px; margin-bottom: 4px; color: #ffd0e0; }
+#chefe-barra { height: 12px; border-radius: 6px; background: rgba(8, 12, 28, 0.7); border: 1px solid rgba(255, 255, 255, 0.4); overflow: hidden; }
+#chefe-cheia { width: 100%; height: 100%; transform-origin: left; background: linear-gradient(90deg, #c040ff, #ff5a8a); transition: transform 0.15s; }
+@media (max-height: 430px) {
+  #btn-missao { top: calc(var(--seg-cima) + 50px); font-size: 12px; padding: 6px 8px; max-width: min(260px, 27vw); }
+  #missao-icone { font-size: 18px; }
+  #mensagem { max-width: min(520px, 46vw); }
+}
+
+.lista-missoes { display: flex; flex-direction: column; gap: 8px; }
+.missao-item { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); }
+.missao-item.feita { opacity: 0.7; }
+.missao-item.atual { border-color: var(--acento); background: rgba(255, 179, 71, 0.1); }
+.missao-item b { font-size: 16px; }
+.missao-item ol { margin: 6px 0 0; padding-left: 22px; font-size: 14px; line-height: 1.45; color: var(--suave); }
+.missao-item li.feito { text-decoration: line-through; opacity: 0.7; }
+.missao-item li.agora { color: #fff; font-weight: 700; }
+
+.cartao.painel { max-width: 640px; text-align: left; }
+.caixa-missao { padding: 10px 12px; border-radius: 12px; background: rgba(255, 179, 71, 0.1); border: 1px solid rgba(255, 179, 71, 0.5); font-size: 15px; line-height: 1.4; }
+.caixa-missao b { color: var(--acento); }
+.caixa-missao .progresso { display: block; margin-top: 4px; color: #5ff0a0; font-weight: 800; }
+.sistemas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.sistema { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 80, 70, 0.12); border: 1px solid rgba(255, 120, 100, 0.35); font-size: 14px; }
+.sistema.meio { background: rgba(255, 200, 70, 0.12); border-color: rgba(255, 210, 120, 0.45); }
+.sistema.ok { background: rgba(95, 240, 160, 0.14); border-color: rgba(95, 240, 160, 0.55); }
+.sistema .icone { font-size: 20px; }
+.sistema b { flex: 1; font-weight: 700; }
+.sistema .estado { font-size: 13px; font-weight: 800; }
+.sistemas::before { content: "Sistemas da nave"; grid-column: 1 / -1; color: var(--suave); font-size: 13px; font-weight: 700; }
+#painel-tanque { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+#painel-tanque[hidden] { display: none; }
+.barra-tanque { flex: 1; height: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+#tanque-cheio { width: 100%; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #5fd0ff, #5ff0a0); }
+#painel-falta { color: #ffb0a0; }
+#painel-falta[hidden], #btn-instalar[hidden], #btn-calibrar[hidden], #btn-decolar[hidden], #minijogo[hidden], #painel-conteudo[hidden] { display: none; }
+#painel-conteudo { display: flex; flex-direction: column; gap: 10px; }
+#minijogo { display: flex; flex-direction: column; gap: 10px; }
+#minijogo-texto { margin: 0; font-size: 15px; line-height: 1.4; }
+#ceu-minijogo { position: relative; width: 100%; height: min(52vh, 340px); border-radius: 12px; background: radial-gradient(ellipse at 40% 30%, #1a2050, #04060f); overflow: hidden; touch-action: none; }
+#linhas-minijogo { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#linhas-minijogo line { stroke: #ffe28a; stroke-width: 0.6; stroke-linecap: round; }
+.estrela { position: absolute; width: 44px; height: 44px; min-height: 0; margin: -22px 0 0 -22px; padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.estrela::before { content: ""; position: absolute; left: 50%; top: 50%; width: var(--t, 8px); height: var(--t, 8px); margin: calc(var(--t, 8px) / -2) 0 0 calc(var(--t, 8px) / -2); border-radius: 50%; background: #fff; box-shadow: 0 0 calc(var(--t, 8px) * 1.2) rgba(200, 220, 255, 0.9); }
+.estrela.certa::before { background: #ffe28a; box-shadow: 0 0 14px #ffd04a; }
+.estrela.errou::before { background: #ff6a5a; }
+@media (max-height: 430px) { #ceu-minijogo { height: 48vh; } }
+
+#final { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+#final[hidden] { display: none; }
+#final-fala {
+  position: absolute; left: 50%; bottom: calc(var(--seg-baixo) + 26px); transform: translateX(-50%);
+  width: max-content; max-width: min(640px, 84vw); padding: 12px 18px; border-radius: 14px;
+  background: rgba(4, 6, 16, 0.78); font-size: 19px; line-height: 1.4; text-align: center;
+}
+#final-fala[hidden] { display: none; }
+#final-quem { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 6px; background: var(--ciano); color: #062030; font-size: 13px; font-weight: 800; vertical-align: 2px; }
+#final-quem[hidden] { display: none; }
+#btn-pular-final {
+  position: absolute; top: calc(var(--seg-cima) + 12px); right: calc(var(--seg-dir) + 16px); pointer-events: auto;
+  min-height: 44px; padding: 8px 16px; font-size: 16px; font-weight: 800; background: rgba(8, 12, 28, 0.6); border-color: rgba(255, 255, 255, 0.4);
+}

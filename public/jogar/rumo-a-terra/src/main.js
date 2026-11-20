@@ -1,5 +1,5 @@
-// Rumo à Terra — Etapa 0 (fundação): andar, olhar, pular e treinar a mira no Vale da Queda.
-// Liga tudo: carregamento em etapas, telas, laço do jogo, controles, céu, mundo e a arma de teste.
+// Rumo à Terra: a Andorinha caiu em Lúmen; 12 missões para consertar a nave e voltar para a Terra.
+// Liga tudo: carregamento em etapas, telas, laço do jogo, controles, céu, mundo, bichos, missões, abertura e final.
 // Plano completo em docs/ (comece por docs/README.md).
 import * as THREE from 'three';
 import vale from './dados/regioes/vale.js';
@@ -38,6 +38,13 @@ import { criarCriaturas } from './entidades/criaturas.js';
 import { CRIATURAS } from './dados/criaturas.js';
 import { criarMapa } from './ui/mapa.js';
 import { maisPerto, embrulhar } from './logica/toro.js';
+import { criarLocais } from './mundo/locais.js';
+import { criarPecas } from './entidades/pecas.js';
+import { criarMissoes } from './logica/missoes.js';
+import { criarPainel } from './ui/painel.js';
+import { criarFinal } from './cenas/final.js';
+import { LOCAIS, PONTOS, SUCATA, PECAS_NO_LOCAL, CHEFE_NO_LOCAL } from './dados/locais.js';
+import { MISSOES } from './dados/missoes.js';
 import { mostrarTela, progresso, mostrarErro, ligarOpcoes } from './ui/telas.js';
 
 const $ = (id) => document.getElementById(id);
@@ -50,7 +57,7 @@ if (params.visual) config.visual = params.visual;
 entrada.inverterY = config.inverterY;
 definirVolume(config.volume);
 
-let estado = 'carregando'; // carregando | inicio | prologo | jogando | pausa | mochila
+let estado = 'carregando'; // carregando | inicio | prologo | jogando | pausa | mochila | mapa | painel | decolando | final | creditos
 let voltarDasOpcoes = 'inicio';
 let jaJogou = false;
 
@@ -83,6 +90,8 @@ async function iniciar() {
   cena.add(terreno.grupo);
   const agua = criarAgua(vale);
   cena.add(agua.grupo);
+  const locais = criarLocais({ def: vale, grade, colisoes });
+  cena.add(locais.grupo);
 
   progresso(0.45, 'Plantando a grama-pena...');
   await esperarQuadro();
@@ -90,6 +99,8 @@ async function iniciar() {
     { x: vale.nave.x, z: vale.nave.z, r: 15 },
     { x: vale.inicio.x, z: vale.inicio.z, r: 5 },
     ...vale.alvos.map((a) => ({ x: a.x, z: a.z, r: 3.5 })),
+    ...locais.livres,
+    ...Object.values(PONTOS).flat().map(([x, z]) => ({ x, z, r: 2 })),
   ];
   const vegetacao = criarVegetacao({ def: vale, grade, relevo, colisoes, livres });
   cena.add(vegetacao.grupo);
@@ -134,7 +145,9 @@ async function iniciar() {
   // ---- coleta, mochila, criar e construir (salvo neste aparelho) ----
   const save = carregarSave();
   const inventario = criarInventario(save ? save.inventario : []);
-  const recursos = criarRecursos({ lista: vegetacao.recursos, colisoes, lascas, som, tamanho: vale.tamanho });
+  const recursos = criarRecursos({ lista: [...vegetacao.recursos, ...locais.recursos], colisoes, lascas, som, tamanho: vale.tamanho });
+  const missoes = criarMissoes(save ? save.missao : null, inventario);
+  const pecas = criarPecas({ cena, grade });
   const construcoes = criarConstrucoes({ cena, grade, colisoes, chamas, luz: luzFogueira, som });
   if (save) construcoes.carregar(save);
   if (save && save.pos) jogador.reposicionar(save.pos[0] / 100, save.pos[1] / 100, save.pos[2]);
@@ -146,7 +159,7 @@ async function iniciar() {
     if (!sujo) return;
     const rumo = ((((jogador.rumo * 180) / Math.PI) % 360) + 540) % 360 - 180;
     const pos = [Math.round(jogador.pos.x * 100), Math.round(jogador.pos.z * 100), Math.round(rumo)];
-    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado, pos }));
+    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado, pos, missao: missoes.serializar() }));
   }
   const coletaveis = criarColetaveis({
     cena,
@@ -169,11 +182,15 @@ async function iniciar() {
     cena, def: vale, grade, colisoes, som, nuvem: lascas, posNave: nave.centro,
     fogueiras: () => construcoes.listaFogueiras(),
     aoAtacar: (dano) => levarDano(dano),
-    aoMorrer: (c, itens, p) => { if (itens.length) coletaveis.soltar(itens, p); },
-    aoVer: (tipo) => hud.mensagem(AVISOS_BICHO[tipo], 5),
+    aoMorrer: (c, itens, p) => {
+      if (itens.length) coletaveis.soltar(itens, p);
+      if (c.tag) mostrarMsgs(missoes.evento('derrotou', { tag: c.tag }));
+    },
+    aoVer: (tipo) => { if (AVISOS_BICHO[tipo]) hud.mensagem(AVISOS_BICHO[tipo], 5); },
   });
   function levarDano(n) {
     if (estado !== 'jogando' || desmaio > 0 || acordando > 1) return;
+    if (inventario.tem('armadura')) n = Math.max(1, Math.round(n * 0.6)); // a armadura de carapaça protege
     vida -= n;
     semDano = 0;
     tremor = 0.35;
@@ -215,13 +232,16 @@ async function iniciar() {
     const m = mats[config.visual];
     for (const p of terreno.pedacos) p.mesh.material = m.terreno;
     for (const p of vegetacao.malhas) p.mesh.material = m.props;
+    for (const p of locais.malhas) p.mesh.material = m.props;
     nave.casco.material = m.nave;
+    for (const e of nave.extras) e.material = m.nave;
     if (nave.destrocos) nave.destrocos.material = m.nave;
     render.definir(config.visual, config.qualidade);
     const longe = config.qualidade === 'leve' ? 125 : 165;
     cena.fog.far = longe;
     cena.fog.near = longe * 0.22;
     document.body.classList.toggle('botoes-grandes', config.botoes === 'grande');
+    document.body.classList.toggle('atirar-esquerda', config.atirar === 'esquerda');
     ajustarTela();
   }
 
@@ -236,9 +256,11 @@ async function iniciar() {
     const altura = renderer.domElement.height;
     for (const p of [fumaca, faiscas, lascas, chamas]) p.definirEscala(altura, vfov);
     prologo.ajustarTela(aspecto, altura);
+    final.ajustarTela(aspecto);
     verificarGiro();
   }
   const prologo = criarPrologo({ renderer, som });
+  const final = criarFinal({ renderer, som });
   addEventListener('resize', () => setTimeout(ajustarTela, 50));
   aplicarVisual();
 
@@ -264,7 +286,7 @@ async function iniciar() {
   });
 
   // ---- menu: novo jogo, continuar ----
-  const temJogoSalvo = () => !!carregarSave() || inventario.lista().length > 0 || construcoes.total > 0;
+  const temJogoSalvo = () => !!carregarSave() || inventario.lista().length > 0 || construcoes.total > 0 || missoes.indice > 0 || missoes.estado.p > 0;
   function atualizarMenu() {
     salvarAgora();
     const tem = temJogoSalvo();
@@ -274,7 +296,9 @@ async function iniciar() {
     info.hidden = !tem;
     if (tem) {
       const itens = inventario.lista().reduce((soma, [, n]) => soma + n, 0);
-      info.textContent = `Guardado neste aparelho: ${itens} ${itens === 1 ? 'item' : 'itens'} na mochila e ${construcoes.total} ${construcoes.total === 1 ? 'construção' : 'construções'}.`;
+      const m = missoes.missao();
+      const qual = m ? `missão ${missoes.indice + 1} de ${MISSOES.length} (${m.titulo})` : 'todas as missões completas';
+      info.textContent = `Guardado neste aparelho: ${qual}, ${itens} ${itens === 1 ? 'item' : 'itens'} na mochila e ${construcoes.total} ${construcoes.total === 1 ? 'construção' : 'construções'}.`;
     }
     $('botoes-inicio').hidden = false;
     $('confirmar-novo').hidden = true;
@@ -286,6 +310,10 @@ async function iniciar() {
     construcoes.limpar();
     recursos.restaurarTudo();
     criaturas.reiniciar();
+    locais.abrirPorta(false);
+    pecas.limpar();
+    missoes.reiniciar(); // chama prepararPasso() (primeiro passo)
+    nave.mostrarSistemas(missoes.estado.sistemas);
     vida = 100; desmaio = 0; semDano = 99;
     hud.vida(1);
     volta.x = volta.z = 0; volta.avisou = false;
@@ -333,16 +361,18 @@ async function iniciar() {
     toque.ligar();
     if (!jaJogou) {
       jaJogou = true;
-      if (!acordou && inventario.lista().length + construcoes.total > 0) {
+      if (!acordou && temJogoSalvo()) {
         hud.mensagem('Bem-vindo de volta, Comandante! Suas coisas estão onde você deixou.', 4);
+        const m = missoes.missao();
+        if (m) hud.mensagem(`Missão de agora: ${m.icone} ${m.titulo}. ${missoes.passo().texto}`, 6);
         return;
       }
       hud.mensagem('Comandante... está me ouvindo? A Andorinha caiu, mas você está inteiro!', 4);
       hud.mensagem(entrada.ultimaFonte === 'toque' || ehToque()
         ? 'Dedão esquerdo: andar. Dedão direito: arrastar para olhar em volta.'
         : 'W A S D para andar, o mouse para olhar, Espaço para pular.', 5);
-      hud.mensagem('Achei bolhas de cristal flutuando perto da nave. Treine a mira nelas!', 5);
-      hud.mensagem('Dica: mire no tronco de uma árvore e segure ✋ para pegar madeira. Na 🎒 dá para criar ferramentas e blocos.', 6);
+      hud.mensagem('Venha até a porta da nave e toque em "Falar com a ÍRIS". Vamos consertar a Andorinha juntos!', 6);
+      hud.mensagem('Dica: perto da nave há bolhas de cristal para treinar a mira. E mirando numa árvore, segure ✋ para pegar madeira.', 6);
     }
   }
 
@@ -379,7 +409,7 @@ async function iniciar() {
 
   // ---- mochila ----
   const telaMochila = criarTelaMochila({
-    inventario,
+    inventario, missoes,
     aoCriar(r) {
       if (criar(inventario, r)) {
         som.criar();
@@ -417,7 +447,10 @@ async function iniciar() {
     toque.desligar();
     teclado.soltarTrava();
     som.clique();
-    mapa.desenhar($('mapa-canvas'), { jogador, nave: nave.centro, fogueiras: construcoes.listaFogueiras(), blocos: construcoes.listaBlocos() });
+    mapa.desenhar($('mapa-canvas'), {
+      jogador, nave: nave.centro, fogueiras: construcoes.listaFogueiras(), blocos: construcoes.listaBlocos(),
+      locais: locaisConhecidos(), objetivo: alvoMissao(),
+    });
     mostrarTela('tela-mapa');
   }
   function fecharMapa() {
@@ -436,6 +469,201 @@ async function iniciar() {
   addEventListener('keydown', (e) => {
     if (estado === 'mochila' && ['Escape', 'KeyI', 'Tab'].includes(e.code)) { e.preventDefault(); fecharMochila(); }
   });
+
+  // ---- missões (lógica em src/logica/missoes.js, dados em src/dados/missoes.js e src/dados/locais.js) ----
+  const T = vale.tamanho;
+  const distToro = (ax, az, bx, bz) => Math.hypot(embrulhar(ax - bx, T), embrulhar(az - bz, T));
+  const suave = (t) => { const k = Math.max(0, Math.min(1, t)); return k * k * (3 - 2 * k); };
+  // Mensagens da ÍRIS quando um passo termina (e a musiquinha quando uma missão inteira termina).
+  function mostrarMsgs(msgs) {
+    if (!msgs || !msgs.length) return;
+    let completou = false;
+    for (const m of msgs) {
+      if (m.startsWith('✅')) { completou = true; hud.aviso(m); }
+      hud.mensagem(m, m.length > 70 ? 6 : 4.5);
+    }
+    if (completou) som.missaoCompleta();
+  }
+  // Põe no mundo o que o passo de agora precisa: bichos para derrotar, o chefe, as peças para pegar e os guardas.
+  function prepararPasso() {
+    pecas.limpar();
+    const ps = missoes.passo();
+    if (!ps) return;
+    const tag = missoes.tag(), est = missoes.estado;
+    const L = ps.local ? LOCAIS[ps.local] : null;
+    const perto = (l, r) => { const a = Math.random() * Math.PI * 2, d = Math.random() * r; return [l.x + Math.cos(a) * d, l.z + Math.sin(a) * d]; };
+    if (ps.tipo === 'derrotar') {
+      for (let k = est.n; k < ps.qtd; k++) { const [x, z] = perto(L, (L.raio || 8) * 0.6); criaturas.invocar(ps.bicho, x, z, tag); }
+    } else if (ps.tipo === 'chefe') {
+      const [dx, dz] = CHEFE_NO_LOCAL[ps.chefe] || [0, 0];
+      criaturas.invocar(ps.chefe, L.x + dx, L.z + dz, tag);
+    } else if (ps.tipo === 'pegar') {
+      const [dx, dz, dy] = PECAS_NO_LOCAL[ps.item] || [0, 0, 0];
+      const x = L.x + dx, z = L.z + dz;
+      pecas.mostrar([{ id: ps.item, item: ps.item, x, z, y: grade.alturaEm(x, z) + dy }]);
+    } else if (ps.tipo === 'achar') {
+      const faltam = PONTOS[ps.item].map(([x, z], k) => ({ id: `${ps.item}:${k}`, item: ps.item, x, z })).filter((pc) => !est.pegos.includes(pc.id));
+      pecas.mostrar(faltam);
+      const g = ps.guardas;
+      if (g) {
+        const lugares = g.porPonto ? faltam.map((pc) => ({ x: pc.x, z: pc.z, raio: 8 })) : [LOCAIS[g.local]];
+        for (const l of lugares) for (let k = 0; k < g.qtd; k++) { const [x, z] = perto(l, (l.raio || 8) * 0.6); criaturas.invocar(g.bicho, x, z, 'guarda'); }
+      }
+    }
+  }
+  // Para onde a ⭐ da bússola e do mapa aponta agora.
+  function alvoMissao() {
+    const ps = missoes.passo();
+    if (!ps) return null;
+    if (['falar', 'instalar', 'minijogo', 'decolar', 'construir'].includes(ps.tipo)) return { x: nave.centro.x, z: nave.centro.z, nome: 'Andorinha', nave: true };
+    if (ps.tipo === 'pegar' || ps.tipo === 'achar') {
+      const pc = pecas.maisProxima(jogador.pos);
+      if (pc) return { x: pc.x, z: pc.z, nome: ITENS[pc.item].nome };
+    }
+    if (ps.tipo === 'abrir' && locais.portaFrente) return { ...locais.portaFrente, nome: 'Porta dos Antigos' };
+    if (ps.local) { const L = LOCAIS[ps.local]; return { x: L.x, z: L.z, nome: L.nome }; }
+    if (ps.tipo === 'coletar' && ps.itens.sucata) {
+      let melhor = null, dm = Infinity;
+      for (const [x, z] of SUCATA) { const d = distToro(x, z, jogador.pos.x, jogador.pos.z); if (d < dm) { dm = d; melhor = { x, z, nome: 'Sucata' }; } }
+      return melhor;
+    }
+    return null;
+  }
+  // Lugares das missões que você já conhece (aparecem no mapa).
+  function locaisConhecidos() {
+    const ids = new Set();
+    MISSOES.forEach((m, i) => {
+      if (i > missoes.indice) return;
+      for (const ps of m.passos) {
+        if (ps.local) ids.add(ps.local);
+        if (ps.guardas && ps.guardas.local) ids.add(ps.guardas.local);
+        if (ps.item === 'chave') for (const id of ['monolito1', 'monolito2', 'monolito3']) ids.add(id);
+      }
+    });
+    return [...ids].map((id) => LOCAIS[id]);
+  }
+  function atualizarRastreador() {
+    const m = missoes.missao(), ps = missoes.passo();
+    hud.missao(m && ps ? { icone: m.icone, titulo: `Missão ${missoes.indice + 1}: ${m.titulo}`, texto: ps.texto, progresso: missoes.progresso() } : null);
+  }
+  const ctxMissao = {
+    pertoDe: (id) => { const L = LOCAIS[id]; return distToro(jogador.pos.x, jogador.pos.z, L.x, L.z) < (L.raio || 8) + 6; },
+    get fogueiraPertoDaNave() { return construcoes.listaFogueiras().some((f) => distToro(f.x, f.z, nave.centro.x, nave.centro.z) < 25); },
+  };
+
+  // ---- painel da nave ----
+  const painel = criarPainel({
+    missoes, inventario, som,
+    aoInstalar() {
+      const msgs = missoes.instalar();
+      if (!msgs) { som.negado(); return; }
+      som.instalar();
+      nave.mostrarSistemas(missoes.estado.sistemas);
+      fecharPainel();
+      mostrarMsgs(msgs);
+      salvarAgora();
+    },
+    aoMinijogo() { fecharPainel(); mostrarMsgs(missoes.evento('minijogo')); salvarAgora(); },
+    aoDecolar() { decolar(); },
+  });
+  function abrirPainel() {
+    if (estado !== 'jogando') return;
+    estado = 'painel';
+    entrada.soltarTudo();
+    toque.desligar();
+    teclado.soltarTrava();
+    som.clique();
+    painel.abrir();
+    mostrarTela('tela-painel');
+  }
+  function fecharPainel() {
+    if (estado !== 'painel') return;
+    estado = 'jogando';
+    mostrarTela(null);
+    entrada.soltarTudo();
+    toque.ligar();
+  }
+  $('btn-fechar-painel').addEventListener('click', () => { som.clique(); fecharPainel(); });
+  $('btn-missao').addEventListener('click', () => { abrirMochila(); telaMochila.abrir('missoes'); });
+  addEventListener('keydown', (e) => {
+    if (estado === 'painel' && e.code === 'Escape') { e.preventDefault(); fecharPainel(); }
+  });
+
+  // ---- decolagem, final e créditos ----
+  let decolagem = null;
+  const TEMPO_DECOLAGEM = 7.5;
+  const naveFrente = new THREE.Vector3(), saidaFogo = new THREE.Vector3(), posNaveAgora = new THREE.Vector3();
+  function decolar() {
+    if (estado !== 'painel') return;
+    const ps = missoes.passo();
+    if (!(ps && ps.tipo === 'decolar') && !missoes.fim) return;
+    if (ps && ps.tipo === 'decolar') missoes.evento('decolou');
+    salvarAgora();
+    estado = 'decolando';
+    mostrarTela(null);
+    $('hud').hidden = true;
+    entrada.soltarTudo();
+    toque.desligar();
+    teclado.soltarTrava();
+    hud.limparMensagens();
+    decolagem = { t: 0, altura: 0, vel: 0, ofs: new THREE.Vector3(), ronco: som.laco('ronco') };
+  }
+  function atualizarDecolagem(dt) {
+    const d = decolagem, g = nave.grupo, pose = nave.poseOriginal;
+    d.t += dt;
+    const sobe = suave((d.t - 1.2) / 2.8), inclina = suave((d.t - 3.4) / 2.2);
+    g.rotation.set(-0.55 * inclina, pose.rotacao.y, pose.rotacao.z * (1 - sobe), 'YXZ');
+    d.altura = 16 * sobe;
+    naveFrente.set(0, 0, 1).applyEuler(g.rotation);
+    if (d.t > 3.4) { d.vel += dt * 24; d.ofs.addScaledVector(naveFrente, d.vel * dt); }
+    g.position.y = pose.y + d.altura + d.ofs.y;
+    g.updateMatrixWorld(true);
+    // fogo do motor e poeira no chão
+    g.localToWorld(saidaFogo.copy(nave.saidaMotor));
+    const forca = Math.min(1, d.t / 1.2);
+    for (let k = 0; k < 4; k++) {
+      chamas.soltar({
+        x: saidaFogo.x + (Math.random() - 0.5) * 0.6, y: saidaFogo.y + (Math.random() - 0.5) * 0.6, z: saidaFogo.z + (Math.random() - 0.5) * 0.6,
+        vx: -naveFrente.x * 7 + (Math.random() - 0.5) * 2, vy: -naveFrente.y * 7 - 1.5, vz: -naveFrente.z * 7 + (Math.random() - 0.5) * 2,
+        vida: 0.45, tamanho: (0.7 + Math.random() * 0.6) * forca, cresce: 1.5, cor: Math.random() < 0.5 ? 0xffa040 : 0x8fd8ff, alfa: 0.85,
+      });
+    }
+    if (d.t < 4.5 && Math.random() < 0.5) {
+      const a = Math.random() * Math.PI * 2;
+      fumaca.soltar({ x: nave.centro.x + Math.cos(a) * 5, y: nave.centro.y + 0.3, z: nave.centro.z + Math.sin(a) * 5, vx: Math.cos(a) * 3, vy: 0.6, vz: Math.sin(a) * 3, vida: 2.5, tamanho: 1.6, cresce: 1.2, cor: 0x9a8a7a, alfa: 0.35 });
+    }
+    d.ronco.nivel(forca * (1 - suave((d.t - 6) / 1.5)));
+    nave.atualizar(dt);
+    fumaca.atualizar(dt);
+    chamas.atualizar(dt);
+    $('cortina').style.opacity = String(suave((d.t - 6.2) / 1.2));
+    if (d.t >= TEMPO_DECOLAGEM) {
+      d.ronco.parar();
+      estado = 'final';
+      $('final').hidden = false;
+      final.iniciar(mostrarCreditos);
+    }
+  }
+  function mostrarCreditos() {
+    estado = 'creditos';
+    $('final').hidden = true;
+    const min = Math.round(tempoJogado / 60);
+    $('final-tempo').textContent = `Tempo de jogo: ${min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`}. Missões: ${MISSOES.length} de ${MISSOES.length}.`;
+    mostrarTela('tela-final');
+    $('cortina').style.opacity = '0';
+  }
+  function voltarDoFinal(explorar) {
+    nave.voltarAoLugar();
+    decolagem = null;
+    if (explorar) {
+      jogador.reposicionar(nave.porta.x, nave.porta.z, vale.inicio.olhar);
+      comecar();
+      hud.mensagem('A Andorinha voltou a Lúmen para você explorar mais, Comandante. No "Painel da nave" dá para decolar de novo.', 6);
+    } else sairParaInicio();
+  }
+  $('btn-pular-final').addEventListener('click', () => final.pular());
+  $('btn-final-explorar').addEventListener('click', () => { som.clique(); voltarDoFinal(true); });
+  $('btn-final-inicio').addEventListener('click', () => { som.clique(); voltarDoFinal(false); });
 
   // ---- modo colocar (blocos e fogueira) ----
   let modoColocar = null;
@@ -506,6 +734,8 @@ async function iniciar() {
       construcoes.mostrarFantasma(tipo, alvo);
       return { tipo: 'colocar', alvo, tipoColocacao: tipo, bloco: info.bloco, texto: 'Colocar', bloqueado: !alvo || !alvo.valido };
     }
+    const pc = pecas.perto(jogador.pos);
+    if (pc) return { tipo: 'peca', peca: pc, texto: `Pegar ${ITENS[pc.item].icone} ${ITENS[pc.item].nome.split(' ')[0]}` };
     const hr = recursos.mirar(olho, dirOlhar);
     const hc = construcoes.mirar(olho, dirOlhar, recursos.ALCANCE);
     if (hc && (!hr || hc.distancia < hr.distancia)) return { tipo: 'construcao', hit: hc, texto: 'Desmontar' };
@@ -514,8 +744,18 @@ async function iniciar() {
       if (regra.exige && !inventario.tem(regra.exige)) return { tipo: 'recurso', hit: hr, texto: `Precisa de ${ITENS[regra.exige].nome.split(' ')[0].toLowerCase()}`, bloqueado: true };
       return { tipo: 'recurso', hit: hr, texto: regra.verbo };
     }
-    const d = Math.hypot(jogador.pos.x - nave.porta.x, jogador.pos.z - nave.porta.z);
-    if (d < 4.2) return { tipo: 'porta', texto: 'Examinar' };
+    const pf = locais.portaFrente;
+    if (pf && !missoes.estado.porta && distToro(jogador.pos.x, jogador.pos.z, pf.x, pf.z) < 3.8) {
+      const ps = missoes.passo();
+      const tem = inventario.quantos('chave') >= 3;
+      if (ps && ps.tipo === 'abrir') return { tipo: 'portaRuinas', texto: tem ? 'Abrir a porta 🗝️' : 'Precisa de 3 🗝️', bloqueado: !tem };
+      return { tipo: 'portaRuinas', texto: 'Porta dos Antigos', bloqueado: true };
+    }
+    const d = distToro(jogador.pos.x, jogador.pos.z, nave.porta.x, nave.porta.z);
+    if (d < 4.2) {
+      const ps = missoes.passo();
+      return { tipo: 'porta', texto: ps && ps.tipo === 'falar' ? 'Falar com a ÍRIS' : 'Painel da nave' };
+    }
     return null;
   }
 
@@ -559,10 +799,34 @@ async function iniciar() {
       marcarSujo();
       som.pegar();
       hud.aviso(`+1 ${ITENS[id].icone} ${ITENS[id].nome}`);
+    } else if (alvoAcao.tipo === 'peca') {
+      const pc = alvoAcao.peca;
+      pecas.remover(pc);
+      inventario.adicionar(pc.item, 1);
+      som.pegar();
+      hud.aviso(`+1 ${ITENS[pc.item].icone} ${ITENS[pc.item].nome}`);
+      mostrarMsgs(missoes.evento('pegou', { id: pc.id }));
+      salvarAgora();
+    } else if (alvoAcao.tipo === 'portaRuinas') {
+      if (alvoAcao.bloqueado) {
+        som.negado();
+        const agora = performance.now();
+        if (agora - avisoFalta > 4000) {
+          avisoFalta = agora;
+          const ps = missoes.passo();
+          hud.mensagem(ps && ps.tipo === 'abrir' ? 'Faltam pedras-chave! Tem uma em cada monólito (Leste, Oeste e Norte).' : 'Uma porta enorme de pedra, com três buracos em forma de losango. Está trancada.', 5);
+        }
+        return;
+      }
+      inventario.remover('chave', 3);
+      locais.abrirPorta(true);
+      som.explosao(0.5);
+      tremor = 0.6;
+      mostrarMsgs(missoes.evento('abriu'));
+      salvarAgora();
     } else if (alvoAcao.tipo === 'porta') {
-      som.clique();
-      hud.mensagem('A Andorinha está sem energia e a porta não abre. Primeiro precisamos achar a bateria principal.', 5);
-      hud.mensagem('(Isso chega na Etapa 1. Por enquanto: explorar, pegar materiais, criar e construir.)', 4);
+      const ps = missoes.passo();
+      if (ps && ps.tipo === 'falar') { som.clique(); mostrarMsgs(missoes.evento('falou')); } else abrirPainel();
     }
   }
 
@@ -571,6 +835,8 @@ async function iniciar() {
       if (!document.hidden) prologo.atualizar(dt);
       return;
     }
+    if (estado === 'decolando') { atualizarDecolagem(dt); return; }
+    if (estado === 'final') { if (!document.hidden) final.atualizar(dt); return; }
     if (estado !== 'jogando') {
       nave.atualizar(dt);
       fumaca.atualizar(dt);
@@ -596,6 +862,8 @@ async function iniciar() {
     semDano += dt;
     if (semDano > 6 && vida < 100 && desmaio <= 0) { vida = Math.min(100, vida + 6 * dt); hud.vida(vida / 100); }
     criaturas.atualizar(dt, jogador);
+    pecas.atualizar(dt);
+    mostrarMsgs(missoes.verificar(dt, ctxMissao));
     // deu a volta no mundo e voltou perto da nave?
     if (!volta.avisou && (volta.x || volta.z) && Math.hypot(jogador.pos.x - nave.centro.x, jogador.pos.z - nave.centro.z) < 40) {
       volta.avisou = true;
@@ -631,6 +899,11 @@ async function iniciar() {
       render.medir(dt, agora);
       return;
     }
+    if (estado === 'final') {
+      final.desenhar();
+      render.medir(dt, agora);
+      return;
+    }
     if (estado === 'jogando') {
       const [gr, gi] = entrada.consumirGiro();
       jogador.girar(gr, gi);
@@ -649,7 +922,13 @@ async function iniciar() {
         const cortina = e < 1.4 ? 0.4 + 0.6 * Math.abs(Math.cos((e * Math.PI) / 0.7)) : Math.max(0, 1 - (e - 1.4) / 1.6) * 0.4;
         $('cortina').style.opacity = acordando === 0 ? '0' : String(cortina);
       }
-    } else if (estado === 'inicio' || estado === 'carregando') {
+    } else if (estado === 'decolando') {
+      // a câmera fica onde você acordou, olhando a nave subir
+      posNaveAgora.setFromMatrixPosition(nave.grupo.matrixWorld);
+      const treme = decolagem.t < 4.5 ? 0.12 * Math.min(1, decolagem.t) : 0;
+      camera.position.set(vale.inicio.x + (Math.random() - 0.5) * treme, grade.alturaEm(vale.inicio.x, vale.inicio.z) + 1.7 + (Math.random() - 0.5) * treme, vale.inicio.z);
+      camera.lookAt(posNaveAgora.x, posNaveAgora.y + 2, posNaveAgora.z);
+    } else if (estado === 'inicio' || estado === 'carregando' || estado === 'creditos') {
       tempoMenu += dt;
       const a = -0.6 + tempoMenu * 0.045;
       camera.position.set(nave.centro.x + Math.sin(a) * 27, nave.centro.y + 7.5, nave.centro.z + Math.cos(a) * 27);
@@ -664,17 +943,18 @@ async function iniciar() {
     ceu.seguir(camera.position);
 
     // o mundo dá a volta: cada pedaço do mundo é desenhado na cópia mais perto da câmera
-    const cx = camera.position.x, cz = camera.position.z, T = vale.tamanho;
+    const cx = camera.position.x, cz = camera.position.z;
     const longe = cena.fog.far + 20;
-    for (const lista of [terreno.pedacos, vegetacao.malhas, vegetacao.malhasCristais]) {
+    for (const lista of [terreno.pedacos, vegetacao.malhas, vegetacao.malhasCristais, locais.malhas, locais.malhasBrilho]) {
       for (const p of lista) {
         const ox = maisPerto(p.x, cx, T) - p.x, oz = maisPerto(p.z, cz, T) - p.z;
         if (p.mesh.position.x !== ox || p.mesh.position.z !== oz) { p.mesh.position.set(ox, 0, oz); p.mesh.updateMatrix(); }
-        p.mesh.visible = Math.hypot(p.x + ox - cx, p.z + oz - cz) - p.raio < longe;
+        p.mesh.visible = !p.escondido && Math.hypot(p.x + ox - cx, p.z + oz - cz) - p.raio < longe;
       }
     }
-    nave.grupo.position.x = maisPerto(vale.nave.x, cx, T);
-    nave.grupo.position.z = maisPerto(vale.nave.z, cz, T);
+    const ofs = estado === 'decolando' && decolagem ? decolagem.ofs : null;
+    nave.grupo.position.x = maisPerto(vale.nave.x, cx, T) + (ofs ? ofs.x : 0);
+    nave.grupo.position.z = maisPerto(vale.nave.z, cz, T) + (ofs ? ofs.z : 0);
     if (nave.destrocos) nave.destrocos.position.set(maisPerto(0, cx, T), 0, maisPerto(0, cz, T));
     for (const disco of agua.grupo.children) {
       const l = disco.userData.lago || (disco.userData.lago = { x: disco.position.x, z: disco.position.z });
@@ -682,6 +962,7 @@ async function iniciar() {
     }
     construcoes.acompanhar(camera.position);
     criaturas.posicionar(camera.position, agora);
+    pecas.acompanhar(camera.position);
     alvosTiro.lista.length = 0;
     for (const a of alvos.lista) alvosTiro.lista.push(a);
     for (const a of criaturas.alvos) alvosTiro.lista.push(a);
@@ -699,12 +980,16 @@ async function iniciar() {
 
     if (estado === 'jogando') {
       const rumoGraus = (jogador.rumo * 180) / Math.PI;
-      tmp.copy(nave.centro).sub(jogador.pos);
-      const rumoNave = (Math.atan2(tmp.x, -tmp.z) * 180) / Math.PI;
-      hud.bussola(rumoGraus, [
-        { id: 'colosso', icone: '🪐', texto: 'Colosso', rumo: ceu.rumoColosso },
-        { id: 'nave', icone: '▼', texto: `nave ${Math.round(tmp.length())} m`, rumo: rumoNave },
-      ]);
+      const marcas = [{ id: 'colosso', icone: '🪐', texto: 'Colosso', rumo: ceu.rumoColosso }];
+      const alvo = alvoMissao();
+      tmp.set(maisPerto(nave.centro.x, jogador.pos.x, T) - jogador.pos.x, 0, maisPerto(nave.centro.z, jogador.pos.z, T) - jogador.pos.z);
+      if (!alvo || !alvo.nave) marcas.push({ id: 'nave', icone: '▼', texto: `nave ${Math.round(tmp.length())} m`, rumo: (Math.atan2(tmp.x, -tmp.z) * 180) / Math.PI });
+      if (alvo) {
+        tmp.set(maisPerto(alvo.x, jogador.pos.x, T) - jogador.pos.x, 0, maisPerto(alvo.z, jogador.pos.z, T) - jogador.pos.z);
+        marcas.push({ id: 'missao', icone: '⭐', texto: `${alvo.nave ? 'nave ' : ''}${Math.round(tmp.length())} m`, rumo: (Math.atan2(tmp.x, -tmp.z) * 180) / Math.PI });
+      }
+      hud.bussola(rumoGraus, marcas);
+      hud.chefe(criaturas.chefePerto(jogador.pos));
       hud.mira(ajuda ? 'alvo' : 'normal');
       hud.calor(arma.calor, arma.travada);
       hud.acao(acaoAtual ? (entrada.ultimaFonte === 'teclado' ? `E: ${acaoAtual}` : acaoAtual) : null, !!(alvoAcao && alvoAcao.bloqueado));
@@ -718,6 +1003,19 @@ async function iniciar() {
       }
     }
   }
+
+  // missões: avisos, o que aparece no mundo e a nave com as partes já consertadas
+  missoes.aoMudar(() => { marcarSujo(); atualizarRastreador(); });
+  missoes.aoComecarPasso(() => {
+    prepararPasso();
+    hud.destacarMissao();
+    if (missoes.estado.p > 0) som.objetivo();
+  });
+  inventario.aoMudar(atualizarRastreador);
+  prepararPasso();
+  locais.abrirPorta(missoes.estado.porta);
+  nave.mostrarSistemas(missoes.estado.sistemas);
+  atualizarRastreador();
 
   const laco = criarLaco({ atualizar, desenhar });
   progresso(1, 'Pronto!');
@@ -733,6 +1031,8 @@ async function iniciar() {
       get estado() { return estado; }, jogador, alvos, nave, renderer, config, entrada, comecar, pausar,
       inventario, recursos, construcoes, grade, abrirMochila, fecharMochila, entrarModoColocar, salvarAgora,
       prologo, iniciarNovoJogo, atualizarMenu, criaturas, abrirMapa, fecharMapa, levarDano,
+      missoes, pecas, locais, painel, abrirPainel, fecharPainel, final, alvoMissao, prepararPasso, mostrarMsgs,
+      get decolagem() { return decolagem; },
       get vida() { return vida; },
       aplicarVisual: (v) => { config.visual = v; aplicarVisual(); },
     };
