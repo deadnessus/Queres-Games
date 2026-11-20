@@ -1,9 +1,9 @@
 {
-  "commit": "f3597a8",
-  "data_do_commit": "2026-11-16T01:27:45+00:00",
-  "branch": "claude/jopuzzle-eventos",
+  "commit": "5414628",
+  "data_do_commit": "2026-11-20T20:10:21+00:00",
+  "branch": "claude/jopuzzle-compartilhar",
   "origem": "deadnessus/Jojo-Game-2",
-  "gravado_em": "2026-11-16T01:28:01.471Z",
+  "gravado_em": "2026-11-20T20:10:26.675Z",
   "eventos": [
     "puzzle_iniciado",
     "puzzle_vencido",

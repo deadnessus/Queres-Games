@@ -43,7 +43,7 @@ Este arquivo é lido por qualquer sessão do Claude Code que tenha este reposit�
 | Slug | Jogo | Autores | Repositório de origem | Branch |
 |---|---|---|---|---|
 | `heroi-dos-quatro-mundos` | Herói dos Quatro Mundos | Jojô | `deadnessus/Jojo-Game-1` | `main` |
-| `jopuzzle` | Jopuzzle | Jojô | `deadnessus/Jojo-Game-2` (as últimas atualizações foram feitas direto aqui). A cópia atual do site (com o desafio do dia e o tutorial `ajuda.js`) vem da branch `claude/jopuzzle-tutorial`; a `claude/jopuzzle-desafio-diario` ficou para trás. O desafio do dia (`diario.js`) depende das funções de conta e do JoPuzzle em `functions/` | `claude/jopuzzle-tutorial` |
+| `jopuzzle` | Jopuzzle | Jojô | `deadnessus/Jojo-Game-2` (as últimas atualizações foram feitas direto aqui). A cópia atual do site (desafio do dia, dicas `ajuda.js`, eventos de medição e compartilhar o resultado) vem da branch `claude/jopuzzle-compartilhar` (que contém `claude/jopuzzle-eventos` e `claude/jopuzzle-tutorial`); a `claude/jopuzzle-desafio-diario` ficou para trás. O desafio do dia (`diario.js`) depende das funções de conta e do JoPuzzle em `functions/` | `claude/jopuzzle-compartilhar` |
 | `brasileirao-fifa` | Brasileirão FIFA | Jojô e Bento | `deadnessus/Jojo-game-FIFA-Brasileir-o` | `main` |
 | `collatz-rocket` | Collatz Rocket | Jojô e Bento | não registrado (build Vite colocado direto aqui) | — |
 | `ilha-misteriosa` | A Ilha Misteriosa | Jojô e Bento | `deadnessus/queres-games---mystery-island` | `master` |

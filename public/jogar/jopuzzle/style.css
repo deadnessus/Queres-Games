@@ -372,3 +372,9 @@ svg { display: block; }
 @keyframes dedo-aperta { 0%, 100% { transform: scale(1); } 20% { transform: scale(.75); } }
 @keyframes dedo-segura { 0% { stroke-dashoffset: 125.7; } 75%, 100% { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .aj-dica-voo .o, .aj-dica-voo .a, .aj-dica-voo .n { animation: none; } .aj-dica-voo.espelhar .a { stroke-dashoffset: 0; } }
+
+/* compartilhar o resultado do desafio do dia */
+.pn-apps { gap: 10px; }
+.pn-btn.zap { border-color: #25D366; color: #25D366; background: rgba(37, 211, 102, .1); box-shadow: 0 0 12px rgba(37, 211, 102, .35); }
+.pn-btn.messenger { border-color: #4F8CFF; color: #7FAAFF; background: rgba(79, 140, 255, .1); box-shadow: 0 0 12px rgba(79, 140, 255, .35); }
+.pn-aviso { min-height: 1.25em; font-size: 16px; }
