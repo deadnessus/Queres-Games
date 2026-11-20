@@ -271,7 +271,7 @@ button.perigo { background: #ff7a5a; border-color: #ffd0c4; }
   .legenda-mapa { max-width: 240px; font-size: 12px; text-align: left; }
 }
 
-/* ---------- botão de atirar na esquerda (opção; o padrão é na direita) ---------- */
+/* ---------- botão de atirar na esquerda (padrão, pedido do dono; dá para trocar nas Opções) ---------- */
 body.atirar-esquerda #btn-atirar { right: auto; left: calc(var(--seg-esq) + 26px); bottom: calc(var(--seg-baixo) + 46vh - var(--b-atirar) / 2); }
 body.atirar-esquerda #btn-pular { right: calc(var(--seg-dir) + 30px); bottom: calc(var(--seg-baixo) + 30px); }
 body.atirar-esquerda #btn-acao { bottom: calc(var(--seg-baixo) + 30px + var(--b-pular) + 22px); }
