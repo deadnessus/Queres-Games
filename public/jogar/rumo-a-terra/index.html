@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b1020">
+<title>Rumo à Terra</title>
+<link rel="stylesheet" href="style.css?v=c4b28d5">
+<!-- A biblioteca 3D fica guardada dentro do jogo (vendor/), sem nenhum site de fora. -->
+<script type="importmap">
+{
+ "imports": {
+  "three": "./vendor/three/three.module.min.js?v=c4b28d5",
+  "./src/dados/regioes/vale.js": "./src/dados/regioes/vale.js?v=c4b28d5",
+  "./src/desenho/ceu.js": "./src/desenho/ceu.js?v=c4b28d5",
+  "./src/desenho/geometria.js": "./src/desenho/geometria.js?v=c4b28d5",
+  "./src/desenho/paleta.js": "./src/desenho/paleta.js?v=c4b28d5",
+  "./src/desenho/particulas.js": "./src/desenho/particulas.js?v=c4b28d5",
+  "./src/desenho/renderizador.js": "./src/desenho/renderizador.js?v=c4b28d5",
+  "./src/desenho/texturas.js": "./src/desenho/texturas.js?v=c4b28d5",
+  "./src/entidades/alvos.js": "./src/entidades/alvos.js?v=c4b28d5",
+  "./src/entidades/arma.js": "./src/entidades/arma.js?v=c4b28d5",
+  "./src/entidades/jogador.js": "./src/entidades/jogador.js?v=c4b28d5",
+  "./src/fisica/colisao.js": "./src/fisica/colisao.js?v=c4b28d5",
+  "./src/logica/config.js": "./src/logica/config.js?v=c4b28d5",
+  "./src/logica/joystick.js": "./src/logica/joystick.js?v=c4b28d5",
+  "./src/logica/relevo.js": "./src/logica/relevo.js?v=c4b28d5",
+  "./src/logica/ruido.js": "./src/logica/ruido.js?v=c4b28d5",
+  "./src/main.js": "./src/main.js?v=c4b28d5",
+  "./src/mundo/agua.js": "./src/mundo/agua.js?v=c4b28d5",
+  "./src/mundo/nave.js": "./src/mundo/nave.js?v=c4b28d5",
+  "./src/mundo/terreno.js": "./src/mundo/terreno.js?v=c4b28d5",
+  "./src/mundo/vegetacao.js": "./src/mundo/vegetacao.js?v=c4b28d5",
+  "./src/nucleo/audio.js": "./src/nucleo/audio.js?v=c4b28d5",
+  "./src/nucleo/config.js": "./src/nucleo/config.js?v=c4b28d5",
+  "./src/nucleo/entrada/controle.js": "./src/nucleo/entrada/controle.js?v=c4b28d5",
+  "./src/nucleo/entrada/entrada.js": "./src/nucleo/entrada/entrada.js?v=c4b28d5",
+  "./src/nucleo/entrada/teclado-mouse.js": "./src/nucleo/entrada/teclado-mouse.js?v=c4b28d5",
+  "./src/nucleo/entrada/toque.js": "./src/nucleo/entrada/toque.js?v=c4b28d5",
+  "./src/nucleo/laco.js": "./src/nucleo/laco.js?v=c4b28d5",
+  "./src/ui/hud.js": "./src/ui/hud.js?v=c4b28d5",
+  "./src/ui/telas.js": "./src/ui/telas.js?v=c4b28d5"
+ }
+}
+</script>
+</head>
+<body>
+<!-- Rumo à Terra, jogo do Jojô para o queres.games. Etapa 0: andar, olhar, pular e treinar a mira.
+     Plano completo em docs/README.md. Botões com id fixo: a telemetria do site conta os toques pelo id. -->
+<canvas id="tela3d" aria-label="Mundo do jogo"></canvas>
+
+<div id="camada-toque" aria-hidden="true"></div>
+<div id="joy-base" hidden></div>
+<div id="joy-pino" hidden></div>
+
+<div id="hud" hidden>
+  <div id="bussola" aria-hidden="true"><div id="bussola-fita"></div><div id="bussola-centro"></div></div>
+  <div id="mira" class="normal" aria-hidden="true"></div>
+  <div id="calor" aria-hidden="true"><div id="calor-barra"></div></div>
+  <div id="contador-alvos" hidden></div>
+  <div id="mensagem" role="status" hidden><span class="quem">ÍRIS</span><span id="mensagem-texto"></span></div>
+  <pre id="debug" hidden></pre>
+  <button id="btn-pausar" type="button" aria-label="Pausar">II</button>
+  <div id="controles-toque">
+    <button id="btn-acao" type="button" hidden><span class="icone" aria-hidden="true">✋</span><span id="btn-acao-texto">Examinar</span></button>
+    <button id="btn-pular" type="button" aria-label="Pular"><span aria-hidden="true">⤒</span></button>
+    <button id="btn-atirar" type="button" aria-label="Atirar"><span aria-hidden="true">✦</span></button>
+  </div>
+</div>
+
+<section id="tela-carregando" class="tela fundo-escuro">
+  <h1 class="titulo">RUMO À TERRA</h1>
+  <div class="barra-carregando"><div id="carregando-barra"></div></div>
+  <p id="carregando-texto">Carregando...</p>
+  <noscript><p>Este jogo precisa de JavaScript ligado.</p></noscript>
+</section>
+
+<section id="tela-inicio" class="tela" hidden>
+  <div class="cartao">
+    <h1 class="titulo">RUMO À TERRA</h1>
+    <p class="subtitulo">Sua nave caiu num planeta desconhecido. Conserte a Andorinha e volte para casa.</p>
+    <button id="btn-jogar" class="grande" type="button">Jogar</button>
+    <button id="btn-opcoes" type="button">Opções</button>
+    <p class="nota">Versão de teste (Etapa 0): andar, olhar, pular e treinar a mira.</p>
+  </div>
+</section>
+
+<section id="tela-pausa" class="tela" hidden>
+  <div class="cartao">
+    <h2>Pausado</h2>
+    <button id="btn-continuar" class="grande" type="button">Continuar</button>
+    <button id="btn-opcoes-pausa" type="button">Opções</button>
+    <button id="btn-sair" type="button">Sair para o início</button>
+  </div>
+</section>
+
+<section id="tela-opcoes" class="tela" hidden>
+  <div class="cartao opcoes">
+    <h2>Opções</h2>
+    <label class="linha">Sensibilidade do olhar <b id="opt-sensibilidade-valor"></b>
+      <input id="opt-sensibilidade" type="range" min="1" max="10" step="1"></label>
+    <label class="linha caixa"><input id="opt-inverter" type="checkbox"> Inverter o olhar para cima e para baixo</label>
+    <div class="linha">Visual
+      <div class="grupo"><button type="button" data-visual="pixelado">Anos 90 (pixelado)</button><button type="button" data-visual="liso">Liso</button></div></div>
+    <div class="linha">Qualidade
+      <div class="grupo"><button type="button" data-qualidade="auto">Automática</button><button type="button" data-qualidade="leve">Leve</button><button type="button" data-qualidade="bonita">Bonita</button></div></div>
+    <div class="linha">Ajuda na mira
+      <div class="grupo"><button type="button" data-mira="forte">Forte</button><button type="button" data-mira="media">Média</button><button type="button" data-mira="desligada">Desligada</button></div></div>
+    <div class="linha">Tamanho dos botões
+      <div class="grupo"><button type="button" data-botoes="normal">Normal</button><button type="button" data-botoes="grande">Grande</button></div></div>
+    <label class="linha caixa"><input id="opt-tremor" type="checkbox"> Reduzir o balanço da câmera</label>
+    <label class="linha">Volume <b id="opt-volume-valor"></b>
+      <input id="opt-volume" type="range" min="0" max="10" step="1"></label>
+    <button id="btn-voltar-opcoes" class="grande" type="button">Voltar</button>
+  </div>
+</section>
+
+<section id="tela-erro" class="tela fundo-escuro" hidden>
+  <div class="cartao">
+    <h2>Ops!</h2>
+    <p id="erro-texto"></p>
+    <button id="btn-recarregar" class="grande" type="button">Tentar de novo</button>
+  </div>
+</section>
+
+<section id="tela-girar" hidden>
+  <div class="aparelho" aria-hidden="true"></div>
+  <p>Gire o aparelho e jogue deitado</p>
+</section>
+
+<script>
+  // Aparelhos muito antigos não entendem o "import map": avisa em vez de ficar numa tela parada.
+  if (!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'))) {
+    document.getElementById('carregando-texto').textContent = 'Este navegador é antigo demais para o jogo. Atualize o iOS (16.4 ou mais novo).';
+  }
+</script>
+<script type="module" src="src/main.js?v=c4b28d5"></script>
+</body>
+</html>

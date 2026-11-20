@@ -1,0 +1,168 @@
+/* Rumo à Terra — estilos. Feito primeiro para iPad e iPhone deitados (toque), mas funciona no computador. */
+:root {
+  --fundo: #0b1020;
+  --painel: rgba(10, 14, 32, 0.8);
+  --texto: #f2f4ff;
+  --suave: #b9c0dd;
+  --acento: #ffb347; /* laranja da Andorinha */
+  --ciano: #5ff0ff;
+  --rosa: #e2a2cf;
+  --seg-cima: env(safe-area-inset-top, 0px);
+  --seg-baixo: env(safe-area-inset-bottom, 0px);
+  --seg-esq: env(safe-area-inset-left, 0px);
+  --seg-dir: env(safe-area-inset-right, 0px);
+  --b-atirar: 96px;
+  --b-pular: 68px;
+  --b-acao: 60px;
+}
+body.botoes-grandes { --b-atirar: 116px; --b-pular: 82px; --b-acao: 70px; }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; position: fixed; inset: 0;
+  background: var(--fundo); color: var(--texto);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  overscroll-behavior: none; -webkit-text-size-adjust: 100%;
+}
+
+#tela3d { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#tela3d.pixelado { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* camada que recebe os toques do joystick e do olhar */
+#camada-toque { position: fixed; inset: 0; z-index: 1; touch-action: none; }
+
+#joy-base, #joy-pino { position: fixed; left: 0; top: 0; z-index: 3; border-radius: 50%; pointer-events: none; }
+#joy-base { width: 120px; height: 120px; border: 3px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.07); }
+#joy-pino { width: 54px; height: 54px; background: rgba(255, 255, 255, 0.45); border: 2px solid rgba(255, 255, 255, 0.7); }
+#joy-base[hidden], #joy-pino[hidden] { display: none; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; z-index: 2; pointer-events: none; touch-action: none; }
+#hud[hidden] { display: none; }
+#hud button { pointer-events: auto; touch-action: none; }
+
+#bussola {
+  position: absolute; top: calc(var(--seg-cima) + 8px); left: 50%; transform: translateX(-50%);
+  width: min(380px, 46vw); height: 30px; border-radius: 15px;
+  background: rgba(8, 12, 28, 0.38); border: 1px solid rgba(255, 255, 255, 0.15);
+}
+#bussola-fita { position: absolute; inset: 0; }
+#bussola-centro { position: absolute; left: 50%; top: -1px; width: 0; height: 0; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--acento); }
+.marca { position: absolute; left: 50%; top: 6px; width: 30px; margin-left: -15px; text-align: center; font-size: 12px; font-weight: 700; color: var(--suave); }
+.marca.principal { font-size: 15px; top: 4px; color: #fff; }
+.marcador { position: absolute; left: 50%; top: 3px; width: 90px; margin-left: -45px; text-align: center; line-height: 1; }
+.marcador b { display: block; font-size: 17px; color: var(--acento); text-shadow: 0 1px 2px #000; }
+.marcador small { display: block; margin-top: 9px; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.marcador.na-borda b { opacity: 0.7; }
+
+#mira { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; transition: transform 0.1s, border-color 0.1s; }
+#mira::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }
+#mira.normal { border: 2px solid rgba(255, 255, 255, 0.55); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+#mira.alvo { border: 2px solid var(--acento); transform: scale(1.3); box-shadow: 0 0 6px rgba(255, 179, 71, 0.8); }
+
+#calor { position: absolute; left: 50%; top: calc(50% + 22px); width: 70px; height: 5px; margin-left: -35px; border-radius: 3px; background: rgba(0, 0, 0, 0.45); overflow: hidden; opacity: 0; transition: opacity 0.2s; }
+#calor.visivel { opacity: 1; }
+#calor-barra { width: 100%; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--ciano), #ffd060 60%, #ff4a2a); }
+#calor.travada { animation: piscar 0.25s steps(2) infinite; }
+@keyframes piscar { 50% { background: rgba(255, 60, 40, 0.8); } }
+
+#contador-alvos { position: absolute; top: calc(var(--seg-cima) + 10px); right: calc(var(--seg-dir) + 16px); padding: 6px 10px; border-radius: 12px; background: rgba(8, 12, 28, 0.5); font-size: 13px; font-weight: 700; color: var(--ciano); }
+#contador-alvos[hidden] { display: none; }
+
+#mensagem {
+  position: absolute; top: calc(var(--seg-cima) + 66px); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: min(560px, 72vw); padding: 10px 14px; border-radius: 12px;
+  background: rgba(8, 14, 32, 0.84); border-left: 4px solid var(--ciano); font-size: 16px; line-height: 1.35;
+}
+#mensagem[hidden] { display: none; }
+#mensagem .quem { display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 6px; background: var(--ciano); color: #062030; font-size: 12px; font-weight: 800; vertical-align: 1px; }
+
+#debug { position: absolute; left: calc(var(--seg-esq) + 14px); bottom: calc(var(--seg-baixo) + 8px); margin: 0; padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.55); font: 11px/1.4 ui-monospace, Menlo, monospace; white-space: pre; }
+#debug[hidden] { display: none; }
+
+#btn-pausar {
+  position: absolute; top: calc(var(--seg-cima) + 10px); left: calc(var(--seg-esq) + 14px);
+  width: 48px; height: 48px; border-radius: 50%; padding: 0; font-size: 17px; font-weight: 900; letter-spacing: 1px;
+  background: rgba(8, 12, 28, 0.5); border: 2px solid rgba(255, 255, 255, 0.35); color: #fff;
+}
+
+/* botões de toque: só aparecem em aparelho com toque */
+#controles-toque button { position: absolute; border-radius: 50%; color: #fff; padding: 0; display: none; align-items: center; justify-content: center; transition: transform 0.06s, background 0.06s; }
+body.com-toque #controles-toque button { display: flex; }
+#controles-toque button[hidden] { display: none !important; }
+#btn-atirar {
+  width: var(--b-atirar); height: var(--b-atirar); right: calc(var(--seg-dir) + 26px); bottom: calc(var(--seg-baixo) + 30px);
+  background: rgba(255, 96, 60, 0.34); border: 3px solid rgba(255, 210, 180, 0.75); font-size: 40px;
+}
+#btn-pular {
+  width: var(--b-pular); height: var(--b-pular); right: calc(var(--seg-dir) + 26px + var(--b-atirar) + 18px); bottom: calc(var(--seg-baixo) + 20px);
+  background: rgba(255, 255, 255, 0.16); border: 3px solid rgba(255, 255, 255, 0.55); font-size: 30px;
+}
+#btn-acao {
+  height: var(--b-acao); min-width: var(--b-acao); padding: 0 18px !important; border-radius: 30px !important; gap: 8px;
+  right: calc(var(--seg-dir) + 22px); bottom: calc(var(--seg-baixo) + 30px + var(--b-atirar) + 18px);
+  background: rgba(95, 240, 255, 0.28); border: 3px solid rgba(160, 250, 255, 0.85); font-size: 17px; font-weight: 800;
+}
+#btn-acao .icone { font-size: 22px; }
+#controles-toque button.apertado { transform: scale(0.9); filter: brightness(1.5); }
+/* no computador o botão de ação vira um aviso "E: Examinar" embaixo da mira */
+body:not(.com-toque) #btn-acao:not([hidden]) {
+  display: flex; left: 50%; right: auto; bottom: auto; top: calc(50% + 46px); transform: translateX(-50%);
+  height: 40px; font-size: 15px; background: rgba(8, 12, 28, 0.7); border-width: 2px;
+}
+body:not(.com-toque) #btn-acao .icone { display: none; }
+
+/* ---------- telas ---------- */
+.tela {
+  position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+  padding: calc(var(--seg-cima) + 12px) calc(var(--seg-dir) + 16px) calc(var(--seg-baixo) + 12px) calc(var(--seg-esq) + 16px);
+  background: radial-gradient(ellipse at center, rgba(11, 16, 32, 0.15), rgba(11, 16, 32, 0.6));
+}
+.tela[hidden] { display: none; }
+.tela.fundo-escuro { background: var(--fundo); flex-direction: column; gap: 16px; text-align: center; }
+.cartao {
+  width: 100%; max-width: 470px; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  display: flex; flex-direction: column; gap: 12px; padding: 22px; text-align: center;
+  background: var(--painel); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 18px;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+h1, h2 { margin: 0; }
+.titulo {
+  font-size: clamp(26px, 5vw, 46px); font-weight: 900; letter-spacing: 0.14em; white-space: nowrap;
+  color: #ffe2b8; text-shadow: 0 2px 0 #b8562a, 0 4px 14px rgba(255, 140, 60, 0.45);
+}
+.subtitulo { margin: 0; color: var(--suave); font-size: 16px; line-height: 1.4; }
+.nota { margin: 0; color: var(--suave); font-size: 13px; }
+
+button {
+  font: inherit; color: var(--texto); min-height: 52px; padding: 10px 18px; border-radius: 14px;
+  background: #1d2750; border: 2px solid #3d4a8a; font-size: 18px; cursor: pointer;
+}
+button.grande { background: var(--acento); color: #1a1020; border-color: #ffe0b0; font-weight: 800; font-size: 20px; }
+button:focus-visible { outline: 3px solid var(--ciano); outline-offset: 2px; }
+
+.opcoes .linha { display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 15px; }
+.opcoes .linha b { color: var(--acento); }
+.opcoes .linha.caixa { flex-direction: row; align-items: center; gap: 10px; }
+.opcoes input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--acento); flex: none; }
+.opcoes input[type="range"] { width: 100%; height: 32px; accent-color: var(--acento); touch-action: pan-x; }
+.grupo { display: flex; gap: 6px; flex-wrap: wrap; }
+.grupo button { flex: 1; min-height: 44px; padding: 6px 8px; font-size: 15px; }
+.grupo button[aria-pressed="true"] { background: rgba(95, 240, 255, 0.2); border-color: var(--ciano); font-weight: 800; }
+
+.barra-carregando { width: min(320px, 70vw); height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+#carregando-barra { width: 100%; height: 100%; background: var(--acento); transform-origin: left; transform: scaleX(0); transition: transform 0.25s; }
+#carregando-texto { margin: 0; color: var(--suave); }
+
+#tela-girar { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: var(--fundo); font-size: 20px; font-weight: 700; text-align: center; padding: 24px; }
+#tela-girar[hidden] { display: none; }
+.aparelho { width: 54px; height: 92px; border: 4px solid var(--texto); border-radius: 12px; animation: girar 2s ease-in-out infinite; }
+@keyframes girar { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+
+@media (max-height: 430px) {
+  .titulo { font-size: 32px; }
+  .cartao { padding: 14px 18px; gap: 9px; }
+  button { min-height: 46px; }
+  #mensagem { font-size: 15px; top: calc(var(--seg-cima) + 50px); }
+}
