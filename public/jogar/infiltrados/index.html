@@ -907,7 +907,7 @@ function startMeeting(by,body){
 }
 function botSay(id,tpl,arg=null,room=-1){G.bs=(G.bs||0)+1;G.bch.push([G.bs,id,tpl,arg,room]);if(G.bch.length>4)G.bch.shift();}
 const BOT_LINES=['Achei o corpo de {a} em {r}!','Apertei o alarme. Alguém viu algo estranho?','Eu vi {a} eliminando alguém!','Eu estava fazendo tarefas.','Não vi nada.',
-  'Quem estava perto do corpo?','Eu estava em {r}.','Suspeito de alguém, mas sem provas.','Vou pular, não tenho certeza.','Toquei o alarme: eu vi {a} eliminando alguém!'];
+  'Quem estava perto do corpo?','Eu estava em {r}.','Suspeito de alguém, mas sem provas.','Vou pular, não tenho certeza.','Toquei o alarme: eu vi {a} eliminando alguém!','Acho que foi {a}.'];
 function botLine(m){const t=BOT_LINES[m[2]];if(!t)return'';return t.replace('{a}',m[3]?nameOf(m[3]):'alguém').replace('{r}',ROOMS[m[4]]?ROOMS[m[4]][0]:'algum lugar');}
 function roomIndexAt(x,y){const tx=Math.floor(x/T),ty=Math.floor(y/T);if(!walk(tx,ty))return-1;const g=grid[ty*W+tx];return g===HALL?-1:g-1;}
 function resolveMeeting(P){
@@ -961,9 +961,10 @@ function botsTick(dt,P){
       if(G.bv[id]==null&&hostMT<b.voteAt){
         const others=aliveIds().filter(o=>o!==id);let v='s';
         if(!imp&&b.sus&&!G.dead.includes(b.sus))v=b.sus;
-        else if(imp){const crew=others.filter(o=>!G.imp.includes(o));v=Math.random()<.55&&crew.length?pick(crew):'s';}
-        else if(Math.random()<.3&&others.length)v=pick(others);
+        else if(imp){const crew=others.filter(o=>!G.imp.includes(o));if(crew.length)v=pick(crew);}
+        else if(Math.random()<.9&&others.length)v=pick(others); // sem pista: vota em alguém sorteado (pula só às vezes)
         G.bv[id]=v;
+        if(v!=='s'&&v!==b.sus&&Math.random()<.5)botSay(id,10,v);
       }
     }else b.m=0;
   }
