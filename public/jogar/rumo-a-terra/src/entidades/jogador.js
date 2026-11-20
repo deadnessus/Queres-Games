@@ -115,8 +115,19 @@ export function criarJogador({ def, grade, colisoes, som, aoAguaFunda }) {
     camera.rotation.set(inclinacao, -rumo, reduzirTremor ? 0 : Math.sin(balanco) * 0.006 * k, 'YXZ');
   }
 
+  // Põe o jogador num lugar (jogo novo ou "continuar"). Fica em cima de blocos se houver.
+  function reposicionar(x, z, rumoGraus) {
+    pos.set(x, 0, z);
+    pos.y = Math.max(grade.alturaEm(x, z), colisoes.topoSob(x, z, 1e9));
+    anterior.copy(pos);
+    vel.set(0, 0, 0);
+    rumo = rumoGraus * GRAU;
+    inclinacao = -0.04;
+    noChao = true;
+  }
+
   return {
-    pos, vel, girar, passo, posicionarCamera,
+    pos, vel, girar, passo, posicionarCamera, reposicionar,
     get rumo() { return rumo; },
     get inclinacao() { return inclinacao; },
     get noChao() { return noChao; },

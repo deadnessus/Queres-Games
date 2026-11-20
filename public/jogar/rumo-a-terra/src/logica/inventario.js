@@ -28,6 +28,7 @@ export function criarInventario(inicial = []) {
       return true;
     },
     // Lista na ordem da mochila: [[id, quantidade], ...]
+    limpar() { itens.clear(); avisar(); },
     lista: () => ORDEM_ITENS.filter((id) => itens.has(id)).map((id) => [id, itens.get(id)]),
     aoMudar(f) { ouvintes.push(f); },
   };

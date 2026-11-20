@@ -216,3 +216,30 @@ button.pequeno { min-height: 40px; padding: 6px 14px; font-size: 15px; font-weig
 .receita.pode button.pequeno { background: #5ff0a0; color: #062016; border-color: #c8ffe2; }
 button:disabled { opacity: 0.55; cursor: default; }
 
+/* ---------- menu: novo jogo e continuar ---------- */
+.pilha { display: flex; flex-direction: column; gap: 10px; }
+.pilha[hidden] { display: none; }
+#botoes-inicio #btn-novo-jogo:not(.grande) { background: #1d2750; color: var(--texto); border-color: #3d4a8a; font-weight: 400; font-size: 18px; }
+.aviso-novo { margin: 0; font-size: 16px; line-height: 1.4; }
+button.perigo { background: #ff7a5a; border-color: #ffd0c4; }
+
+/* ---------- abertura (no espaço) ---------- */
+#prologo { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+#prologo[hidden] { display: none; }
+#prologo-alarme { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0) 40%, rgba(255, 20, 10, 0.9)); opacity: 0; }
+#prologo-flash { position: absolute; inset: 0; background: #fff6e0; opacity: 0; }
+#prologo-fala {
+  position: absolute; left: 50%; bottom: calc(var(--seg-baixo) + 26px); transform: translateX(-50%);
+  width: max-content; max-width: min(640px, 84vw); padding: 12px 18px; border-radius: 14px;
+  background: rgba(4, 6, 16, 0.78); font-size: 19px; line-height: 1.4; text-align: center;
+}
+#prologo-fala[hidden] { display: none; }
+#prologo-quem { display: inline-block; margin-right: 8px; padding: 1px 8px; border-radius: 6px; background: var(--ciano); color: #062030; font-size: 13px; font-weight: 800; vertical-align: 2px; }
+#prologo-quem[hidden] { display: none; }
+#btn-pular-prologo {
+  position: absolute; top: calc(var(--seg-cima) + 12px); right: calc(var(--seg-dir) + 16px); pointer-events: auto;
+  min-height: 44px; padding: 8px 16px; font-size: 16px; font-weight: 800; background: rgba(8, 12, 28, 0.6); border-color: rgba(255, 255, 255, 0.4);
+}
+#cortina { position: fixed; inset: 0; z-index: 9; background: #000; opacity: 0; pointer-events: none; }
+@media (max-height: 430px) { #prologo-fala { font-size: 17px; bottom: calc(var(--seg-baixo) + 14px); } }
+

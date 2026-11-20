@@ -7,49 +7,50 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0b1020">
 <title>Rumo à Terra</title>
-<link rel="stylesheet" href="style.css?v=4dc2736">
+<link rel="stylesheet" href="style.css?v=3844a57">
 <!-- A biblioteca 3D fica guardada dentro do jogo (vendor/), sem nenhum site de fora. -->
 <script type="importmap">
 {
  "imports": {
-  "three": "./vendor/three/three.module.min.js?v=4dc2736",
-  "./src/dados/itens.js": "./src/dados/itens.js?v=4dc2736",
-  "./src/dados/regioes/vale.js": "./src/dados/regioes/vale.js?v=4dc2736",
-  "./src/desenho/ceu.js": "./src/desenho/ceu.js?v=4dc2736",
-  "./src/desenho/geometria.js": "./src/desenho/geometria.js?v=4dc2736",
-  "./src/desenho/paleta.js": "./src/desenho/paleta.js?v=4dc2736",
-  "./src/desenho/particulas.js": "./src/desenho/particulas.js?v=4dc2736",
-  "./src/desenho/renderizador.js": "./src/desenho/renderizador.js?v=4dc2736",
-  "./src/desenho/texturas.js": "./src/desenho/texturas.js?v=4dc2736",
-  "./src/entidades/alvos.js": "./src/entidades/alvos.js?v=4dc2736",
-  "./src/entidades/arma.js": "./src/entidades/arma.js?v=4dc2736",
-  "./src/entidades/coletaveis.js": "./src/entidades/coletaveis.js?v=4dc2736",
-  "./src/entidades/jogador.js": "./src/entidades/jogador.js?v=4dc2736",
-  "./src/fisica/colisao.js": "./src/fisica/colisao.js?v=4dc2736",
-  "./src/logica/config.js": "./src/logica/config.js?v=4dc2736",
-  "./src/logica/inventario.js": "./src/logica/inventario.js?v=4dc2736",
-  "./src/logica/joystick.js": "./src/logica/joystick.js?v=4dc2736",
-  "./src/logica/relevo.js": "./src/logica/relevo.js?v=4dc2736",
-  "./src/logica/ruido.js": "./src/logica/ruido.js?v=4dc2736",
-  "./src/logica/save.js": "./src/logica/save.js?v=4dc2736",
-  "./src/main.js": "./src/main.js?v=4dc2736",
-  "./src/mundo/agua.js": "./src/mundo/agua.js?v=4dc2736",
-  "./src/mundo/construcoes.js": "./src/mundo/construcoes.js?v=4dc2736",
-  "./src/mundo/nave.js": "./src/mundo/nave.js?v=4dc2736",
-  "./src/mundo/recursos.js": "./src/mundo/recursos.js?v=4dc2736",
-  "./src/mundo/terreno.js": "./src/mundo/terreno.js?v=4dc2736",
-  "./src/mundo/vegetacao.js": "./src/mundo/vegetacao.js?v=4dc2736",
-  "./src/nucleo/audio.js": "./src/nucleo/audio.js?v=4dc2736",
-  "./src/nucleo/config.js": "./src/nucleo/config.js?v=4dc2736",
-  "./src/nucleo/entrada/controle.js": "./src/nucleo/entrada/controle.js?v=4dc2736",
-  "./src/nucleo/entrada/entrada.js": "./src/nucleo/entrada/entrada.js?v=4dc2736",
-  "./src/nucleo/entrada/teclado-mouse.js": "./src/nucleo/entrada/teclado-mouse.js?v=4dc2736",
-  "./src/nucleo/entrada/toque.js": "./src/nucleo/entrada/toque.js?v=4dc2736",
-  "./src/nucleo/laco.js": "./src/nucleo/laco.js?v=4dc2736",
-  "./src/nucleo/save-local.js": "./src/nucleo/save-local.js?v=4dc2736",
-  "./src/ui/hud.js": "./src/ui/hud.js?v=4dc2736",
-  "./src/ui/mochila.js": "./src/ui/mochila.js?v=4dc2736",
-  "./src/ui/telas.js": "./src/ui/telas.js?v=4dc2736"
+  "three": "./vendor/three/three.module.min.js?v=3844a57",
+  "./src/cenas/prologo.js": "./src/cenas/prologo.js?v=3844a57",
+  "./src/dados/itens.js": "./src/dados/itens.js?v=3844a57",
+  "./src/dados/regioes/vale.js": "./src/dados/regioes/vale.js?v=3844a57",
+  "./src/desenho/ceu.js": "./src/desenho/ceu.js?v=3844a57",
+  "./src/desenho/geometria.js": "./src/desenho/geometria.js?v=3844a57",
+  "./src/desenho/paleta.js": "./src/desenho/paleta.js?v=3844a57",
+  "./src/desenho/particulas.js": "./src/desenho/particulas.js?v=3844a57",
+  "./src/desenho/renderizador.js": "./src/desenho/renderizador.js?v=3844a57",
+  "./src/desenho/texturas.js": "./src/desenho/texturas.js?v=3844a57",
+  "./src/entidades/alvos.js": "./src/entidades/alvos.js?v=3844a57",
+  "./src/entidades/arma.js": "./src/entidades/arma.js?v=3844a57",
+  "./src/entidades/coletaveis.js": "./src/entidades/coletaveis.js?v=3844a57",
+  "./src/entidades/jogador.js": "./src/entidades/jogador.js?v=3844a57",
+  "./src/fisica/colisao.js": "./src/fisica/colisao.js?v=3844a57",
+  "./src/logica/config.js": "./src/logica/config.js?v=3844a57",
+  "./src/logica/inventario.js": "./src/logica/inventario.js?v=3844a57",
+  "./src/logica/joystick.js": "./src/logica/joystick.js?v=3844a57",
+  "./src/logica/relevo.js": "./src/logica/relevo.js?v=3844a57",
+  "./src/logica/ruido.js": "./src/logica/ruido.js?v=3844a57",
+  "./src/logica/save.js": "./src/logica/save.js?v=3844a57",
+  "./src/main.js": "./src/main.js?v=3844a57",
+  "./src/mundo/agua.js": "./src/mundo/agua.js?v=3844a57",
+  "./src/mundo/construcoes.js": "./src/mundo/construcoes.js?v=3844a57",
+  "./src/mundo/nave.js": "./src/mundo/nave.js?v=3844a57",
+  "./src/mundo/recursos.js": "./src/mundo/recursos.js?v=3844a57",
+  "./src/mundo/terreno.js": "./src/mundo/terreno.js?v=3844a57",
+  "./src/mundo/vegetacao.js": "./src/mundo/vegetacao.js?v=3844a57",
+  "./src/nucleo/audio.js": "./src/nucleo/audio.js?v=3844a57",
+  "./src/nucleo/config.js": "./src/nucleo/config.js?v=3844a57",
+  "./src/nucleo/entrada/controle.js": "./src/nucleo/entrada/controle.js?v=3844a57",
+  "./src/nucleo/entrada/entrada.js": "./src/nucleo/entrada/entrada.js?v=3844a57",
+  "./src/nucleo/entrada/teclado-mouse.js": "./src/nucleo/entrada/teclado-mouse.js?v=3844a57",
+  "./src/nucleo/entrada/toque.js": "./src/nucleo/entrada/toque.js?v=3844a57",
+  "./src/nucleo/laco.js": "./src/nucleo/laco.js?v=3844a57",
+  "./src/nucleo/save-local.js": "./src/nucleo/save-local.js?v=3844a57",
+  "./src/ui/hud.js": "./src/ui/hud.js?v=3844a57",
+  "./src/ui/mochila.js": "./src/ui/mochila.js?v=3844a57",
+  "./src/ui/telas.js": "./src/ui/telas.js?v=3844a57"
  }
 }
 </script>
@@ -93,9 +94,18 @@
   <div class="cartao">
     <h1 class="titulo">RUMO À TERRA</h1>
     <p class="subtitulo">Sua nave caiu num planeta desconhecido. Conserte a Andorinha e volte para casa.</p>
-    <button id="btn-jogar" class="grande" type="button">Jogar</button>
-    <button id="btn-opcoes" type="button">Opções</button>
-    <p class="nota">Versão de teste: andar, olhar, treinar a mira, pegar madeira e pedra, criar e construir.</p>
+    <div id="botoes-inicio" class="pilha">
+      <button id="btn-continuar-jogo" class="grande" type="button" hidden>Continuar</button>
+      <p id="info-save" class="nota" hidden></p>
+      <button id="btn-novo-jogo" class="grande" type="button">Novo jogo</button>
+      <button id="btn-opcoes" type="button">Opções</button>
+    </div>
+    <div id="confirmar-novo" class="pilha" hidden>
+      <p class="aviso-novo">Começar um jogo novo? A mochila e as construções guardadas neste aparelho vão ser apagadas.</p>
+      <button id="btn-confirmar-novo" class="grande perigo" type="button">Sim, começar de novo</button>
+      <button id="btn-cancelar-novo" type="button">Voltar</button>
+    </div>
+    <p class="nota">Versão de teste: a queda da nave, explorar o Vale, pegar madeira e pedra, criar e construir.</p>
   </div>
 </section>
 
@@ -151,6 +161,14 @@
   </div>
 </section>
 
+<div id="prologo" hidden>
+  <div id="prologo-alarme"></div>
+  <div id="prologo-flash"></div>
+  <div id="prologo-fala" hidden><span id="prologo-quem" class="quem" hidden></span><span id="prologo-texto"></span></div>
+  <button id="btn-pular-prologo" type="button">Pular ▶▶</button>
+</div>
+<div id="cortina" aria-hidden="true"></div>
+
 <section id="tela-girar" hidden>
   <div class="aparelho" aria-hidden="true"></div>
   <p>Gire o aparelho e jogue deitado</p>
@@ -162,6 +180,6 @@
     document.getElementById('carregando-texto').textContent = 'Este navegador é antigo demais para o jogo. Atualize o iOS (16.4 ou mais novo).';
   }
 </script>
-<script type="module" src="src/main.js?v=4dc2736"></script>
+<script type="module" src="src/main.js?v=3844a57"></script>
 </body>
 </html>
