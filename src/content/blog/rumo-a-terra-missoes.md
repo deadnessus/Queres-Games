@@ -19,7 +19,7 @@ O **Rumo à Terra**, do Jojô, agora tem uma história para seguir do começo ao
 - **Coisas novas para criar:** placas de remendo, armadura de carapaça (os bichos tiram menos vida), biofiltro e eletrolisador.
 - **Um minijogo de estrelas:** para calibrar a navegação, você toca nas estrelas do Cruzeiro do Sul.
 - **O final:** com tudo consertado, a Andorinha decola e chega na Terra. Depois dá para continuar explorando Lúmen.
-- **Botão de atirar:** continua na direita, como antes. Quem preferir pode passar para a esquerda nas **Opções**.
+- **Botão de atirar na esquerda:** agora ele fica do lado esquerdo da tela. Quem preferir pode passar para a direita nas **Opções**.
 
 ## Dá para fazer agora?
 
