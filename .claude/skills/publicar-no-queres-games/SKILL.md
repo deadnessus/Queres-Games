@@ -54,7 +54,7 @@ Relate com honestidade o que foi testado (abriu sem erros) e o que não foi (mec
 
 ## 3. Card, capa e manuais
 
-- **Card** em `src/content/jogos/<slug>.md`:
+- **Card** em `src/content/jogos/<slug>.md` (a ordem e o destaque na página são automáticos pelos mais jogados; `ordem` e `destaque` só valem quando não há dados. A etiqueta **Novo!** aparece por 7 dias a partir do 1º post do jogo no blog, ou do campo opcional `lancamento: 2026-11-20`):
 
 ```
 ---

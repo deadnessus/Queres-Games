@@ -5,14 +5,19 @@ import { devs, creditos } from '../data/devs';
 interface Props {
   jogo: CollectionEntry<'jogos'>;
   sombra?: string;
+  lancamento?: string;
 }
 
-const { jogo, sombra = 'var(--rosa)' } = Astro.props;
+const { jogo, sombra = 'var(--rosa)', lancamento } = Astro.props;
 const d = jogo.data;
 const jogavel = d.status === 'jogavel';
 ---
-<article class="card" style={`--sombra:${sombra}`}>
+<article class="card" style={`--sombra:${sombra}`} data-slug={jogo.id} data-ordem={d.ordem} data-lancamento={lancamento}>
   <div class="card-capa" style={`background:linear-gradient(160deg, ${d.cores[0]}, ${d.cores[1]})`}>
+    <div class="card-etiquetas">
+      <span class="etiqueta etiqueta-top" hidden>★ Mais jogado</span>
+      <span class="etiqueta etiqueta-novo" hidden>Novo!</span>
+    </div>
     {d.capa ? (
       <img src={d.capa} alt={`Cena do jogo ${d.titulo}`} loading="lazy" width="800" height="450" />
     ) : (
