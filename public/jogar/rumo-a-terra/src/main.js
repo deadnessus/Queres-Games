@@ -745,7 +745,7 @@ async function iniciar() {
   // ---- laço do jogo ----
   const tmp = new THREE.Vector3();
   let ajuda = null, acaoAtual = null, contadorQuadros = 0, fpsMedia = 60;
-  let alvoAcao = null, esperaGolpe = 0, avisoFalta = 0;
+  let alvoAcao = null, esperaGolpe = 0, avisoFalta = 0, dicaPicareta = false;
   const olho = new THREE.Vector3(), dirOlhar = new THREE.Vector3(), peito = new THREE.Vector3();
 
   // O que o jogador pode fazer com o botão de ação agora (mirando).
@@ -793,6 +793,10 @@ async function iniciar() {
       som.negado();
       const agora = performance.now();
       if (agora - avisoFalta > 2500) { avisoFalta = agora; hud.aviso(`Precisa de ${ITENS[res.falta].icone} ${ITENS[res.falta].nome}`); }
+      if (res.falta === 'picareta' && !dicaPicareta) {
+        dicaPicareta = true;
+        hud.mensagem('Para quebrar isso, crie uma Picareta de pedra: na 🎒, aba 🔨 Criar. Precisa de 2 madeiras, 3 pedras e 1 fibra.', 7);
+      }
     } else if (res.quebrou) {
       coletaveis.soltar(res.itens, { x: hit.cx, y: r.y + Math.min(r.altura * 0.5, 1.3), z: hit.cz });
     }
