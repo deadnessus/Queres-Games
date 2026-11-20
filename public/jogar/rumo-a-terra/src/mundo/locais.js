@@ -1,6 +1,7 @@
 // Os lugares das missões no Vale (dados em src/dados/locais.js), feitos com formas simples:
 // ninho dos Rastejadores, ninho dos Zumbidores, Base da Expedição Cruzeiro, Cratera do Núcleo, Observatório,
-// Ruínas dos Antigos (com a porta que abre com as pedras-chave) e os três monólitos.
+// Ruínas dos Antigos (com a porta que abre com as pedras-chave), os três monólitos e o esqueleto do Tavares
+// (dentro do traje, visto pelo vidro do capacete, sem susto: decisão D8).
 // Também os montes de sucata (destroços da Andorinha), que dá para desmontar como as pedras (src/mundo/recursos.js).
 // Cada lugar vira uma ou duas malhas juntadas; o main.js desenha cada uma na cópia mais perto da câmera (o mundo dá a volta).
 import * as THREE from 'three';
@@ -8,6 +9,9 @@ import { LOCAIS, SUCATA } from '../dados/locais.js';
 import { preparar, mesclar, matriz, tremer, misturarHex, brilhoHex } from '../desenho/geometria.js';
 import { criarAleatorio } from '../logica/ruido.js';
 import { COR } from '../desenho/paleta.js';
+
+// Junta uma escala a uma matriz de posição e giro (para a pedra atrás do esqueleto).
+function matrizEscala(m, sx, sy, sz) { return m.multiply(new THREE.Matrix4().makeScale(sx, sy, sz)); }
 
 export function criarLocais({ def, grade, colisoes }) {
   const rnd = criarAleatorio(def.semente + 900);
@@ -208,6 +212,36 @@ export function criarLocais({ def, grade, colisoes }) {
       }
     },
 
+    // O Tavares: um traje espacial antigo (branco e laranja, da Expedição Cruzeiro) sentado encostado numa pedra,
+    // com o esqueleto dentro, visto pelo vidro do capacete. Ao lado, o gravador com a luzinha vermelha.
+    esqueleto(L, g, b, extra) {
+      const giro = 2.4; // de frente para a trilha
+      const y = chao(L.x, L.z);
+      const m = (lx, ly, lz, rx = 0, ry = 0, rz = 0) => matriz(L.x + lx * Math.cos(giro) + lz * Math.sin(giro), y + ly, L.z - lx * Math.sin(giro) + lz * Math.cos(giro), rx, giro + ry, rz);
+      const traje = (vx, vy) => misturarHex(0xa89c88, 0xe6e0d4, vy + 0.6);
+      g.push(preparar(tremer(new THREE.IcosahedronGeometry(1, 1), 0.3, rnd), (vx, vy) => misturarHex(COR.pedra, COR.pedraClara, (vy + 1) / 2), matrizEscala(m(0, 0.5, -0.9), 1.4, 1.0, 1.0)));
+      g.push(preparar(new THREE.BoxGeometry(0.62, 0.72, 0.42), traje, m(0, 0.62, -0.15, -0.25, 0, 0))); // corpo
+      g.push(preparar(new THREE.BoxGeometry(0.64, 0.1, 0.44), COR.nariz, m(0, 0.78, -0.13, -0.25, 0, 0))); // faixa laranja
+      g.push(preparar(new THREE.BoxGeometry(0.5, 0.55, 0.24), 0x8a8478, m(0, 0.72, -0.48, -0.25, 0, 0))); // mochila do traje
+      for (const lado of [-1, 1]) {
+        g.push(preparar(new THREE.BoxGeometry(0.2, 0.18, 0.75), traje, m(lado * 0.16, 0.12, 0.38, 0, lado * 0.06, 0))); // pernas esticadas
+        g.push(preparar(new THREE.BoxGeometry(0.22, 0.24, 0.14), 0x5a5048, m(lado * 0.16, 0.14, 0.8))); // botas
+        g.push(preparar(new THREE.BoxGeometry(0.15, 0.5, 0.15), traje, m(lado * 0.38, 0.45, -0.02, 0.5, 0, lado * 0.15))); // braços
+        g.push(preparar(new THREE.BoxGeometry(0.13, 0.12, 0.13), 0x6a6258, m(lado * 0.42, 0.24, 0.2))); // luvas
+      }
+      // o esqueleto dentro do capacete: a caveira, com os olhos escuros
+      g.push(preparar(new THREE.IcosahedronGeometry(0.15, 1), 0xf2ead8, m(0, 1.13, -0.08)));
+      g.push(preparar(new THREE.BoxGeometry(0.12, 0.08, 0.1), 0xe8dfca, m(0, 1.02, -0.03)));
+      for (const lado of [-1, 1]) g.push(preparar(new THREE.IcosahedronGeometry(0.04, 0), 0x1a1612, m(lado * 0.055, 1.15, 0.05)));
+      g.push(preparar(new THREE.CylinderGeometry(0.24, 0.26, 0.08, 12), 0x8a8478, m(0, 0.97, -0.12))); // gola do capacete
+      // gravador da expedição (com a luz vermelha piscando)
+      g.push(preparar(new THREE.BoxGeometry(0.2, 0.08, 0.13), 0x2a2d35, m(-0.7, 0.04, 0.3, 0, 0.4, 0)));
+      b.push(preparar(new THREE.IcosahedronGeometry(0.025, 0), 0xff3030, m(-0.65, 0.09, 0.33)));
+      // o vidro do capacete (transparente: dá para ver a caveira lá dentro, sem susto)
+      extra.vidro = [preparar(new THREE.SphereGeometry(0.27, 14, 10), 0x9fd0f0, m(0, 1.12, -0.08))];
+      cilindro(L.x, L.z, 0.9, 1.3, y);
+    },
+
     // Monólito dos Antigos: uma pedra escura e alta com runas azuis. A pedra-chave fica no chão ao lado.
     monolito(L, g, b) {
       const y = chao(L.x, L.z);
@@ -221,6 +255,7 @@ export function criarLocais({ def, grade, colisoes }) {
     },
   };
 
+  const matVidro = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false });
   let porta = null;
   for (const [id, L] of Object.entries(LOCAIS)) {
     if (!L.construcao) continue;
@@ -228,6 +263,7 @@ export function criarLocais({ def, grade, colisoes }) {
     CONSTRUIR[L.construcao](L, g, b, extra);
     malha(g, null, malhas);
     malha(b, matBrilho, malhasBrilho);
+    if (extra.vidro) malha(extra.vidro, matVidro, malhasBrilho);
     if (extra.porta) {
       porta = malha(extra.porta.geos, null, malhas);
       porta.colisor = extra.porta.colisor;

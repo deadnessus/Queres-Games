@@ -1,5 +1,5 @@
 // Controle de videogame (Gamepad API): funciona no iPad com controle de Xbox, PlayStation ou MFi.
-// Analógico esquerdo anda, direito olha; A pula; gatilho direito atira; X é ação; Start pausa; L3 corre.
+// Analógico esquerdo anda, direito olha; A pula; gatilho direito atira; X é ação; LB troca de arma; Start pausa; L3 corre.
 import { entrada } from './entrada.js';
 
 const ZONA_MORTA = 0.16;
@@ -29,6 +29,7 @@ export function lerControle(dt, sensibilidade) {
   entrada.acaoSegurandoControle = b(2);
   if (novo(3)) entrada.mochilaPedida = true; // Y abre a mochila
   if (novo(1)) entrada.cancelarPedido = true; // B cancela
+  if (novo(4)) entrada.trocarArmaPedida = true; // LB troca de arma
   if (novo(9)) entrada.pausaPedida = true;
   antes = {};
   c.buttons.forEach((x, i) => { antes[i] = x.pressed; });

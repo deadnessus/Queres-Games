@@ -43,7 +43,7 @@ import { criarPecas } from './entidades/pecas.js';
 import { criarMissoes } from './logica/missoes.js';
 import { criarPainel } from './ui/painel.js';
 import { criarFinal } from './cenas/final.js';
-import { LOCAIS, PONTOS, SUCATA, PECAS_NO_LOCAL, CHEFE_NO_LOCAL } from './dados/locais.js';
+import { LOCAIS, PONTOS, SUCATA, PECAS_NO_LOCAL, CHEFE_NO_LOCAL, RIFLE_NO_CHAO } from './dados/locais.js';
 import { MISSOES } from './dados/missoes.js';
 import { mostrarTela, progresso, mostrarErro, ligarOpcoes } from './ui/telas.js';
 
@@ -140,7 +140,7 @@ async function iniciar() {
   });
   const alvos = criarAlvos({ def: vale, grade, cena, particulas: faiscas, som });
   const alvosTiro = { lista: [] }; // bolhas de treino + bichos (a arma e a ajuda na mira olham esta lista)
-  const arma = criarArma({ camera, cena, grade, colisoes, alvos: alvosTiro, faiscas, som });
+  const arma = criarArma({ camera, cena, grade, colisoes, alvos: alvosTiro, faiscas, som, aoTiroForte: () => { tremor = Math.max(tremor, 0.3); } });
 
   // ---- coleta, mochila, criar e construir (salvo neste aparelho) ----
   const save = carregarSave();
@@ -318,6 +318,7 @@ async function iniciar() {
     hud.vida(1);
     volta.x = volta.z = 0; volta.avisou = false;
     jogador.reposicionar(vale.inicio.x, vale.inicio.z, vale.inicio.olhar);
+    avisouEsqueleto = false;
     tempoJogado = 0;
     apagarSave();
     sujo = false;
@@ -484,9 +485,14 @@ async function iniciar() {
     }
     if (completou) som.missaoCompleta();
   }
+  // O Rifle de raio fica no chão, ao lado do esqueleto do Tavares, até alguém pegar (pedido do dono).
+  function mostrarRifle() {
+    if (!inventario.tem('rifle')) pecas.mostrar([{ id: 'rifle', item: 'rifle', x: RIFLE_NO_CHAO.x, z: RIFLE_NO_CHAO.z, extra: true }]);
+  }
   // Põe no mundo o que o passo de agora precisa: bichos para derrotar, o chefe, as peças para pegar e os guardas.
   function prepararPasso() {
     pecas.limpar();
+    mostrarRifle();
     const ps = missoes.passo();
     if (!ps) return;
     const tag = missoes.tag(), est = missoes.estado;
@@ -665,6 +671,25 @@ async function iniciar() {
   $('btn-final-explorar').addEventListener('click', () => { som.clique(); voltarDoFinal(true); });
   $('btn-final-inicio').addEventListener('click', () => { som.clique(); voltarDoFinal(false); });
 
+  // ---- trocar de arma (Desintegrador ou Rifle de raio, uma de cada vez) ----
+  function trocarArma(qual) {
+    if (estado !== 'jogando' || !arma.trocar(qual)) return;
+    const nova = arma.proxima === 'rifle' ? '💥 Rifle de raio (segure o tiro para carregar)' : '✦ Desintegrador';
+    hud.aviso(nova);
+  }
+  let ignorarClique = 0;
+  $('btn-trocar-arma').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('apertado');
+    ignorarClique = performance.now();
+    trocarArma();
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('btn-trocar-arma').addEventListener(ev, (e) => e.currentTarget.classList.remove('apertado'));
+  $('btn-trocar-arma').addEventListener('click', () => { if (performance.now() - ignorarClique > 600) trocarArma(); });
+  inventario.aoMudar(() => arma.definirRifle(inventario.tem('rifle')));
+  arma.definirRifle(inventario.tem('rifle'));
+  let avisouEsqueleto = false;
+
   // ---- modo colocar (blocos e fogueira) ----
   let modoColocar = null;
   function entrarModoColocar(id) {
@@ -805,7 +830,13 @@ async function iniciar() {
       inventario.adicionar(pc.item, 1);
       som.pegar();
       hud.aviso(`+1 ${ITENS[pc.item].icone} ${ITENS[pc.item].nome}`);
-      mostrarMsgs(missoes.evento('pegou', { id: pc.id }));
+      if (pc.item === 'rifle') {
+        hud.mensagem('🎙️ Gravador: "Registro 1 de 12, Expedição Cruzeiro. Meu nome é Tavares... Se alguém achar isto, o rifle é seu."', 7);
+        hud.mensagem(entrada.ultimaFonte === 'teclado'
+          ? 'Pegou o Rifle de raio! Aperte R para trocar de arma. Segure o tiro 2 segundos: ele carrega e dá um tiro bem forte.'
+          : 'Pegou o Rifle de raio! Apareceu o botão 💥 para trocar de arma. Segure o tiro 2 segundos: ele carrega e dá um tiro bem forte.', 7);
+        hud.mensagem('Quem era o Tavares? A Expedição Cruzeiro esteve em Lúmen há 60 anos... Um mistério, Comandante.', 5);
+      } else mostrarMsgs(missoes.evento('pegou', { id: pc.id }));
       salvarAgora();
     } else if (alvoAcao.tipo === 'portaRuinas') {
       if (alvoAcao.bloqueado) {
@@ -838,6 +869,7 @@ async function iniciar() {
     if (estado === 'decolando') { atualizarDecolagem(dt); return; }
     if (estado === 'final') { if (!document.hidden) final.atualizar(dt); return; }
     if (estado !== 'jogando') {
+      arma.cancelarCarga();
       nave.atualizar(dt);
       fumaca.atualizar(dt);
       return;
@@ -847,6 +879,8 @@ async function iniciar() {
     if (entrada.mochilaPedida) { entrada.mochilaPedida = false; abrirMochila(); return; }
     if (entrada.mapaPedido) { entrada.mapaPedido = false; abrirMapa(); return; }
     if (entrada.cancelarPedido) { entrada.cancelarPedido = false; sairModoColocar(); }
+    if (entrada.trocarArmaPedida) { entrada.trocarArmaPedida = false; trocarArma(); }
+    if (entrada.armaPedida) { trocarArma(entrada.armaPedida); entrada.armaPedida = null; }
     tempoJogado += dt;
     if (desmaio > 0) {
       // desmaiando: a tela escurece e não dá para fazer nada
@@ -864,6 +898,12 @@ async function iniciar() {
     criaturas.atualizar(dt, jogador);
     pecas.atualizar(dt);
     mostrarMsgs(missoes.verificar(dt, ctxMissao));
+    // perto do esqueleto pela primeira vez (sem susto: a ÍRIS explica)
+    if (!avisouEsqueleto && !inventario.tem('rifle') && distToro(jogador.pos.x, jogador.pos.z, LOCAIS.esqueleto.x, LOCAIS.esqueleto.z) < 14) {
+      avisouEsqueleto = true;
+      hud.mensagem('Comandante, ali no chão... é um traje espacial bem antigo, da Expedição Cruzeiro. Tem alguém dentro, há muito tempo.', 6);
+      hud.mensagem('Do lado dele tem uma arma diferente, um Rifle de raio! Chegue perto para pegar.', 5);
+    }
     // deu a volta no mundo e voltou perto da nave?
     if (!volta.avisou && (volta.x || volta.z) && Math.hypot(jogador.pos.x - nave.centro.x, jogador.pos.z - nave.centro.z) < 40) {
       volta.avisou = true;
@@ -991,7 +1031,9 @@ async function iniciar() {
       hud.bussola(rumoGraus, marcas);
       hud.chefe(criaturas.chefePerto(jogador.pos));
       hud.mira(ajuda ? 'alvo' : 'normal');
-      hud.calor(arma.calor, arma.travada);
+      hud.calor(arma.atual === 'pistola' ? arma.calor : 0, arma.atual === 'pistola' && arma.travada);
+      hud.carga(arma.carga);
+      hud.arma(arma.atual, arma.temRifle);
       hud.acao(acaoAtual ? (entrada.ultimaFonte === 'teclado' ? `E: ${acaoAtual}` : acaoAtual) : null, !!(alvoAcao && alvoAcao.bloqueado));
       hud.contador(alvos.estourados);
     }
@@ -1032,7 +1074,7 @@ async function iniciar() {
       inventario, recursos, construcoes, grade, abrirMochila, fecharMochila, entrarModoColocar, salvarAgora,
       prologo, iniciarNovoJogo, atualizarMenu, criaturas, abrirMapa, fecharMapa, levarDano,
       missoes, pecas, locais, painel, abrirPainel, fecharPainel, final, alvoMissao, prepararPasso, mostrarMsgs,
-      get decolagem() { return decolagem; },
+      get decolagem() { return decolagem; }, arma, trocarArma,
       get vida() { return vida; },
       aplicarVisual: (v) => { config.visual = v; aplicarVisual(); },
     };
