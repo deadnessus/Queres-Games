@@ -1,0 +1,86 @@
+---
+// Reordena os cards de jogos pelos mais jogados (/api/ranking-jogos), mostra as etiquetas "Mais jogado" e "Novo!"
+// e, na página inicial, troca o DESTAQUE pelo jogo mais jogado. Sem resposta da API (sem internet, sem banco,
+// erro), fica tudo como no HTML: ordem fixa do campo "ordem" e o destaque marcado no card.
+// Para não "pular" a tela a cada visita, a última ordem recebida fica guardada no navegador (só uma lista de nomes
+// de jogos) e é aplicada na hora; a nova chega logo depois.
+---
+<script is:inline>
+  (function () {
+    var DIAS_NOVO = 7;
+    var CHAVE = 'qg-ranking-jogos';
+    var SOMBRAS = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
+    var grade = document.querySelector('.grade');
+    if (!grade) return;
+
+    function cards() { return Array.prototype.slice.call(grade.querySelectorAll('.card[data-slug]')); }
+
+    // etiqueta "Novo!": jogo que chegou ao site há até 7 dias (data do card ou do 1º post do blog)
+    try {
+      var agora = Date.now();
+      cards().forEach(function (c) {
+        var d = Date.parse(c.getAttribute('data-lancamento') || '');
+        var e = c.querySelector('.etiqueta-novo');
+        if (e && d && agora - d >= 0 && agora - d <= DIAS_NOVO * 86400000) e.hidden = false;
+      });
+    } catch (e) {}
+
+    function aplicar(r) {
+      if (!r || !Array.isArray(r.ordem)) return;
+      var pos = {};
+      r.ordem.forEach(function (s, i) { pos[s] = i; });
+      var top = {};
+      (r.mais_jogados || []).forEach(function (s) { top[s] = true; });
+      var lista = cards().sort(function (a, b) {
+        var pa = a.getAttribute('data-slug') in pos ? pos[a.getAttribute('data-slug')] : 1e6;
+        var pb = b.getAttribute('data-slug') in pos ? pos[b.getAttribute('data-slug')] : 1e6;
+        return pa - pb || Number(a.getAttribute('data-ordem')) - Number(b.getAttribute('data-ordem'));
+      });
+      lista.forEach(function (c, i) {
+        grade.appendChild(c);
+        c.style.setProperty('--sombra', SOMBRAS[i % SOMBRAS.length]);
+        var e = c.querySelector('.etiqueta-top');
+        if (e) e.hidden = !top[c.getAttribute('data-slug')];
+      });
+      trocarDestaque(r.ordem[0]);
+    }
+
+    // página inicial: o destaque passa a ser o 1º da lista (o mais jogado)
+    function trocarDestaque(slug) {
+      var caixa = document.getElementById('destaque');
+      var fonte = document.getElementById('jogos-destaque');
+      if (!caixa || !fonte || !slug) return;
+      var dados; try { dados = JSON.parse(fonte.textContent)[slug]; } catch (e) { return; }
+      if (!dados) return;
+      var rotulo = document.getElementById('destaque-rotulo');
+      if (rotulo) rotulo.textContent = '★ MAIS JOGADO';
+      if (caixa.getAttribute('data-slug') === slug) return;
+      caixa.setAttribute('data-slug', slug);
+      var link = caixa.querySelector('a.janela');
+      var tela = caixa.querySelector('.janela-tela');
+      var legenda = caixa.querySelector('.janela-legenda');
+      if (link) { link.href = dados.url; link.setAttribute('aria-label', 'Jogar ' + dados.titulo); }
+      if (legenda) legenda.textContent = dados.titulo;
+      if (tela) {
+        tela.style.background = 'linear-gradient(180deg, ' + dados.cores[0] + ', ' + dados.cores[1] + ')';
+        var img = tela.querySelector('img');
+        if (dados.capa) {
+          if (!img) { img = document.createElement('img'); img.width = 800; img.height = 450; tela.appendChild(img); }
+          img.src = dados.capa; img.alt = 'Cena do jogo ' + dados.titulo;
+        } else if (img) { img.remove(); }
+      }
+    }
+
+    // 1) a última ordem guardada neste navegador, na hora (evita a tela "pular")
+    try { aplicar(JSON.parse(localStorage.getItem(CHAVE) || 'null')); } catch (e) {}
+    // 2) a ordem de agora
+    fetch('/api/ranking-jogos')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        if (!r || !Array.isArray(r.ordem)) return;
+        aplicar(r);
+        try { localStorage.setItem(CHAVE, JSON.stringify({ ordem: r.ordem, mais_jogados: r.mais_jogados || [] })); } catch (e) {}
+      })
+      .catch(function () {});
+  })();
+</script>

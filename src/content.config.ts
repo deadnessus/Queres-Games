@@ -11,6 +11,8 @@ const jogos = defineCollection({
     autores: z.array(z.enum(['jojo', 'bento', 'pai'])),
     ordem: z.number(),
     destaque: z.boolean().default(false),
+    // dia em que o jogo chegou ao site (para a etiqueta NOVO). Sem isso, vale a data do 1º post do blog com "jogo: <slug>"
+    lancamento: z.coerce.date().optional(),
     // caminho da imagem de capa dentro de /public (ex.: /capas/heroi.webp)
     capa: z.string().optional(),
     // cores do degradê usado quando o jogo ainda não tem capa

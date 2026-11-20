@@ -2,14 +2,18 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import GameCard from '../components/GameCard.astro';
+import OrdemJogos from '../components/OrdemJogos.astro';
+import { lancamentos } from '../data/lancamentos';
 import PostCard from '../components/PostCard.astro';
 import Devs from '../components/Devs.astro';
 
 const jogos = (await getCollection('jogos')).sort((a, b) => a.data.ordem - b.data.ordem);
 const destaque = jogos.find((j) => j.data.destaque) ?? jogos[0];
 const posts = (await getCollection('blog')).sort((a, b) => b.data.data.valueOf() - a.data.data.valueOf()).slice(0, 3);
+const dadosDestaque = Object.fromEntries(jogos.map((j) => [j.id, { titulo: j.data.titulo, url: j.data.url, capa: j.data.capa ?? '', cores: j.data.cores }]));
 const titulos = Object.fromEntries(jogos.map((j) => [j.id, j.data.titulo]));
 const sombras = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
+const datas = await lancamentos();
 const coresPost = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
 ---
 <Base>
@@ -28,11 +32,11 @@ const coresPost = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
         </div>
       </div>
       {destaque && (
-        <div class="hero-destaque">
+        <div class="hero-destaque" id="destaque" data-slug={destaque.id}>
           <a href={destaque.data.url} class="janela" aria-label={`Jogar ${destaque.data.titulo}`}>
             <div class="janela-barra">
               <i style="background:var(--rosa)"></i><i style="background:var(--amarelo)"></i><i style="background:var(--ciano)"></i>
-              <b>DESTAQUE</b>
+              <b id="destaque-rotulo">DESTAQUE</b>
             </div>
             <div class="janela-tela" style={`background:linear-gradient(180deg, ${destaque.data.cores[0]}, ${destaque.data.cores[1]})`}>
               {destaque.data.capa && <img src={destaque.data.capa} alt={`Cena do jogo ${destaque.data.titulo}`} width="800" height="450" />}
@@ -47,10 +51,12 @@ const coresPost = ['var(--rosa)', 'var(--amarelo)', 'var(--ciano)'];
       <h2 class="titulo-secao">Jogos</h2>
       <p class="sub-secao">Todos rodam direto no navegador, no computador ou no celular.</p>
       <div class="grade">
-        {jogos.map((j, i) => <GameCard jogo={j} sombra={sombras[i % sombras.length]} />)}
+        {jogos.map((j, i) => <GameCard jogo={j} sombra={sombras[i % sombras.length]} lancamento={datas[j.id]} />)}
       </div>
     </section>
   </div>
+  <script type="application/json" id="jogos-destaque" set:html={JSON.stringify(dadosDestaque)} />
+  <OrdemJogos />
 
   <section id="sobre" class="secao-faixa">
     <div class="pagina">
