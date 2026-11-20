@@ -1,6 +1,6 @@
 ---
 titulo: "Origines"
-descricao: "Estratégia em tempo real em 3D: guie um povo da Idade da Pedra rumo a Roma. Por enquanto vai até o Neolítico: colete, cace, construa a aldeia, enfrente tribos rivais e bárbaros e passe pelos invernos."
+descricao: "Estratégia em tempo real em 3D: guie um povo da Idade da Pedra rumo a Roma. Por enquanto vai até a Idade dos Metais: colete, cace, construa a aldeia, troque no mercado, enfrente tribos rivais e bárbaros com cavaleiros e aríetes e passe pelos invernos. Com música e sons."
 status: em-desenvolvimento
 autores: [bento, jojo, pai]
 ordem: 15
