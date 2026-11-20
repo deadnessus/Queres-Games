@@ -1,6 +1,6 @@
 ---
 titulo: "Rumo à Terra: as missões para consertar a nave"
-resumo: "O Rumo à Terra ganhou 12 missões grandes para consertar a Andorinha, com três chefes, até decolar de volta para a Terra. E o botão de atirar foi para a esquerda."
+resumo: "O Rumo à Terra ganhou 12 missões grandes para consertar a Andorinha, com três chefes, até decolar de volta para a Terra."
 data: 2026-11-20T11:45:00-03:00
 jogo: rumo-a-terra
 ---
@@ -19,7 +19,7 @@ O **Rumo à Terra**, do Jojô, agora tem uma história para seguir do começo ao
 - **Coisas novas para criar:** placas de remendo, armadura de carapaça (os bichos tiram menos vida), biofiltro e eletrolisador.
 - **Um minijogo de estrelas:** para calibrar a navegação, você toca nas estrelas do Cruzeiro do Sul.
 - **O final:** com tudo consertado, a Andorinha decola e chega na Terra. Depois dá para continuar explorando Lúmen.
-- **Botão de atirar na esquerda:** agora ele fica do lado esquerdo da tela. Quem preferir pode voltar para a direita nas **Opções**.
+- **Botão de atirar:** continua na direita, como antes. Quem preferir pode passar para a esquerda nas **Opções**.
 
 ## Dá para fazer agora?
 

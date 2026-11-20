@@ -1,14 +1,14 @@
 // Opções do jogador (guardadas só neste aparelho). Sem DOM: a leitura e a gravação ficam em src/nucleo/config.js.
 
 export const PADRAO = Object.freeze({
-  versao: 1,
+  versao: 2, // 2: o botão de atirar voltou para a direita (pedido do dono)
   sensibilidade: 5, // 1 a 10: quanto a câmera gira ao arrastar o dedo
   inverterY: false,
   visual: 'pixelado', // 'pixelado' (anos 90) ou 'liso' (low poly) — o dono escolhe mais para frente (D11)
   qualidade: 'auto', // 'auto', 'leve' ou 'bonita'
   mira: 'media', // ajuda na mira: 'forte', 'media' ou 'desligada' (nunca atira sozinho)
   botoes: 'normal', // tamanho dos botões de toque: 'normal' ou 'grande'
-  atirar: 'esquerda', // lado do botão de atirar (pedido do dono): 'esquerda' ou 'direita'
+  atirar: 'direita', // lado do botão de atirar: 'direita' (como era; pedido do dono) ou 'esquerda' (nas Opções)
   reduzirTremor: false, // tira o balanço da câmera ao andar
   volume: 7, // 0 a 10
 });
@@ -32,6 +32,8 @@ export function validarConfig(obj) {
   c.inverterY = o.inverterY === true;
   c.reduzirTremor = o.reduzirTremor === true;
   for (const [chave, lista] of Object.entries(OPCOES)) c[chave] = lista.includes(o[chave]) ? o[chave] : PADRAO[chave];
+  // Opções guardadas antes da versão 2: o botão de atirar volta para a direita, como era.
+  if (o.versao !== PADRAO.versao) c.atirar = PADRAO.atirar;
   return c;
 }
 
