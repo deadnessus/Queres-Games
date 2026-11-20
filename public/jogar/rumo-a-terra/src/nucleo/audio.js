@@ -75,6 +75,23 @@ export const som = {
   estouro() { if (!pronto()) return; chiado(0.25, 2200, 0.18, 0.6, 'bandpass'); tom('triangle', 880, 1760, 0.18, 0.1); tom('sine', 1320, 2640, 0.25, 0.06); },
   acerto() { if (!pronto()) return; chiado(0.05, 900, 0.08, 1); },
   superaquecido() { if (!pronto()) return; tom('sawtooth', 140, 90, 0.35, 0.08); },
+  golpe(tipo) {
+    if (!pronto()) return;
+    if (tipo === 'madeira') { tom('sine', 190, 90, 0.12, 0.22); chiado(0.06, 700, 0.12, 1); }
+    else if (tipo === 'pedra') { chiado(0.05, 2600, 0.14, 1.2, 'bandpass'); tom('square', 520, 300, 0.05, 0.05); }
+    else if (tipo === 'cristal') { tom('triangle', 1500, 1700, 0.12, 0.08); chiado(0.04, 4000, 0.06, 1, 'highpass'); }
+    else chiado(0.09, 1400, 0.12, 0.6, 'bandpass');
+  },
+  quebrar(tipo) {
+    if (!pronto()) return;
+    if (tipo === 'madeira') { tom('sine', 140, 50, 0.35, 0.25); chiado(0.3, 500, 0.2, 0.7); }
+    else if (tipo === 'cristal') { tom('triangle', 1800, 900, 0.3, 0.1); chiado(0.25, 3500, 0.12, 0.6, 'highpass'); }
+    else chiado(0.25, tipo === 'pedra' ? 1800 : 1100, 0.2, 0.7, 'bandpass');
+  },
+  pegar() { if (!pronto()) return; tom('sine', 660, 990, 0.08, 0.08); },
+  colocar() { if (!pronto()) return; tom('sine', 160, 110, 0.1, 0.2); chiado(0.05, 600, 0.1, 1); },
+  criar() { if (!pronto()) return; [523, 659, 784].forEach((f, i) => setTimeout(() => pronto() && tom('triangle', f, f, 0.14, 0.09), i * 70)); },
+  negado() { if (!pronto()) return; tom('square', 220, 160, 0.12, 0.06); },
   clique() { if (!pronto()) return; tom('sine', 900, 700, 0.05, 0.08); },
   mensagem() { if (!pronto()) return; tom('sine', 1200, 1200, 0.04, 0.05); setTimeout(() => pronto() && tom('sine', 1600, 1600, 0.05, 0.05), 70); },
 

@@ -25,6 +25,14 @@ import { criarJogador } from './entidades/jogador.js';
 import { criarAlvos } from './entidades/alvos.js';
 import { criarArma, procurarAlvo } from './entidades/arma.js';
 import { criarHud } from './ui/hud.js';
+import { criarTelaMochila } from './ui/mochila.js';
+import { ITENS } from './dados/itens.js';
+import { criarInventario, criar } from './logica/inventario.js';
+import { montarSave } from './logica/save.js';
+import { carregarSave, gravarSave } from './nucleo/save-local.js';
+import { criarRecursos } from './mundo/recursos.js';
+import { criarConstrucoes } from './mundo/construcoes.js';
+import { criarColetaveis } from './entidades/coletaveis.js';
 import { mostrarTela, progresso, mostrarErro, ligarOpcoes } from './ui/telas.js';
 
 const $ = (id) => document.getElementById(id);
@@ -85,6 +93,11 @@ async function iniciar() {
   await esperarQuadro();
   const fumaca = criarParticulas(cena, { max: 60 });
   const faiscas = criarParticulas(cena, { max: 220, aditivo: true });
+  const lascas = criarParticulas(cena, { max: 160 });
+  const chamas = criarParticulas(cena, { max: 160, aditivo: true });
+  // Luz da fogueira: criada já no começo (apagada) para o 3D não "engasgar" na hora da primeira fogueira.
+  const luzFogueira = new THREE.PointLight(0xff9a40, 0, 16, 1.6);
+  cena.add(luzFogueira);
   const nave = criarNave({ def: vale, grade, colisoes, particulas: fumaca });
   cena.add(nave.grupo);
   if (nave.destrocos) cena.add(nave.destrocos);
@@ -108,6 +121,30 @@ async function iniciar() {
   });
   const alvos = criarAlvos({ def: vale, grade, cena, particulas: faiscas, som });
   const arma = criarArma({ camera, cena, grade, colisoes, alvos, faiscas, som });
+
+  // ---- coleta, mochila, criar e construir (salvo neste aparelho) ----
+  const save = carregarSave();
+  const inventario = criarInventario(save ? save.inventario : []);
+  const recursos = criarRecursos({ lista: vegetacao.recursos, colisoes, lascas, som });
+  const construcoes = criarConstrucoes({ cena, grade, colisoes, chamas, luz: luzFogueira, som });
+  if (save) construcoes.carregar(save);
+  let tempoJogado = save ? save.tempo_jogado_s : 0;
+  let sujo = false, relogioSave = 0;
+  const marcarSujo = () => { sujo = true; };
+  inventario.aoMudar(marcarSujo);
+  function salvarAgora() {
+    if (!sujo) return;
+    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado }));
+  }
+  const coletaveis = criarColetaveis({
+    cena,
+    aoPegar(id, n) {
+      if (!n) return;
+      inventario.adicionar(id, n);
+      som.pegar();
+      hud.aviso(`+${n} ${ITENS[id].icone} ${ITENS[id].nome}`);
+    },
+  });
 
   // ---- os dois visuais (decisão D11) ----
   const texChao = texturaDetalhe(3, 64, 1), texProps = texturaDetalhe(8, 32, 1.3), texPaineis = texturaPaineis();
@@ -148,8 +185,7 @@ async function iniciar() {
     camera.updateProjectionMatrix();
     arma.ajustarTela(aspecto, vfov);
     const altura = renderer.domElement.height;
-    fumaca.definirEscala(altura, vfov);
-    faiscas.definirEscala(altura, vfov);
+    for (const p of [fumaca, faiscas, lascas, chamas]) p.definirEscala(altura, vfov);
     verificarGiro();
   }
   addEventListener('resize', () => setTimeout(ajustarTela, 50));
@@ -192,6 +228,7 @@ async function iniciar() {
         ? 'Dedão esquerdo: andar. Dedão direito: arrastar para olhar em volta.'
         : 'W A S D para andar, o mouse para olhar, Espaço para pular.', 5);
       hud.mensagem('Achei bolhas de cristal flutuando perto da nave. Treine a mira nelas!', 5);
+      hud.mensagem('Dica: mire no tronco de uma árvore e segure ✋ para pegar madeira. Na 🎒 dá para criar ferramentas e blocos.', 6);
     }
   }
 
@@ -203,6 +240,7 @@ async function iniciar() {
     teclado.soltarTrava();
     mostrarTela('tela-pausa');
     pausarAudio();
+    salvarAgora();
   }
   function continuar() {
     if (girarAtivo) return;
@@ -214,12 +252,73 @@ async function iniciar() {
     som.clique();
   }
   function sairParaInicio() {
+    sairModoColocar();
+    salvarAgora();
     estado = 'inicio';
     $('hud').hidden = true;
     hud.limparMensagens();
     mostrarTela('tela-inicio');
     retomarAudio();
   }
+
+  // ---- mochila ----
+  const telaMochila = criarTelaMochila({
+    inventario,
+    aoCriar(r) {
+      if (criar(inventario, r)) {
+        som.criar();
+        hud.aviso(`Criou: ${ITENS[r.resultado].icone} ${ITENS[r.resultado].nome}${r.qtd > 1 ? ' ×' + r.qtd : ''}`);
+        salvarAgora();
+      } else som.negado();
+    },
+    aoColocar(id) { fecharMochila(); entrarModoColocar(id); },
+  });
+  function abrirMochila() {
+    if (estado !== 'jogando') return;
+    estado = 'mochila';
+    entrada.soltarTudo();
+    toque.desligar();
+    teclado.soltarTrava();
+    som.clique();
+    telaMochila.abrir();
+    mostrarTela('tela-mochila');
+  }
+  function fecharMochila() {
+    if (estado !== 'mochila') return;
+    estado = 'jogando';
+    mostrarTela(null);
+    entrada.soltarTudo();
+    toque.ligar();
+  }
+  $('btn-mochila').addEventListener('click', abrirMochila);
+  $('btn-fechar-mochila').addEventListener('click', () => { som.clique(); fecharMochila(); });
+  addEventListener('keydown', (e) => {
+    if (estado === 'mochila' && ['Escape', 'KeyI', 'Tab'].includes(e.code)) { e.preventDefault(); fecharMochila(); }
+  });
+
+  // ---- modo colocar (blocos e fogueira) ----
+  let modoColocar = null;
+  function entrarModoColocar(id) {
+    if (!inventario.tem(id) || ITENS[id].tipo !== 'colocavel') return;
+    modoColocar = id;
+    atualizarTextoColocar();
+    if (!jaViuDicaColocar) {
+      jaViuDicaColocar = true;
+      hud.mensagem(entrada.ultimaFonte === 'teclado' ? 'Mire onde quer pôr e aperte E. Q para parar.' : 'Mire onde quer pôr e toque em "Colocar". O ✕ para de colocar.', 5);
+    }
+  }
+  let jaViuDicaColocar = false;
+  function atualizarTextoColocar() {
+    if (!modoColocar) return;
+    const i = ITENS[modoColocar];
+    hud.modoColocar(`Colocando: ${i.icone} ${i.nome} (${inventario.quantos(modoColocar)})`);
+  }
+  function sairModoColocar() {
+    modoColocar = null;
+    construcoes.mostrarFantasma(null, null);
+    hud.modoColocar(null);
+  }
+  $('btn-cancelar').addEventListener('click', () => { som.clique(); sairModoColocar(); });
 
   $('btn-jogar').addEventListener('click', comecar);
   $('btn-opcoes').addEventListener('click', () => { voltarDasOpcoes = 'tela-inicio'; opcoes.preencher(); mostrarTela('tela-opcoes'); });
@@ -232,7 +331,7 @@ async function iniciar() {
 
   // Pausa sozinho quando a criança troca de app ou a aba esconde.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { pausar(); pausarAudio(); }
+    if (document.hidden) { pausar(); pausarAudio(); salvarAgora(); }
     else if (estado !== 'jogando') retomarAudio();
   });
 
@@ -248,6 +347,79 @@ async function iniciar() {
   // ---- laço do jogo ----
   const tmp = new THREE.Vector3();
   let ajuda = null, acaoAtual = null, contadorQuadros = 0, fpsMedia = 60;
+  let alvoAcao = null, esperaGolpe = 0, avisoFalta = 0;
+  const olho = new THREE.Vector3(), dirOlhar = new THREE.Vector3(), peito = new THREE.Vector3();
+
+  // O que o jogador pode fazer com o botão de ação agora (mirando).
+  function escolherAlvoAcao() {
+    camera.getWorldPosition(olho);
+    camera.getWorldDirection(dirOlhar);
+    if (modoColocar) {
+      const info = ITENS[modoColocar];
+      const tipo = info.bloco ? 'bloco' : 'fogueira';
+      const alvo = construcoes.alvoColocacao(tipo, olho, dirOlhar, jogador.pos);
+      construcoes.mostrarFantasma(tipo, alvo);
+      return { tipo: 'colocar', alvo, tipoColocacao: tipo, bloco: info.bloco, texto: 'Colocar', bloqueado: !alvo || !alvo.valido };
+    }
+    const hr = recursos.mirar(olho, dirOlhar);
+    const hc = construcoes.mirar(olho, dirOlhar, recursos.ALCANCE);
+    if (hc && (!hr || hc.distancia < hr.distancia)) return { tipo: 'construcao', hit: hc, texto: 'Desmontar' };
+    if (hr) {
+      const regra = hr.recurso.regra;
+      if (regra.exige && !inventario.tem(regra.exige)) return { tipo: 'recurso', hit: hr, texto: `Precisa de ${ITENS[regra.exige].nome.split(' ')[0].toLowerCase()}`, bloqueado: true };
+      return { tipo: 'recurso', hit: hr, texto: regra.verbo };
+    }
+    const d = Math.hypot(jogador.pos.x - nave.porta.x, jogador.pos.z - nave.porta.z);
+    if (d < 4.2) return { tipo: 'porta', texto: 'Examinar' };
+    return null;
+  }
+
+  function golpearRecurso(hit) {
+    const r = hit.recurso, regra = r.regra;
+    const ferramenta = [regra.ferramenta, regra.exige].find((f) => f && inventario.tem(f)) || 'luva';
+    arma.golpear(ferramenta);
+    const res = recursos.bater(r, (id) => inventario.tem(id), hit.ponto);
+    if (res.falta) {
+      som.negado();
+      const agora = performance.now();
+      if (agora - avisoFalta > 2500) { avisoFalta = agora; hud.aviso(`Precisa de ${ITENS[res.falta].icone} ${ITENS[res.falta].nome}`); }
+    } else if (res.quebrou) {
+      coletaveis.soltar(res.itens, { x: r.x, y: r.y + Math.min(r.altura * 0.5, 1.3), z: r.z });
+    }
+  }
+
+  function fazerAcao(dt) {
+    if (!alvoAcao) { esperaGolpe = 0; entrada.acaoPedida = false; return; }
+    const tocou = entrada.acaoPedida;
+    entrada.acaoPedida = false;
+    if (alvoAcao.tipo === 'recurso') {
+      if (tocou) esperaGolpe = 0;
+      if (tocou || entrada.segurandoAcao) {
+        esperaGolpe -= dt;
+        if (esperaGolpe <= 0) { esperaGolpe = 0.4; golpearRecurso(alvoAcao.hit); }
+      }
+      return;
+    }
+    if (!tocou) return;
+    if (alvoAcao.tipo === 'colocar') {
+      if (construcoes.colocar(alvoAcao.tipoColocacao, alvoAcao.bloco, alvoAcao.alvo)) {
+        inventario.remover(modoColocar, 1);
+        if (!inventario.tem(modoColocar)) { hud.aviso(`Acabou: ${ITENS[modoColocar].icone} ${ITENS[modoColocar].nome}`); sairModoColocar(); }
+        else atualizarTextoColocar();
+      } else som.negado();
+    } else if (alvoAcao.tipo === 'construcao') {
+      arma.golpear('luva');
+      const id = construcoes.desmontar(alvoAcao.hit);
+      inventario.adicionar(id, 1);
+      marcarSujo();
+      som.pegar();
+      hud.aviso(`+1 ${ITENS[id].icone} ${ITENS[id].nome}`);
+    } else if (alvoAcao.tipo === 'porta') {
+      som.clique();
+      hud.mensagem('A Andorinha está sem energia e a porta não abre. Primeiro precisamos achar a bateria principal.', 5);
+      hud.mensagem('(Isso chega na Etapa 1. Por enquanto: explorar, pegar materiais, criar e construir.)', 4);
+    }
+  }
 
   function atualizar(dt) {
     if (estado !== 'jogando') {
@@ -257,6 +429,9 @@ async function iniciar() {
     }
     lerControle(dt, config.sensibilidade);
     if (entrada.pausaPedida) { entrada.pausaPedida = false; pausar(); return; }
+    if (entrada.mochilaPedida) { entrada.mochilaPedida = false; abrirMochila(); return; }
+    if (entrada.cancelarPedido) { entrada.cancelarPedido = false; sairModoColocar(); }
+    tempoJogado += dt;
     jogador.passo(dt, entrada.movimento(), entrada.pularPedido);
     entrada.pularPedido = false;
     arma.atualizar(dt, entrada.atirando, ajuda);
@@ -265,17 +440,20 @@ async function iniciar() {
     fumaca.atualizar(dt);
     faiscas.atualizar(dt);
 
-    // ação perto da porta da nave
-    const d = Math.hypot(jogador.pos.x - nave.porta.x, jogador.pos.z - nave.porta.z);
-    acaoAtual = d < 4.2 ? 'Examinar' : null;
-    if (entrada.acaoPedida) {
-      entrada.acaoPedida = false;
-      if (acaoAtual) {
-        som.clique();
-        hud.mensagem('A Andorinha está sem energia e a porta não abre. Primeiro precisamos achar a bateria principal.', 5);
-        hud.mensagem('(Isso chega na Etapa 1. Por enquanto: andar, olhar, pular e treinar a mira.)', 4);
-      }
-    }
+    lascas.atualizar(dt);
+    chamas.atualizar(dt);
+    recursos.atualizar(dt, jogador.pos);
+    construcoes.atualizar(dt, jogador.pos);
+    peito.set(jogador.pos.x, jogador.pos.y + 1.1, jogador.pos.z);
+    coletaveis.atualizar(dt, peito);
+
+    // botão de ação: colocar, cortar/quebrar/colher (segurando), desmontar ou examinar
+    alvoAcao = escolherAlvoAcao();
+    acaoAtual = alvoAcao ? alvoAcao.texto : null;
+    fazerAcao(dt);
+
+    relogioSave += dt;
+    if (relogioSave > 10) { relogioSave = 0; salvarAgora(); }
   }
 
   let tempoMenu = 0;
@@ -308,7 +486,7 @@ async function iniciar() {
 
     renderer.render(cena, camera);
     const chamadas = renderer.info.render.calls, triangulos = renderer.info.render.triangles;
-    if (estado === 'jogando' || estado === 'pausa') arma.desenhar(renderer, jogador.balanco, jogador.velHoriz, ceu.sol, ceu.ambiente, agora);
+    if (estado === 'jogando' || estado === 'pausa' || estado === 'mochila') arma.desenhar(renderer, jogador.balanco, jogador.velHoriz, ceu.sol, ceu.ambiente, agora);
     render.medir(dt, agora);
 
     if (estado === 'jogando') {
@@ -321,7 +499,7 @@ async function iniciar() {
       ]);
       hud.mira(ajuda ? 'alvo' : 'normal');
       hud.calor(arma.calor, arma.travada);
-      hud.acao(acaoAtual ? (entrada.ultimaFonte === 'teclado' ? `E: ${acaoAtual}` : acaoAtual) : null);
+      hud.acao(acaoAtual ? (entrada.ultimaFonte === 'teclado' ? `E: ${acaoAtual}` : acaoAtual) : null, !!(alvoAcao && alvoAcao.bloqueado));
       hud.contador(alvos.estourados);
     }
     if (params.debug && dt > 0) {
@@ -344,6 +522,7 @@ async function iniciar() {
     // Gancho só para testes automáticos (com ?debug=1): ler o estado do jogo.
     window.__rumo = {
       get estado() { return estado; }, jogador, alvos, nave, renderer, config, entrada, comecar, pausar,
+      inventario, recursos, construcoes, grade, abrirMochila, fecharMochila, entrarModoColocar, salvarAgora,
       aplicarVisual: (v) => { config.visual = v; aplicarVisual(); },
     };
   }

@@ -19,12 +19,14 @@ export function iniciarTecladoMouse({ canvas, config, podeJogar }) {
     if (!podeJogar()) return;
     entrada.ultimaFonte = 'teclado';
     if (e.code === 'Space') { if (!e.repeat) entrada.pularPedido = true; e.preventDefault(); }
-    if (e.code === 'KeyE' && !e.repeat) entrada.acaoPedida = true;
+    if (e.code === 'KeyE' && !e.repeat) { entrada.acaoPedida = true; entrada.acaoSegurando = true; }
+    if ((e.code === 'KeyI' || e.code === 'Tab') && !e.repeat) { entrada.mochilaPedida = true; e.preventDefault(); }
+    if (e.code === 'KeyQ' && !e.repeat) entrada.cancelarPedido = true;
     if (e.code === 'Escape' || e.code === 'KeyP') entrada.pausaPedida = true;
     teclas.add(e.code);
     recalcular();
   });
-  addEventListener('keyup', (e) => { teclas.delete(e.code); recalcular(); });
+  addEventListener('keyup', (e) => { teclas.delete(e.code); if (e.code === 'KeyE') entrada.acaoSegurando = false; recalcular(); });
   addEventListener('blur', () => { teclas.clear(); recalcular(); entrada.atirandoMouse = false; });
 
   const travado = () => document.pointerLockElement === canvas;
