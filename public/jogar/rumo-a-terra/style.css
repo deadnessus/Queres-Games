@@ -188,7 +188,7 @@ body:not(.com-toque) #btn-cancelar { display: none; }
 #modo-colocar { position: absolute; left: 50%; bottom: calc(var(--seg-baixo) + 64px); transform: translateX(-50%); padding: 6px 14px; border-radius: 12px; background: rgba(8, 14, 32, 0.82); border-left: 4px solid #5ff0a0; font-size: 15px; font-weight: 700; white-space: nowrap; }
 #modo-colocar[hidden] { display: none; }
 
-.cartao.mochila { max-width: 760px; text-align: left; }
+.cartao.mochila { max-width: 760px; text-align: left; scroll-padding-top: 80px; } /* o topo fixo (abas) não cobre o que rolar para cima */
 .topo-mochila { display: flex; gap: 10px; align-items: center; position: sticky; top: -22px; z-index: 2; margin: -22px -22px 0; padding: 22px 22px 10px; background: #0f1530; border-radius: 16px 16px 0 0; }
 @media (max-height: 430px) { .topo-mochila { top: -14px; margin: -14px -18px 0; padding: 14px 18px 8px; } }
 .abas { display: flex; gap: 6px; flex: 1; }
@@ -204,6 +204,9 @@ body:not(.com-toque) #btn-cancelar { display: none; }
 .item button { grid-column: 1 / 4; margin-top: 6px; }
 .vazio { margin: 6px 0; color: var(--suave); font-size: 15px; line-height: 1.4; }
 .lista-receitas { display: flex; flex-direction: column; gap: 8px; }
+/* cada aba mostra só o seu painel (sem isto, o "display" acima passava por cima do hidden e a aba Criar
+   mostrava a mochila inteira em cima das receitas, escondendo a picareta lá embaixo) */
+.grade-itens[hidden], .lista-receitas[hidden], .lista-missoes[hidden] { display: none; }
 .receita { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); opacity: 0.8; }
 .receita.pode { opacity: 1; border-color: rgba(95, 240, 160, 0.6); background: rgba(95, 240, 160, 0.08); }
 .receita .icone { font-size: 30px; flex: none; width: 40px; text-align: center; }
