@@ -3,8 +3,9 @@
 // Derrotado: cai, some numa nuvenzinha e deixa itens (decisões D4 e D5). Depois de um tempo, outro aparece longe.
 // O mundo dá a volta: as distâncias usam o caminho mais curto e cada bicho é desenhado na cópia mais perto da câmera.
 // Missões: invocar() chama bichos e chefes num lugar, com uma "etiqueta" (tag) que volta em aoMorrer. Esses não renascem.
-// Chefes: Rainha Zumbidora (chama Zumbidores), Grande Garra (dá investidas, não tem medo de fogo) e
-// Guardião de Cristal (flutua e joga cristais que dá para desviar).
+// Chefes (um em cada peça da nave): Rei Rastejador (chama Rastejadores), Rainha Zumbidora (chama Zumbidores),
+// Saltitão (dá pulos enormes e amassa o chão onde cai), Grande Garra (dá investidas, não tem medo de fogo),
+// Gigante de Magma (joga bolas de fogo) e Guardião de Cristal (joga cristais). Tudo dá para desviar.
 import * as THREE from 'three';
 import { CRIATURAS } from '../dados/criaturas.js';
 import { preparar, mesclar, matriz, tremer, misturarHex } from '../desenho/geometria.js';
@@ -105,7 +106,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
     const m = MODELOS[comp](rnd);
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
     if (d.cor) mat.color.setHex(d.cor);
-    const brilhoBase = comp === 'guardiao' ? 0x0a2a3a : 0x000000;
+    const brilhoBase = d.brilho ?? (comp === 'guardiao' ? 0x0a2a3a : 0x000000);
     const grupo = new THREE.Group();
     const corpo = new THREE.Mesh(m.corpo, mat);
     grupo.add(corpo);
@@ -113,7 +114,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
     grupo.visible = false;
     cena.add(grupo);
     const c = {
-      id: proximoId++, tipo, comp, voa: comp === 'zumbidor', d, grupo, corpo, extras, mat, brilhoBase, missao: false, tag: null, investe: 4, tiro: 2,
+      id: proximoId++, tipo, comp, voa: comp === 'zumbidor', d, grupo, corpo, extras, mat, brilhoBase, missao: false, tag: null, investe: 4, tiro: 2, chamar: 4, saltoY: 0,
       pos: new THREE.Vector3(x, grade.alturaEm(x, z), z),
       casa: new THREE.Vector3(x, 0, z), // onde costuma ficar
       rumo: rnd() * Math.PI * 2, vida: d.vida, estado: 'passeando', t: rnd() * 3, fase: rnd() * 6,
@@ -199,7 +200,32 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
     c.recarga = Math.max(0, c.recarga - dt);
     c.t += dt;
 
-    if (c.comp === 'saltito') {
+    if (c.comp === 'saltito' && d.chefe) {
+      // Saltitão: pula na sua direção (um pulo enorme) e amassa o chão onde cai; depois descansa um pouco
+      if (c.estado === 'pulando') {
+        const k = Math.min(1, c.t / 1.1);
+        c.pos.x = embrulhar(c.pulo.x + c.pulo.dx * k, T); c.pos.z = embrulhar(c.pulo.z + c.pulo.dz * k, T);
+        c.saltoY = Math.sin(k * Math.PI) * 6;
+        if (k >= 1) {
+          c.estado = 'descansando'; c.t = 0; c.saltoY = 0;
+          if (dist < 4.2) aoAtacar(d.dano, c);
+          for (let i = 0; i < 18; i++) {
+            const a = (i / 18) * Math.PI * 2;
+            nuvem.soltar({ x: c.pos.x + Math.cos(a), y: grade.alturaEm(c.pos.x, c.pos.z) + 0.2, z: c.pos.z + Math.sin(a), vx: Math.cos(a) * 6, vy: 0.6, vz: Math.sin(a) * 6, vida: 0.7, tamanho: 1, cresce: 1.3, cor: 0xc8b8a0, alfa: 0.55 });
+          }
+          if (som) som.explosao(0.35);
+        }
+      } else if (c.estado === 'descansando') {
+        if (c.t > 1.3) { c.estado = 'passeando'; c.t = 0; }
+      } else if (dist < d.visao) {
+        // escolhe onde cair: em cima de você (no máximo 13 m por pulo)
+        const alcance = Math.min(dist, 13) / (dist || 1);
+        c.pulo = { x: c.pos.x, z: c.pos.z, dx: dx * alcance, dz: dz * alcance };
+        c.rumo = Math.atan2(dx, -dz);
+        c.estado = 'pulando'; c.t = 0;
+        if (som) som.pulo();
+      } else andou = passear(c, dt, d.vel, 6);
+    } else if (c.comp === 'saltito') {
       if (dist < d.visao || c.estado === 'fugindo') {
         c.estado = dist > d.visao * 1.6 ? 'passeando' : 'fugindo';
         if (c.estado === 'fugindo') andou = andar(c, -dx, -dz, d.velFuga, dt);
@@ -266,19 +292,6 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
         c.pos.y += (chao + c.altura + Math.sin(c.t * 1.3) * 0.6 - c.pos.y) * Math.min(1, dt * 1.5);
         if (dist < d.visao && c.recarga <= 0) { c.estado = 'mergulho'; c.t = 0; if (som) som.zumbido(); }
       }
-      // a Rainha chama Zumbidores para ajudar (no máximo 3 de cada vez)
-      if (d.chama && dist < 55) {
-        c.tiro -= dt;
-        if (c.tiro <= 0) {
-          c.tiro = 9;
-          if (lista.filter((x) => x.tag === 'ajudante' && x.vivo).length < 3) {
-            const a = invocar(d.chama, c.pos.x + (rnd() - 0.5) * 4, c.pos.z + (rnd() - 0.5) * 4, 'ajudante');
-            a.casa.set(c.casa.x, 0, c.casa.z);
-            a.pos.y = c.pos.y;
-            if (som) som.zumbido();
-          }
-        }
-      }
     } else if (c.comp === 'guardiao') {
       // flutua devagar, fica a uns 7 a 12 m de você, anda de lado e joga cristais
       const chao = grade.alturaEm(c.pos.x, c.pos.z);
@@ -296,6 +309,20 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
         if (c.tiro <= 0) { atirarCristal(c, jog, c.vida <= d.vida / 2 ? 3 : 1); c.tiro = c.vida <= d.vida / 2 ? 2 : 2.6; }
       }
       c.pos.y = chao + 0.5 + Math.sin(c.t * 1.4) * 0.25;
+    }
+
+    // chefes que chamam ajudantes (Rainha: Zumbidores; Rei Rastejador: Rastejadores), poucos de cada vez
+    if (d.chama && dist < 55) {
+      c.chamar -= dt;
+      if (c.chamar <= 0) {
+        c.chamar = 9;
+        if (lista.filter((x) => x.tag === 'ajudante' && x.vivo).length < (d.ajudantes || 3)) {
+          const a = invocar(d.chama, c.pos.x + (rnd() - 0.5) * 4, c.pos.z + (rnd() - 0.5) * 4, 'ajudante');
+          a.casa.set(c.casa.x, 0, c.casa.z);
+          if (a.voa) a.pos.y = c.pos.y;
+          if (som) { if (a.voa) som.zumbido(); else som.rosnado(); }
+        }
+      }
     }
 
     // em cima do chão (o Zumbidor voa; o Guardião flutua)
@@ -322,7 +349,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
     if (c.comp === 'rastejador' && !['preparando', 'investida'].includes(c.estado)) {
       if (c.vida <= 1 && !c.d.chefe) { c.estado = 'fugindo'; c.t = 0; } else c.estado = 'cacando';
     }
-    if (c.comp === 'saltito') c.estado = 'fugindo';
+    if (c.comp === 'saltito' && !c.d.chefe) c.estado = 'fugindo';
     if (c.comp === 'zumbidor' && c.estado === 'mergulho' && !c.d.chefe) { c.estado = 'subindo'; c.t = 0; c.recarga = 3; }
   }
 
@@ -368,6 +395,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
   // ---------- cristais que o Guardião joga ----------
   const geoTiro = preparar(new THREE.OctahedronGeometry(0.28, 0), 0x9ff8ff, matriz(0, 0, 0, 0, 0, 0, 1, 1, 2.2));
   const matTiro = new THREE.MeshBasicMaterial({ vertexColors: true });
+  const matFogo = new THREE.MeshBasicMaterial({ color: 0xff8a30 }); // bolas de fogo do Gigante de Magma
   const tiros = [];
   for (let k = 0; k < 9; k++) {
     const m = new THREE.Mesh(geoTiro, matTiro);
@@ -383,11 +411,13 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
       const t = tiros.find((x) => !x.ativo);
       if (!t) return;
       const a = base + (k - (quantos - 1) / 2) * 0.28, v = 12;
-      t.ativo = true; t.t = 0; t.dano = c.d.dano;
+      t.ativo = true; t.t = 0; t.dano = c.d.dano; t.cor = c.d.corTiro || 0x9ff8ff;
+      t.m.material = c.d.corTiro ? matFogo : matTiro;
+      t.m.scale.setScalar(c.d.corTiro ? 1.6 : 1);
       t.pos.set(ox, oy, oz);
       t.vel.set(Math.sin(a) * v, (dy / plano) * v, Math.cos(a) * v);
     }
-    if (som) som.cristalVoando();
+    if (som) { if (c.d.corTiro) som.bolaDeFogo(); else som.cristalVoando(); }
   }
   function atualizarTiros(dt, jog) {
     for (const t of tiros) {
@@ -399,7 +429,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
       if (Math.hypot(dx, dy, dz) < 0.95) { t.ativo = false; aoAtacar(t.dano, null); continue; }
       if (t.t > 4 || t.pos.y < grade.alturaEm(t.pos.x, t.pos.z) || colisoes.pontoDentro(t.pos.x, t.pos.y, t.pos.z)) {
         t.ativo = false;
-        for (let k = 0; k < 6; k++) nuvem.soltar({ x: t.pos.x, y: t.pos.y, z: t.pos.z, vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2, vz: (Math.random() - 0.5) * 3, vida: 0.5, tamanho: 0.25, cresce: -0.2, cor: 0x9ff8ff, alfa: 0.9 });
+        for (let k = 0; k < 6; k++) nuvem.soltar({ x: t.pos.x, y: t.pos.y, z: t.pos.z, vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2, vz: (Math.random() - 0.5) * 3, vida: 0.5, tamanho: 0.25, cresce: -0.2, cor: t.cor || 0x9ff8ff, alfa: 0.9 });
       }
     }
   }
@@ -424,7 +454,7 @@ export function criarCriaturas({ cena, def, grade, colisoes, som, nuvem, posNave
       c.alvo.ativo = visivel && c.estado !== 'caindo';
       if (!visivel) continue;
       let y = c.pos.y, inclina = 0, rola = 0, escala = 1;
-      if (c.comp === 'saltito' && c.estado !== 'caindo') y += Math.abs(Math.sin(c.fase)) * 0.45;
+      if (c.comp === 'saltito' && c.estado !== 'caindo') y += c.d.chefe ? c.saltoY : Math.abs(Math.sin(c.fase)) * 0.45;
       if (c.comp === 'rastejador') {
         const s = Math.sin(c.fase);
         c.extras[0].position.set(0, Math.max(0, s) * 0.12, Math.cos(c.fase) * 0.12);

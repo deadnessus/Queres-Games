@@ -1,4 +1,4 @@
-// Rumo à Terra: a Andorinha caiu em Lúmen; 12 missões para consertar a nave e voltar para a Terra.
+// Rumo à Terra: a Andorinha caiu em Lúmen; 7 missões (cada peça com um chefe) para consertar a nave e voltar para a Terra, e segredos.
 // Liga tudo: carregamento em etapas, telas, laço do jogo, controles, céu, mundo, bichos, missões, abertura e final.
 // Plano completo em docs/ (comece por docs/README.md).
 import * as THREE from 'three';
@@ -43,7 +43,8 @@ import { criarPecas } from './entidades/pecas.js';
 import { criarMissoes } from './logica/missoes.js';
 import { criarPainel } from './ui/painel.js';
 import { criarFinal } from './cenas/final.js';
-import { LOCAIS, PONTOS, SUCATA, PECAS_NO_LOCAL, CHEFE_NO_LOCAL, RIFLE_NO_CHAO } from './dados/locais.js';
+import { LOCAIS, PONTOS, SUCATA, PECAS_NO_LOCAL, CHEFE_NO_LOCAL, RIFLE_NO_CHAO, VULCAO } from './dados/locais.js';
+import { criarSegredos } from './entidades/segredos.js';
 import { MISSOES } from './dados/missoes.js';
 import { mostrarTela, progresso, mostrarErro, ligarOpcoes } from './ui/telas.js';
 
@@ -148,6 +149,8 @@ async function iniciar() {
   const recursos = criarRecursos({ lista: [...vegetacao.recursos, ...locais.recursos], colisoes, lascas, som, tamanho: vale.tamanho });
   const missoes = criarMissoes(save ? save.missao : null, inventario);
   const pecas = criarPecas({ cena, grade });
+  const segredos = criarSegredos({ cena, grade });
+  if (save) segredos.carregar(save.segredos);
   const construcoes = criarConstrucoes({ cena, grade, colisoes, chamas, luz: luzFogueira, som });
   if (save) construcoes.carregar(save);
   if (save && save.pos) jogador.reposicionar(save.pos[0] / 100, save.pos[1] / 100, save.pos[2]);
@@ -159,7 +162,7 @@ async function iniciar() {
     if (!sujo) return;
     const rumo = ((((jogador.rumo * 180) / Math.PI) % 360) + 540) % 360 - 180;
     const pos = [Math.round(jogador.pos.x * 100), Math.round(jogador.pos.z * 100), Math.round(rumo)];
-    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado, pos, missao: missoes.serializar() }));
+    sujo = !gravarSave(montarSave({ inventario: inventario.lista(), ...construcoes.serializar(), tempoJogado, pos, missao: missoes.serializar(), segredos: segredos.lista() }));
   }
   const coletaveis = criarColetaveis({
     cena,
@@ -173,6 +176,8 @@ async function iniciar() {
 
   // ---- os aliens de Lúmen e a sua vida ----
   let vida = 100, semDano = 99, desmaio = 0, tremor = 0;
+  // Vida máxima: 100, ou 150 com o Coração do Vulcão (segredo). Com a Pedra dos Antigos (segredo), volta 2x mais rápido.
+  const vidaMax = () => (inventario.tem('coracao') ? 150 : 100);
   const AVISOS_BICHO = {
     saltito: 'Olha, um Saltito! É inofensivo e foge de você. Dá para caçar para comer.',
     rastejador: 'Cuidado, Comandante! Rastejadores! Eles caçam em grupo. Perto da nave ou de uma fogueira eles não chegam.',
@@ -191,19 +196,19 @@ async function iniciar() {
   function levarDano(n) {
     if (estado !== 'jogando' || desmaio > 0 || acordando > 1) return;
     if (inventario.tem('armadura')) n = Math.max(1, Math.round(n * 0.6)); // a armadura de carapaça protege
-    vida -= n;
+    vida = Math.min(vidaMax(), vida - n);
     semDano = 0;
     tremor = 0.35;
     hud.dano();
     som.dor();
     if (vida <= 0) { vida = 0; desmaio = 1.3; som.desmaio(); entrada.soltarTudo(); }
-    hud.vida(vida / 100);
+    hud.vida(vida / vidaMax());
   }
   // Desmaiou: tela preta, o drone da ÍRIS leva você para a nave (perde metade da carne que carregava).
   function acordarNaNave() {
     const p = nave.porta;
     jogador.reposicionar(p.x, p.z, vale.inicio.olhar);
-    vida = 100;
+    vida = vidaMax();
     hud.vida(1);
     const carne = inventario.quantos('carne');
     if (carne > 1) inventario.remover('carne', Math.floor(carne / 2));
@@ -314,6 +319,7 @@ async function iniciar() {
     pecas.limpar();
     missoes.reiniciar(); // chama prepararPasso() (primeiro passo)
     nave.mostrarSistemas(missoes.estado.sistemas);
+    segredos.limpar();
     vida = 100; desmaio = 0; semDano = 99;
     hud.vida(1);
     volta.x = volta.z = 0; volta.avisou = false;
@@ -410,7 +416,7 @@ async function iniciar() {
 
   // ---- mochila ----
   const telaMochila = criarTelaMochila({
-    inventario, missoes,
+    inventario, missoes, segredos,
     aoCriar(r) {
       if (criar(inventario, r)) {
         som.criar();
@@ -543,7 +549,6 @@ async function iniciar() {
       for (const ps of m.passos) {
         if (ps.local) ids.add(ps.local);
         if (ps.guardas && ps.guardas.local) ids.add(ps.guardas.local);
-        if (ps.item === 'chave') for (const id of ['monolito1', 'monolito2', 'monolito3']) ids.add(id);
       }
     });
     return [...ids].map((id) => LOCAIS[id]);
@@ -572,14 +577,14 @@ async function iniciar() {
     aoMinijogo() { fecharPainel(); mostrarMsgs(missoes.evento('minijogo')); salvarAgora(); },
     aoDecolar() { decolar(); },
   });
-  function abrirPainel() {
+  function abrirPainel(opcoes = {}) {
     if (estado !== 'jogando') return;
     estado = 'painel';
     entrada.soltarTudo();
     toque.desligar();
     teclado.soltarTrava();
     som.clique();
-    painel.abrir();
+    if (opcoes.estrelas) painel.abrirEstrelas({ aoTerminar: opcoes.estrelas, aoSair: fecharPainel }); else painel.abrir();
     mostrarTela('tela-painel');
   }
   function fecharPainel() {
@@ -671,6 +676,35 @@ async function iniciar() {
   $('btn-final-explorar').addEventListener('click', () => { som.clique(); voltarDoFinal(true); });
   $('btn-final-inicio').addEventListener('click', () => { som.clique(); voltarDoFinal(false); });
 
+  // ---- segredos (src/entidades/segredos.js): gravadores do Tavares, o telescópio, o Coração do Vulcão e os monólitos ----
+  function premiarSegredo(sg) {
+    if (sg.item) inventario.adicionar(sg.item, 1);
+    for (const [id, n] of sg.da || []) inventario.adicionar(id, n);
+    if (sg.item === 'coracao') { vida = vidaMax(); hud.vida(1); }
+    som.segredo();
+    hud.aviso(`🔍 Segredo achado! (${segredos.quantos} de ${segredos.total})`);
+    for (const m of sg.msgs) hud.mensagem(m, m.length > 80 ? 7 : 5);
+    if (sg.da) hud.aviso(sg.da.map(([id, n]) => `+${n} ${ITENS[id].icone} ${ITENS[id].nome}`).join('  '));
+    marcarSujo();
+    salvarAgora();
+  }
+  function usarSegredo(p) {
+    const t = p.segredo.tipo;
+    if (t === 'telescopio') {
+      if (estado !== 'jogando') return;
+      abrirPainel({ estrelas: () => { const sg = segredos.marcar(p); fecharPainel(); if (sg) premiarSegredo(sg); } });
+      return;
+    }
+    const sg = segredos.marcar(p);
+    if (sg) { premiarSegredo(sg); return; }
+    // monólito tocado, mas ainda faltam outros
+    som.estrela();
+    const feitos = p.segredo.toques.filter((id) => segredos.achou(id)).length;
+    hud.mensagem(`O monólito acendeu! (${feitos} de ${p.segredo.toques.length}). Os outros ficam no Leste, no Oeste e no Norte de Lúmen.`, 5);
+    marcarSujo();
+    salvarAgora();
+  }
+
   // ---- trocar de arma (Desintegrador ou Rifle de raio, uma de cada vez) ----
   function trocarArma(qual) {
     if (estado !== 'jogando' || !arma.trocar(qual)) return;
@@ -746,6 +780,7 @@ async function iniciar() {
   const tmp = new THREE.Vector3();
   let ajuda = null, acaoAtual = null, contadorQuadros = 0, fpsMedia = 60;
   let alvoAcao = null, esperaGolpe = 0, avisoFalta = 0, dicaPicareta = false;
+  let tempoLava = 0, avisouLava = false, relogioVulcao = 0, fumacaVulcao = 0;
   const olho = new THREE.Vector3(), dirOlhar = new THREE.Vector3(), peito = new THREE.Vector3();
 
   // O que o jogador pode fazer com o botão de ação agora (mirando).
@@ -761,6 +796,11 @@ async function iniciar() {
     }
     const pc = pecas.perto(jogador.pos);
     if (pc) return { tipo: 'peca', peca: pc, texto: `Pegar ${ITENS[pc.item].icone} ${ITENS[pc.item].nome.split(' ')[0]}` };
+    const sg = segredos.perto(jogador.pos);
+    if (sg) {
+      const t = sg.segredo.tipo;
+      return { tipo: 'segredo', ponto: sg, texto: t === 'gravador' ? 'Ouvir o gravador 🎙️' : t === 'telescopio' ? 'Olhar no telescópio 🔭' : t === 'monolitos' ? 'Tocar no monólito' : 'Pegar ✨' };
+    }
     const hr = recursos.mirar(olho, dirOlhar);
     const hc = construcoes.mirar(olho, dirOlhar, recursos.ALCANCE);
     if (hc && (!hr || hc.distancia < hr.distancia)) return { tipo: 'construcao', hit: hc, texto: 'Desmontar' };
@@ -772,8 +812,10 @@ async function iniciar() {
     const pf = locais.portaFrente;
     if (pf && !missoes.estado.porta && distToro(jogador.pos.x, jogador.pos.z, pf.x, pf.z) < 3.8) {
       const ps = missoes.passo();
-      const tem = inventario.quantos('chave') >= 3;
-      if (ps && ps.tipo === 'abrir') return { tipo: 'portaRuinas', texto: tem ? 'Abrir a porta 🗝️' : 'Precisa de 3 🗝️', bloqueado: !tem };
+      if (ps && ps.tipo === 'abrir') {
+        const falta = Object.entries(ps.precisa || {}).find(([id, n]) => inventario.quantos(id) < n);
+        return { tipo: 'portaRuinas', texto: falta ? `Precisa de ${falta[1]} ${ITENS[falta[0]].icone}` : 'Abrir a porta', bloqueado: !!falta };
+      }
       return { tipo: 'portaRuinas', texto: 'Porta dos Antigos', bloqueado: true };
     }
     const d = distToro(jogador.pos.x, jogador.pos.z, nave.porta.x, nave.porta.z);
@@ -842,6 +884,8 @@ async function iniciar() {
         hud.mensagem('Quem era o Tavares? A Expedição Cruzeiro esteve em Lúmen há 60 anos... Um mistério, Comandante.', 5);
       } else mostrarMsgs(missoes.evento('pegou', { id: pc.id }));
       salvarAgora();
+    } else if (alvoAcao.tipo === 'segredo') {
+      usarSegredo(alvoAcao.ponto);
     } else if (alvoAcao.tipo === 'portaRuinas') {
       if (alvoAcao.bloqueado) {
         som.negado();
@@ -849,11 +893,11 @@ async function iniciar() {
         if (agora - avisoFalta > 4000) {
           avisoFalta = agora;
           const ps = missoes.passo();
-          hud.mensagem(ps && ps.tipo === 'abrir' ? 'Faltam pedras-chave! Tem uma em cada monólito (Leste, Oeste e Norte).' : 'Uma porta enorme de pedra, com três buracos em forma de losango. Está trancada.', 5);
+          hud.mensagem(ps && ps.tipo === 'abrir' ? 'Ainda falta alguma coisa para abrir a porta.' : 'Uma porta enorme de pedra, trancada. Ela vai abrir quando chegar a hora (na missão do Cristal de Salto).', 5);
         }
         return;
       }
-      inventario.remover('chave', 3);
+      for (const [id, n] of Object.entries(missoes.passo().precisa || {})) inventario.remover(id, n);
       locais.abrirPorta(true);
       som.explosao(0.5);
       tremor = 0.6;
@@ -898,9 +942,40 @@ async function iniciar() {
     entrada.pularPedido = false;
     // vida volta devagar quando nada te acerta por um tempo
     semDano += dt;
-    if (semDano > 6 && vida < 100 && desmaio <= 0) { vida = Math.min(100, vida + 6 * dt); hud.vida(vida / 100); }
+    if (semDano > 6 && vida < vidaMax() && desmaio <= 0) {
+      vida = Math.min(vidaMax(), vida + (inventario.tem('pedra_antiga') ? 12 : 6) * dt);
+      hud.vida(vida / vidaMax());
+    }
+    // lava do Vulcão: queima (tira vida); caindo no lago da cratera, o susto joga você para a borda
+    if (desmaio <= 0 && acordando <= 1 && locais.naLava(jogador.pos.x, jogador.pos.y, jogador.pos.z, T)) {
+      tempoLava -= dt;
+      if (tempoLava <= 0) {
+        tempoLava = 0.5;
+        som.lava();
+        levarDano(8);
+        if (!avisouLava) { avisouLava = true; hud.mensagem('Ai! A lava queima, Comandante! Saia de cima dela.', 4); }
+      }
+      const dc = distToro(jogador.pos.x, jogador.pos.z, VULCAO.x, VULCAO.z);
+      if (dc < VULCAO.crateraRaio * 0.8 && desmaio <= 0) {
+        const ax = embrulhar(jogador.pos.x - VULCAO.x, T), az = embrulhar(jogador.pos.z - VULCAO.z, T), m = Math.hypot(ax, az) || 1;
+        const r = VULCAO.crateraRaio + 3;
+        jogador.reposicionar(VULCAO.x + (dc > 0.5 ? ax / m : 0) * r, VULCAO.z + (dc > 0.5 ? az / m : -1) * r, (jogador.rumo * 180) / Math.PI);
+        tremor = 0.5;
+      }
+    } else tempoLava = 0;
+    // fumaça e brasas saindo do Vulcão (quando você está por perto)
+    if (distToro(jogador.pos.x, jogador.pos.z, VULCAO.x, VULCAO.z) < 230 && locais.lava) {
+      relogioVulcao -= dt;
+      if (relogioVulcao <= 0) {
+        relogioVulcao = 0.09;
+        const vx = maisPerto(VULCAO.x, jogador.pos.x, T), vz = maisPerto(VULCAO.z, jogador.pos.z, T), vy = locais.lava.poco.y;
+        if ((fumacaVulcao = (fumacaVulcao + 1) % 3) === 0) fumaca.soltar({ x: vx + (Math.random() - 0.5) * 4, y: vy + 1, z: vz + (Math.random() - 0.5) * 4, vx: 0.5 + Math.random() * 0.4, vy: 2.4 + Math.random(), vz: (Math.random() - 0.5) * 0.6, vida: 6, tamanho: 3, cresce: 1.4, cor: 0x3a3230, alfa: 0.35 });
+        faiscas.soltar({ x: vx + (Math.random() - 0.5) * 6, y: vy + 0.5, z: vz + (Math.random() - 0.5) * 6, vx: (Math.random() - 0.5) * 3, vy: 4 + Math.random() * 4, vz: (Math.random() - 0.5) * 3, vida: 1.6, tamanho: 0.35, cresce: -0.15, cor: Math.random() < 0.5 ? 0xffa040 : 0xff5a20, alfa: 1, gravidade: 3 });
+      }
+    }
     criaturas.atualizar(dt, jogador);
     pecas.atualizar(dt);
+    segredos.atualizar(dt);
     mostrarMsgs(missoes.verificar(dt, ctxMissao));
     // perto do esqueleto pela primeira vez (sem susto: a ÍRIS explica)
     if (!avisouEsqueleto && !inventario.tem('rifle') && distToro(jogador.pos.x, jogador.pos.z, LOCAIS.esqueleto.x, LOCAIS.esqueleto.z) < 14) {
@@ -1007,6 +1082,8 @@ async function iniciar() {
     construcoes.acompanhar(camera.position);
     criaturas.posicionar(camera.position, agora);
     pecas.acompanhar(camera.position);
+    segredos.acompanhar(camera.position);
+    locais.animar(agora);
     alvosTiro.lista.length = 0;
     for (const a of alvos.lista) alvosTiro.lista.push(a);
     for (const a of criaturas.alvos) alvosTiro.lista.push(a);
@@ -1077,7 +1154,7 @@ async function iniciar() {
       get estado() { return estado; }, jogador, alvos, nave, renderer, config, entrada, comecar, pausar,
       inventario, recursos, construcoes, grade, abrirMochila, fecharMochila, entrarModoColocar, salvarAgora,
       prologo, iniciarNovoJogo, atualizarMenu, criaturas, abrirMapa, fecharMapa, levarDano,
-      missoes, pecas, locais, painel, abrirPainel, fecharPainel, final, alvoMissao, prepararPasso, mostrarMsgs,
+      missoes, pecas, locais, painel, abrirPainel, fecharPainel, final, alvoMissao, prepararPasso, mostrarMsgs, segredos, usarSegredo,
       get decolagem() { return decolagem; }, arma, trocarArma,
       get vida() { return vida; },
       aplicarVisual: (v) => { config.visual = v; aplicarVisual(); },

@@ -1,11 +1,11 @@
 // Os lugares das missões no Vale (dados em src/dados/locais.js), feitos com formas simples:
 // ninho dos Rastejadores, ninho dos Zumbidores, Base da Expedição Cruzeiro, Cratera do Núcleo, Observatório,
-// Ruínas dos Antigos (com a porta que abre com as pedras-chave), os três monólitos e o esqueleto do Tavares
-// (dentro do traje, visto pelo vidro do capacete, sem susto: decisão D8).
+// Ruínas dos Antigos (com a porta grande), os três monólitos, o Vulcão (lava na cratera e rios de lava que tiram vida)
+// e o esqueleto do Tavares (dentro do traje, visto pelo vidro do capacete, sem susto: decisão D8).
 // Também os montes de sucata (destroços da Andorinha), que dá para desmontar como as pedras (src/mundo/recursos.js).
 // Cada lugar vira uma ou duas malhas juntadas; o main.js desenha cada uma na cópia mais perto da câmera (o mundo dá a volta).
 import * as THREE from 'three';
-import { LOCAIS, SUCATA } from '../dados/locais.js';
+import { LOCAIS, SUCATA, VULCAO } from '../dados/locais.js';
 import { preparar, mesclar, matriz, tremer, misturarHex, brilhoHex } from '../desenho/geometria.js';
 import { criarAleatorio } from '../logica/ruido.js';
 import { COR } from '../desenho/paleta.js';
@@ -167,7 +167,7 @@ export function criarLocais({ def, grade, colisoes }) {
       cilindro(L.x, L.z, 3.2, 6, y);
     },
 
-    // Ruínas dos Antigos: um pátio de muros com a porta grande (abre com as 3 pedras-chave) e o altar do Cristal de Salto.
+    // Ruínas dos Antigos: um pátio de muros com a porta grande (abre na missão do Cristal de Salto) e o altar do cristal.
     ruinas(L, g, b, extra) {
       const y = chao(L.x, L.z);
       const pedraVelha = (vx, vy) => brilhoHex(misturarHex(0x56656e, 0x93a8ac, (vy + 2) / 4), 0.9 + rnd() * 0.15);
@@ -242,7 +242,63 @@ export function criarLocais({ def, grade, colisoes }) {
       cilindro(L.x, L.z, 0.9, 1.3, y);
     },
 
-    // Monólito dos Antigos: uma pedra escura e alta com runas azuis. A pedra-chave fica no chão ao lado.
+    // O Vulcão: pedras escuras no pé (onde fica o Gigante de Magma), lava na cratera lá no alto e três rios de lava.
+    // A lava é uma malha à parte (brilha e pulsa); a área dela fica em "lava" para tirar vida de quem pisar.
+    vulcao(L, g, b, extra) {
+      const V = VULCAO;
+      const basalto = (vx, vy) => misturarHex(0x1e1a20, 0x4a4248, (vy + 1) / 2);
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2 + rnd() * 0.4, r = 11 + rnd() * 4;
+        const x = L.x + Math.cos(a) * r, z = L.z + Math.sin(a) * r, s = 0.8 + rnd() * 0.9;
+        g.push(pedra(x, z, s, 0x1e1a20, 0x4a4248, 1.2));
+        if (s > 1.2) cilindro(x, z, s * 0.8, s);
+      }
+      for (let k = 0; k < 24; k++) {
+        const a = rnd() * Math.PI * 2, r = V.crateraRaio + 1 + rnd() * 30;
+        const x = V.x + Math.cos(a) * r, z = V.z + Math.sin(a) * r, y = chao(x, z), s = 0.4 + rnd() * 0.7;
+        g.push(preparar(tremer(new THREE.IcosahedronGeometry(1, 0), 0.3, rnd), basalto, matriz(x, y + s * 0.3, z, rnd(), rnd() * 6, 0, s, s * 0.7, s)));
+      }
+      // lava: o lago da cratera e os rios (fitas que acompanham o chão)
+      const geosLava = [];
+      const yPoco = chao(V.x, V.z) + 0.5;
+      const rPoco = V.crateraRaio * 0.72;
+      geosLava.push(preparar(new THREE.CircleGeometry(rPoco, 20), (vx, vy) => misturarHex(0xffe060, 0xff4a10, Math.hypot(vx, vy) / rPoco), matriz(V.x, yPoco, V.z, -Math.PI / 2, 0, 0)));
+      const rios = [];
+      for (const pontos of V.rios) {
+        const pos = [], cores = [];
+        const meia = V.larguraRio / 2;
+        const amostras = [];
+        for (let i = 0; i < pontos.length - 1; i++) {
+          const [ax, az] = pontos[i], [bx, bz] = pontos[i + 1];
+          const passos = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 1.5));
+          for (let k = 0; k < passos; k++) amostras.push([ax + (bx - ax) * (k / passos), az + (bz - az) * (k / passos), Math.atan2(bz - az, bx - ax)]);
+        }
+        const fim = pontos[pontos.length - 1], antes = pontos[pontos.length - 2];
+        amostras.push([fim[0], fim[1], Math.atan2(fim[1] - antes[1], fim[0] - antes[0])]);
+        for (let i = 0; i < amostras.length - 1; i++) {
+          const q = [amostras[i], amostras[i + 1]].map(([x, z, ang]) => {
+            const nx = -Math.sin(ang) * meia, nz = Math.cos(ang) * meia;
+            return [[x + nx, chao(x + nx, z + nz) + 0.12, z + nz], [x - nx, chao(x - nx, z - nz) + 0.12, z - nz]];
+          });
+          const [[a1, a2], [b1, b2]] = q;
+          for (const v of [a1, a2, b1, a2, b2, b1]) pos.push(...v);
+          const t = i / amostras.length;
+          for (let k = 0; k < 6; k++) cores.push(t);
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geosLava.push(preparar(geo, (x, y, z) => misturarHex(0xffd040, 0xff3a10, Math.min(1, (yPoco - y) / 30))));
+        rios.push({ pontos, largura: V.larguraRio });
+      }
+      extra.lava = { geos: geosLava, poco: { x: V.x, z: V.z, r: rPoco + 0.5, y: yPoco }, rios };
+      // pedras brilhando de quente na borda da cratera
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2, x = V.x + Math.cos(a) * (rPoco + 0.8), z = V.z + Math.sin(a) * (rPoco + 0.8);
+        b.push(preparar(tremer(new THREE.IcosahedronGeometry(0.4, 0), 0.15, rnd), 0xff7a30, matriz(x, chao(x, z) + 0.2, z, rnd(), rnd(), rnd())));
+      }
+    },
+
+    // Monólito dos Antigos: uma pedra escura e alta com runas azuis. Tocando nos três, acontece um segredo.
     monolito(L, g, b) {
       const y = chao(L.x, L.z);
       g.push(preparar(new THREE.BoxGeometry(3.2, 0.25, 3.2), 0x6a6e78, matriz(L.x, y + 0.05, L.z)));
@@ -256,6 +312,8 @@ export function criarLocais({ def, grade, colisoes }) {
   };
 
   const matVidro = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false });
+  const matLava = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  let lava = null;
   let porta = null;
   for (const [id, L] of Object.entries(LOCAIS)) {
     if (!L.construcao) continue;
@@ -264,6 +322,7 @@ export function criarLocais({ def, grade, colisoes }) {
     malha(g, null, malhas);
     malha(b, matBrilho, malhasBrilho);
     if (extra.vidro) malha(extra.vidro, matVidro, malhasBrilho);
+    if (extra.lava) { malha(extra.lava.geos, matLava, malhasBrilho); lava = extra.lava; }
     if (extra.porta) {
       porta = malha(extra.porta.geos, null, malhas);
       porta.colisor = extra.porta.colisor;
@@ -312,5 +371,24 @@ export function criarLocais({ def, grade, colisoes }) {
       if (aberta) colisoes.remover(porta.colisor); else colisoes.adicionar(porta.colisor);
     },
     get portaFrente() { return porta ? porta.frente : null; },
+    // Está pisando na lava? (no lago da cratera ou num rio de lava)
+    naLava(x, y, z, tamanho) {
+      if (!lava) return false;
+      const d = (a, b) => { let v = a - b; v -= Math.round(v / tamanho) * tamanho; return v; };
+      const p = lava.poco;
+      if (Math.hypot(d(x, p.x), d(z, p.z)) < p.r && y < p.y + 0.8) return true;
+      for (const r of lava.rios) {
+        for (let i = 0; i < r.pontos.length - 1; i++) {
+          const [ax, az] = r.pontos[i], [bx, bz] = r.pontos[i + 1];
+          const px = ax + d(x, ax), pz = az + d(z, az); // o ponto na cópia mais perto do rio
+          const vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * vx + (pz - az) * vz) / (vx * vx + vz * vz)));
+          if (Math.hypot(px - (ax + vx * t), pz - (az + vz * t)) < r.largura / 2) return true;
+        }
+      }
+      return false;
+    },
+    get lava() { return lava; },
+    // A lava pulsa devagar (fica mais clara e mais escura).
+    animar(agora) { const k = 0.85 + Math.sin(agora / 700) * 0.15; matLava.color.setRGB(k, k * 0.95, k * 0.9); },
   };
 }

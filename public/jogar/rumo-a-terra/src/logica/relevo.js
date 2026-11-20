@@ -41,6 +41,18 @@ export function criarRelevo(def) {
   const trilhas = t.ops.filter((o) => o.tipo === 'trilha');
   const sulcos = t.ops.filter((o) => o.tipo === 'sulco');
   const outras = t.ops.filter((o) => o.tipo !== 'trilha');
+  const vulcoes = t.ops.filter((o) => o.tipo === 'vulcao');
+
+  // 0 a 1: quanto o ponto está no Vulcão (para pintar de rocha escura); "quente" perto da cratera.
+  function pesoVulcao(x, z) {
+    let p = 0, quente = 0;
+    for (const o of vulcoes) {
+      const d = Math.hypot(x - o.x, z - o.z);
+      p = Math.max(p, 1 - degrau(o.raio * 0.7, o.raio * 1.02, d));
+      quente = Math.max(quente, 1 - degrau(o.crateraRaio * 0.9, o.crateraRaio * 1.8, d));
+    }
+    return { p, quente };
+  }
 
   // 0 a 1: quanto o ponto está em cima de uma trilha (para alisar o chão e pintar de terra).
   function pesoTrilha(x, z) {
@@ -93,6 +105,14 @@ export function criarRelevo(def) {
           h -= o.prof * (1 - degrau(o.raio * 0.5, o.raio, d));
           h += o.aba * Math.exp(-(((d - o.raio) / o.borda) ** 2));
         }
+      } else if (o.tipo === 'vulcao') {
+        // cone que sobe até o alto, com a cratera (onde fica a lava) no meio
+        const d = Math.hypot(x - o.x, z - o.z);
+        if (d < o.raio) {
+          const k = Math.min(1 - d / o.raio, 1 - o.crateraRaio / o.raio); // o alto é chato (a borda da cratera)
+          h += o.altura * Math.pow(k, 1.25) * (1 + 0.05 * ruido2(x / 9, z / 9, semente + 91));
+          h -= o.crateraProf * (1 - degrau(o.crateraRaio * 0.45, o.crateraRaio, d));
+        }
       } else if (o.tipo === 'sulco') {
         const { d, t: ao } = distSegmento(x, z, o.de[0], o.de[1], o.ate[0], o.ate[1]);
         h -= o.prof * (1 - degrau(0, o.largura / 2, d)) * (0.3 + 0.7 * ao);
@@ -108,7 +128,7 @@ export function criarRelevo(def) {
     return h;
   }
 
-  return { altura, pesoTrilha, pesoQueimado, nivelAgua, tamanho, semente };
+  return { altura, pesoTrilha, pesoQueimado, pesoVulcao, nivelAgua, tamanho, semente };
 }
 
 // Amostra o relevo numa grade quadrada (n x n pontos, de "passo" em "passo" metros, centrada em 0).

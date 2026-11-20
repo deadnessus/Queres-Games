@@ -160,17 +160,17 @@ export function criarNave({ def, grade, colisoes, particulas }) {
   grupo.add(brilhoReator);
 
   let semFumaca = false;
-  // Mostra o que já foi consertado. "s" = { energia, casco, motor, comunicacao, suporte, combustivel, navegacao, salto }.
+  // Mostra o que já foi consertado. "s" = { energia, motor, comunicacao, reator, escudo, salto } (src/dados/missoes.js).
   function mostrarSistemas(s) {
     luzes.visible = s.energia >= 1;
-    brilhoReator.visible = s.energia >= 2;
-    remendos.visible = s.casco >= 1;
-    escudo.visible = s.casco >= 2;
     bocal.visible = s.motor >= 1;
+    suporte.visible = s.motor >= 1;
     antena.visible = s.comunicacao >= 1;
-    suporte.visible = s.suporte >= 1;
-    tanque.visible = s.combustivel >= 1;
-    sensor.visible = s.navegacao >= 1;
+    brilhoReator.visible = s.reator >= 1;
+    tanque.visible = s.reator >= 1;
+    remendos.visible = s.escudo >= 1;
+    escudo.visible = s.escudo >= 1;
+    sensor.visible = s.salto >= 1;
     cristal.visible = s.salto >= 1;
     semFumaca = s.motor >= 1; // com o motor consertado, para de sair fumaça
   }

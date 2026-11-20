@@ -18,7 +18,7 @@ export default {
     ops: [
       { tipo: 'achatar', x: 0, z: 0, raio: 20, borda: 26, altura: 3.2 }, // clareira da nave
       { tipo: 'lago', x: 82, z: -52, raio: 40, prof: 4.5, borda: 16 },
-      { tipo: 'trilha', pontos: [[2, 10], [-18, 60], [-6, 118], [10, 170]], largura: 4.5, borda: 6 }, // rumo ao sul
+      { tipo: 'trilha', pontos: [[2, 10], [-18, 60], [-6, 112], [-26, 122]], largura: 4.5, borda: 6 }, // rumo ao sul (até o pé do Vulcão)
       { tipo: 'trilha', pontos: [[10, -6], [44, -26], [58, -30]], largura: 3.5, borda: 5 }, // até o lago
       { tipo: 'colina', x: 104, z: 46, raio: 36, altura: 10 }, // colina da bateria (Etapa 1)
       { tipo: 'colina', x: -112, z: -70, raio: 54, altura: 16 },
@@ -34,6 +34,8 @@ export default {
       { tipo: 'achatar', x: 170, z: -150, raio: 7, borda: 6, altura: 27.4 }, // Observatório (no alto do morro grande)
       { tipo: 'achatar', x: 150, z: 190, raio: 30, borda: 10, altura: 4.6 },
       { tipo: 'cratera', x: 150, z: 190, raio: 24, prof: 3.6, borda: 5, aba: 2.2 }, // Cratera do Núcleo
+      // o Vulcão (os mesmos números de VULCAO em src/dados/locais.js); o Gigante de Magma fica no pé dele, ao norte
+      { tipo: 'vulcao', x: -30, z: 190, raio: 60, altura: 34, crateraRaio: 10, crateraProf: 6 },
     ],
   },
 

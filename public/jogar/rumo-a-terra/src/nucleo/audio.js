@@ -110,6 +110,12 @@ export const som = {
     [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => pronto() && tom('triangle', f, f, i === 3 ? 0.5 : 0.16, 0.1), i * 120));
   },
   instalar() { if (!pronto()) return; chiado(0.08, 1200, 0.15, 1); setTimeout(() => pronto() && chiado(0.08, 900, 0.15, 1), 120); setTimeout(() => pronto() && tom('sine', 300, 900, 0.4, 0.12), 260); },
+  bolaDeFogo() { if (!pronto()) return; chiado(0.5, 700, 0.12, 0.8); tom('sawtooth', 300, 120, 0.4, 0.05); },
+  lava() { if (!pronto()) return; chiado(0.3, 2500, 0.12, 0.6, 'highpass'); tom('sine', 500, 200, 0.25, 0.1); },
+  segredo() {
+    if (!pronto()) return;
+    [784, 988, 1175, 1568].forEach((f, i) => setTimeout(() => pronto() && tom('sine', f, f, i === 3 ? 0.6 : 0.18, 0.08), i * 90));
+  },
   cristalVoando() { if (!pronto()) return; tom('sine', 1800, 700, 0.35, 0.06); tom('triangle', 2400, 1200, 0.3, 0.04); },
   estrela() { if (!pronto()) return; tom('sine', 1320, 1760, 0.2, 0.08); },
 

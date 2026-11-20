@@ -1,7 +1,7 @@
 // Motor das missões (sem DOM e sem Three.js: testável no Node). Os dados estão em src/dados/missoes.js.
 // Guarda em que missão e passo você está, conta o progresso e avança. O mundo (bichos, peças, nave) fica com o main.js,
 // que avisa os acontecimentos com evento(...) e chama verificar(...) a cada passo do jogo.
-import { MISSOES, SISTEMAS, TEMPO_TANQUE_S } from '../dados/missoes.js';
+import { MISSOES, SISTEMAS, TEMPO_TANQUE_S, VERSAO_CAMPANHA } from '../dados/missoes.js';
 import { PONTOS } from '../dados/locais.js';
 import { ITENS } from '../dados/itens.js';
 
@@ -101,7 +101,7 @@ export function criarMissoes(salvo, inventario) {
     if (ps.tipo === 'achar') return `${ITENS[ps.item].icone} ${e.n}/${PONTOS[ps.item].length}`;
     if (ps.tipo === 'instalar') return Object.entries(ps.precisa).map(([id, n]) => `${ITENS[id].icone} ${Math.min(inventario.quantos(id), n)}/${n}`).join('  ');
     if (ps.tipo === 'esperar') return `Tanque: ${Math.floor(e.combustivel)}%`;
-    if (ps.tipo === 'abrir') return `${ITENS.chave.icone} ${Math.min(inventario.quantos('chave'), 3)}/3`;
+    if (ps.tipo === 'abrir' && ps.precisa) return Object.entries(ps.precisa).map(([id, n]) => `${ITENS[id].icone} ${Math.min(inventario.quantos(id), n)}/${n}`).join('  ');
     return '';
   }
 
@@ -114,7 +114,7 @@ export function criarMissoes(salvo, inventario) {
     receitaLiberada: (r) => !r.desde || MISSOES.findIndex((x) => x.id === r.desde) <= e.m,
     aoMudar(f) { ouvintes.mudou.push(f); },
     aoComecarPasso(f) { ouvintes.passo.push(f); },
-    serializar: () => ({ m: e.m, p: e.p, n: e.n, pegos: [...e.pegos], sistemas: Object.entries(e.sistemas), combustivel: Math.floor(e.combustivel), porta: e.porta }),
+    serializar: () => ({ v: VERSAO_CAMPANHA, m: e.m, p: e.p, n: e.n, pegos: [...e.pegos], sistemas: Object.entries(e.sistemas), combustivel: Math.floor(e.combustivel), porta: e.porta }),
     // Para testes e para "Novo jogo".
     reiniciar() { Object.assign(e, vazio()); avisar('mudou'); if (passo()) avisar('passo', passo(), tag()); },
   };
