@@ -7,7 +7,8 @@ const jogos = defineCollection({
     titulo: z.string(),
     descricao: z.string(),
     status: z.enum(['jogavel', 'em-desenvolvimento']),
-    autores: z.array(z.enum(['jojo', 'bento'])),
+    // 'pai' só aparece nos créditos do card (não entra em "Quem faz")
+    autores: z.array(z.enum(['jojo', 'bento', 'pai'])),
     ordem: z.number(),
     destaque: z.boolean().default(false),
     // caminho da imagem de capa dentro de /public (ex.: /capas/heroi.webp)
