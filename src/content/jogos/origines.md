@@ -7,4 +7,9 @@ ordem: 15
 capa: /capas/origines.webp
 cores: ['#1f3a1c', '#d9a43a']
 url: /jogar/origines/
+links:
+  - rotulo: Construções (PDF)
+    url: /manuais/origines/construcoes-do-origines.pdf
+  - rotulo: Unidades (PDF)
+    url: /manuais/origines/unidades-do-origines.pdf
 ---
