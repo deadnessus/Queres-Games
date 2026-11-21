@@ -1,8 +1,20 @@
 {
-  "commit": "2c4e818",
-  "data_do_commit": "2026-11-20T20:21:19+00:00",
+  "commit": "7a8d9e5",
+  "data_do_commit": "2026-11-21T11:06:18+00:00",
   "branch": "claude/festive-mayer-9xiul1",
   "origem": "deadnessus/idade-da-pedra",
-  "gravado_em": "2026-11-20T20:22:38.094Z",
-  "eventos": []
+  "gravado_em": "2026-11-21T11:06:31.636Z",
+  "eventos": [
+    "partida_nova",
+    "partida_continuada",
+    "marco_partida",
+    "era_nova",
+    "fim_vitoria",
+    "fim_derrota",
+    "centro_em_perigo",
+    "fome",
+    "ordem_primeira",
+    "desempenho",
+    "problema"
+  ]
 }
