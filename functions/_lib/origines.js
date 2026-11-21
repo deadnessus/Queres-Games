@@ -10,7 +10,7 @@
 // Tabela própria `or_saves`, ligada a contas.id (uma linha por conta).
 
 export const MAX_BYTES = 300_000;
-export const VERSOES = [1];
+export const VERSOES = [1, 2];   // 2: desde 21/11/2026 o save guarda a versão do mapa (`mapa`); o 1 continua valendo
 const PALAVRA = /^[a-z]{1,16}$/;
 const CHAVE = /^[A-Za-z0-9_]{1,24}$/;
 
