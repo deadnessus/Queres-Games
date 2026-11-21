@@ -31,6 +31,7 @@ import Base from '../layouts/Base.astro';
           <button class="btn btn-vazado" id="painel-sair" type="button">Sair</button>
           <span id="painel-gerado" class="painel-ajuda"></span>
         </div>
+        <div id="painel-matriz"></div>
         <div id="painel-jogos"></div>
         <details class="painel-bloco">
           <summary>Como ler estes números</summary>
@@ -55,6 +56,14 @@ import Base from '../layouts/Base.astro';
     .painel-jogo > summary b { font-family: var(--pixel); font-size: 13px; color: var(--amarelo); }
     .painel-jogo > div { padding: 0 18px 18px; overflow-x: auto; }
     .painel-jogo h3 { font-size: 12px; color: var(--ciano); margin: 22px 0 10px; }
+    .painel-matriz { background: var(--painel); border: 3px solid var(--painel-2); padding: 16px 18px; margin-bottom: 16px; }
+    .painel-matriz h3 { font-size: 12px; color: var(--ciano); margin: 0 0 10px; }
+    .painel-matriz + .painel-matriz { margin-top: 0; }
+    .painel-rolagem { overflow-x: auto; }
+    .painel-matriz table { min-width: 0; width: auto; }
+    .painel-matriz th:first-child, .painel-matriz td:first-child { position: sticky; left: 0; background: var(--painel); z-index: 1; }
+    .painel-matriz td.zero { color: var(--texto-fraco); }
+    .painel-matriz tr.total td { font-weight: 800; border-top: 2px solid var(--borda-suave); }
     .painel table { border-collapse: collapse; font-size: 15px; width: 100%; min-width: 520px; }
     .painel th, .painel td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--painel-2); white-space: nowrap; }
     .painel th:first-child, .painel td:first-child { text-align: left; }
@@ -87,7 +96,39 @@ import Base from '../layouts/Base.astro';
       }
       var CAB = ['', 'Sessões', 'Aparelhos/dia', 'Tempo médio', 'Saída rápida', 'Erros', 'Voltaram'];
 
+      // Tabelas "jogo x dia": sessões (vezes jogado) e tempo jogado, somando todas as versões do jogo em cada dia.
+      function diasDoPeriodo(de, ate) {
+        var out = [], t = Date.parse(de + 'T00:00:00Z'), fim = Date.parse(ate + 'T00:00:00Z');
+        for (; t <= fim; t += 86400000) out.push(new Date(t).toISOString().slice(0, 10));
+        return out;
+      }
+      var curtoDia = function (iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); };
+      var minutos = function (s) { if (!s) return '–'; var m = Math.round(s / 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+      function matriz(titulo, d, campo, formatar) {
+        var dias = diasDoPeriodo(d.periodo.de, d.periodo.ate);
+        var linhas = Object.keys(d.jogos).map(function (slug) {
+          var porDia = {}, total = 0;
+          d.jogos[slug].por_dia.forEach(function (l) { var v = l[campo] || 0; porDia[l.dia] = (porDia[l.dia] || 0) + v; total += v; });
+          return { slug: slug, porDia: porDia, total: total };
+        }).sort(function (a, b) { return b.total - a.total || (a.slug < b.slug ? -1 : 1); });
+        var caixa = el('div', null, 'painel-matriz');
+        caixa.appendChild(el('h3', titulo));
+        var cab = ['Jogo'].concat(dias.map(curtoDia), ['Total']);
+        var corpo = linhas.map(function (l) { return [l.slug].concat(dias.map(function (dia) { return formatar(l.porDia[dia] || 0); }), [formatar(l.total)]); });
+        var somaDia = dias.map(function (dia) { return linhas.reduce(function (s, l) { return s + (l.porDia[dia] || 0); }, 0); });
+        corpo.push(['Todos'].concat(somaDia.map(formatar), [formatar(somaDia.reduce(function (a, b) { return a + b; }, 0))]));
+        var t = tabela(cab, corpo);
+        var rows = t.tBodies[0].rows;
+        rows[rows.length - 1].className = 'total';
+        Array.prototype.forEach.call(rows, function (r) { Array.prototype.forEach.call(r.cells, function (c, i) { if (i && c.textContent === '–') c.className = 'zero'; }); });
+        var rola = el('div', null, 'painel-rolagem'); rola.appendChild(t); caixa.appendChild(rola);
+        return caixa;
+      }
+
       function desenhar(d) {
+        var mz = $('painel-matriz'); mz.textContent = '';
+        mz.appendChild(matriz('Vezes jogado por dia (sessões)', d, 'sessoes', function (n) { return n ? fmt(n) : '–'; }));
+        mz.appendChild(matriz('Tempo jogado por dia', d, 'tempo_ativo_s', minutos));
         $('painel-gerado').textContent = 'De ' + d.periodo.de + ' a ' + d.periodo.ate + ' (horário de Brasília).';
         var nl = $('painel-notas'); nl.textContent = ''; d.notas.forEach(function (n) { nl.appendChild(el('li', n)); });
         var raiz = $('painel-jogos'); raiz.textContent = '';
