@@ -147,6 +147,21 @@ h1 span + span { font-size: 0.8em; letter-spacing: 0.16em; }
 }
 .sobre .btn { width: min(80%, 280px); }
 
+/* convite para entrar na conta, no fim de uma partida sem conta */
+.convite {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  width: min(100%, 320px);
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--borda);
+  background: rgba(255, 255, 255, 0.05);
+}
+.convite p { margin: 0; color: var(--texto); font-size: 15px; line-height: 1.4; }
+.convite .btn { width: 100%; }
+
 @media (prefers-reduced-motion: reduce) {
   .btn:active { transform: none; }
 }

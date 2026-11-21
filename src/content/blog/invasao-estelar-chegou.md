@@ -39,3 +39,7 @@ Sim. Abra o jogo no celular, na vertical, toque em **Jogar** e entre com a sua c
 ## O que vem a seguir
 
 Cada novidade da Invasão Estelar vai ser contada aqui no blog.
+
+## Atualização de 21 de novembro
+
+Agora dá para jogar sem conta. A conta continua sendo o caminho para aparecer no ranking. Veja [Invasão Estelar: agora dá para jogar sem conta](/blog/invasao-estelar-sem-conta/).

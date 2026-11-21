@@ -1,16 +1,18 @@
 // Efeitos visuais (só desenho): faíscas, ondas de choque, tremor de tela e rastro do motor.
 // Ficam separados do motor da partida: o motor diz o que aconteceu (eventos), aqui se decide como mostrar.
-import { TIPOS } from './naves.js?v=5';
+import { TIPOS } from './naves.js?v=6';
 
 const TAU = Math.PI * 2;
 
 export function novosEfeitos(rand = Math.random) {
-  return { rand, particulas: [], ondas: [], tremor: 0, clarao: 0 };
+  // fator: quanto das faíscas aparece (a qualidade automática diminui em celular fraco)
+  return { rand, particulas: [], ondas: [], tremor: 0, clarao: 0, fator: 1 };
 }
 
 function explosao(ef, x, y, cor, quantidade, forca) {
   const r = ef.rand;
-  for (let i = 0; i < quantidade; i++) {
+  const total = Math.max(4, Math.round(quantidade * ef.fator));
+  for (let i = 0; i < total; i++) {
     const a = r() * TAU;
     const v = forca * (0.25 + r() * 0.75);
     ef.particulas.push({
@@ -34,7 +36,7 @@ export function reagir(ef, ev) {
       ef.clarao = 0.35;
       break;
     case 'tiro':
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < Math.max(1, Math.round(3 * ef.fator)); i++) {
         ef.particulas.push({ x: ev.x, y: ev.y, vx: (ef.rand() - 0.5) * 70, vy: -20 - ef.rand() * 40, vida: 0.15, max: 0.15, r: 1.4, cor: '#9ff6ff' });
       }
       break;
@@ -66,7 +68,7 @@ export function atualizarEfeitos(ef, dt) {
 // Faíscas saindo dos motores da nave do jogador.
 export function rastroDoMotor(ef, x, y, dt) {
   const r = ef.rand;
-  if (r() < dt * 40) {
+  if (r() < dt * 40 * ef.fator) {
     ef.particulas.push({
       x: x + (r() - 0.5) * 8, y: y + 28, vx: (r() - 0.5) * 24, vy: 70 + r() * 60,
       vida: 0.3, max: 0.3, r: 1 + r() * 1.2, cor: r() < 0.5 ? '#ffb347' : '#8fe9ff',

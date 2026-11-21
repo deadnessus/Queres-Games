@@ -1,7 +1,9 @@
 // Regras do jogo, sem tela nem canvas. Testadas com `node --test`.
 // Os números que contam pontos estão também no servidor (servidor/functions/_lib/invasao-estelar.js).
-// Se mudar um número aqui, mude lá também.
+// Se mudar um número aqui, mude lá também. A dificuldade (naves, velocidade, energia, tiros) fica em dados.js.
+import { DIFICULDADE, INIMIGOS, ondaDaFase } from './dados.js?v=6';
 
+export const PASSO = 1 / 60; // o jogo anda sempre em passos iguais de 1/60 s: a mesma semente dá a mesma partida
 export const LARGURA = 360;
 export const ALTURA = 640;
 export const Y_JOGADOR = 580;
@@ -12,63 +14,72 @@ export const VEL_TIRO = 640; // px/s, subindo
 export const RAIO_NAVE = 20;
 export const PONTOS_NAVE_BASE = 20;
 export const MULT_MAX = 10; // a pontuação por nave para de subir na onda 10
-export const NAVES_MAX_FASE = 12;
-export const NAVES_MIN_FASE = 8;
+export const NAVES_MAX_FASE = DIFICULDADE.navesNoMaximo;
+export const NAVES_MIN_FASE = DIFICULDADE.navesNoComeco;
 export const VIDAS_INICIAIS = 3;
 export const VIDA_EXTRA_CADA = 30000; // nave extra: bem rara, para o jogo ser difícil
 export const VIDAS_MAX = 6;
-export const ENERGIA_MAX_SEG = 60;
-export const ENERGIA_MIN_SEG = 35;
+export const ENERGIA_MAX_SEG = 60; // teto da energia de uma onda: o servidor usa este número para conferir o bônus
+export const ENERGIA_MIN_SEG = DIFICULDADE.energiaMinima;
 export const BONUS_POR_SEG = 10; // pontos por segundo de energia sobrando, vezes a onda
 export const ABERTURA_SEG = 2.4; // as naves entram voando e a faixa da onda aparece
 export const ATRASO_ENTRADA = 0.09; // segundos entre uma nave e a próxima na entrada
 export const DURACAO_ENTRADA = 1.25;
 export const DESCIDA_MAX = 110; // px: quanto o grupo desce no máximo
-export const PADROES_NA_VOLTA = 8;
+export const PADROES_NA_VOLTA = DIFICULDADE.ondasPorVolta;
 // Área do botão de pausa no painel (coordenadas do jogo): x, y, largura, altura
 export const AREA_PAUSA = { x: 312, y: 46, w: 48, h: 26 };
 export const PAUSA_MERGULHO = 5; // segundos (do grupo) até o primeiro mergulho; a abertura da onda já gasta 2,4
-export const NUM_TIPOS = 10; // tipos de inimigo (um por onda, em ciclo)
+export const NUM_TIPOS = INIMIGOS.length; // tipos de inimigo (um por onda, em ciclo)
 export const NUM_CENARIOS = 4; // cenários de guerra do fundo
-export const ONDAS_POR_CENARIO = 2; // tipos de nave inimiga (um por onda, em ciclo)
+export const ONDAS_POR_CENARIO = 2; // o cenário troca a cada 2 ondas
+
+export const PASSOS_POR_QUADRO_MAX = 8; // celular muito atrasado: o jogo não tenta recuperar mais que isso de uma vez
+export const SALTO_DESENHO = 60; // px: acima disso, de um passo para o outro, a nave deu a volta na tela
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const suave = (k) => 1 - (1 - k) ** 3; // desacelera no fim
 
+// Sorteio com semente (mulberry32): a mesma semente sempre dá a mesma sequência de números entre 0 e 1.
+export function criarSorteio(semente) {
+  let a = semente >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function sementeAleatoria() {
+  return Math.floor(Math.random() * 4294967296) >>> 0;
+}
+
 export function pontosPorNave(fase) {
   return PONTOS_NAVE_BASE * Math.min(fase, MULT_MAX);
 }
 
-export function numNaves(fase) {
-  return Math.min(NAVES_MAX_FASE, NAVES_MIN_FASE + Math.floor((fase - 1) / 2));
+// O desenho fica entre a posição do passo anterior (`antes`) e a do passo atual, com `alfa` de 0 a 1.
+// Assim o movimento sai liso em telas de 60, 90 ou 120 quadros por segundo, mesmo com o jogo andando em passos fixos.
+// Sem posição anterior (algo que acabou de aparecer) ou num salto grande (nave dando a volta), vale a posição atual.
+export function entre(antes, atual, alfa) {
+  if (antes === undefined || Math.abs(atual - antes) > SALTO_DESENHO) return atual;
+  return antes + (atual - antes) * alfa;
 }
 
-export function cicloDaFase(fase) {
-  return Math.floor((fase - 1) / PADROES_NA_VOLTA);
-}
-
-export function padraoDaFase(fase) {
-  return (fase - 1) % PADROES_NA_VOLTA;
-}
-
-// Tipo de nave inimiga: 10 tipos contra 8 padrões de movimento, então as combinações demoram a repetir.
-export function tipoDaFase(fase) {
-  return (fase - 1) % NUM_TIPOS;
-}
+// Atalhos para a tabela da onda (dados.js), usados pelos testes e pelo desenho.
+export const numNaves = (fase) => ondaDaFase(fase).naves;
+export const cicloDaFase = (fase) => ondaDaFase(fase).volta;
+export const padraoDaFase = (fase) => ondaDaFase(fase).padrao;
+export const tipoDaFase = (fase) => ondaDaFase(fase).tipo;
+export const multVelocidade = (fase) => ondaDaFase(fase).vel;
+export const energiaDaFase = (fase) => ondaDaFase(fase).energia;
 
 // O cenário do fundo muda a cada duas ondas.
 export function cenarioDaFase(fase) {
   return Math.floor((fase - 1) / ONDAS_POR_CENARIO) % NUM_CENARIOS;
-}
-
-// Cada volta de 8 ondas fica um pouco mais rápida.
-export function multVelocidade(fase) {
-  return 1 + 0.12 * cicloDaFase(fase);
-}
-
-export function energiaDaFase(fase) {
-  return Math.max(ENERGIA_MIN_SEG, ENERGIA_MAX_SEG - 3 * cicloDaFase(fase));
 }
 
 export function bonusDeFase(fase, energiaRestanteSeg) {

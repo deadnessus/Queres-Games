@@ -1,16 +1,18 @@
 // Invasão Estelar: telas, entrada (toque e teclado), laço do jogo e fluxo de conta/ranking.
-import * as L from './logica.js?v=5';
-import { novaPartida, atualizar, resultado } from './motor.js?v=5';
-import { desenharPartida, pintarFundo } from './desenho.js?v=5';
-import { desenharJogador, definirResolucao } from './naves.js?v=5';
-import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js?v=5';
-import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js?v=5';
-import { liberarSom, tocar, vibrar, alternarSom, somLigado } from './som.js?v=5';
+import * as L from './logica.js?v=6';
+import { novaPartida, avancar, resultado } from './motor.js?v=6';
+import { desenharPartida, pintarFundo, definirQualidade } from './desenho.js?v=6';
+import { desenharJogador, definirResolucao } from './naves.js?v=6';
+import { novosEfeitos, reagir, atualizarEfeitos, rastroDoMotor } from './efeitos.js?v=6';
+import { temSite, eu, iniciarPartida, enviarPartida, ranking } from './conta-ponte.js?v=6';
+import { liberarSom, tocar, vibrar, alternarSom, somLigado } from './som.js?v=6';
+import { NIVEIS, novoMedidor, contarQuadro, nivelInicial } from './qualidade.js?v=6';
 
 const $ = (id) => document.getElementById(id);
 // Aviso anônimo para a medição do queres.games (nunca dá erro; sem o site, não faz nada). Ver CLAUDE.md.
 const evento = (nome, dados) => { try { if (window.QG && window.QG.evento) window.QG.evento(nome, dados); } catch (e) { /* medição nunca atrapalha o jogo */ } };
 const LS_RECORDE = 'invasao_estelar_recorde';
+const LS_QUALIDADE = 'invasao_estelar_qualidade';
 const TELAS = ['tela-inicio', 'tela-ranking', 'tela-jogo', 'tela-fim'];
 
 const canvas = $('campo');
@@ -23,10 +25,12 @@ const gn = naveMenu.getContext('2d');
 let partida = null; // estado do motor
 let efeitos = novosEfeitos();
 let partidaServidor = null; // id da partida no servidor (só se a pessoa estiver logada)
-let semRanking = null; // null | 'sem-site' (jogo fora do queres.games) | 'sem-servidor' (sem conexão agora)
+// null | 'sem-site' (jogo fora do queres.games) | 'sem-servidor' (sem conexão agora) | 'convidado' (jogando sem conta)
+let semRanking = null;
 let rodando = false;
 let pausado = false;
 let ultimoQuadro = 0;
+const relogio = { sobra: 0 }; // tempo que ainda falta andar, em passos fixos de L.PASSO (ver avancar, em motor.js)
 let estadoConta = null; // { logado, apelido } ou null (sem servidor)
 let escopoRanking = 'geral';
 const teclas = { esq: false, dir: false };
@@ -42,6 +46,21 @@ function lerRecorde() {
 }
 function guardarRecorde(pontos) {
   try { localStorage.setItem(LS_RECORDE, String(pontos)); } catch (e) { /* sem armazenamento */ }
+}
+
+/* ---------- qualidade automática (qualidade.js) ---------- */
+function lerQualidade() {
+  try { return localStorage.getItem(LS_QUALIDADE); } catch (e) { return null; }
+}
+function guardarQualidade(nivel) {
+  try { localStorage.setItem(LS_QUALIDADE, String(nivel)); } catch (e) { /* sem armazenamento */ }
+}
+// Começa um nível melhor que o guardado: se o celular só estava ocupado, o jogo volta a ficar bonito.
+const medidor = novoMedidor(nivelInicial(lerQualidade()));
+function aplicarQualidade() {
+  const q = NIVEIS[medidor.nivel];
+  definirQualidade(q);
+  efeitos.fator = q.particulas;
 }
 
 function elemento(tag, attrs = {}, ...filhos) {
@@ -82,12 +101,12 @@ function ajustarTela(tela, contexto, densidadeMax) {
 
 function ajustarCanvas() {
   medirVista();
-  definirResolucao(ajustarTela(canvas, g, 2));
+  definirResolucao(ajustarTela(canvas, g, NIVEIS[medidor.nivel].densidade));
 }
 
 function ajustarFundo() {
   medirVista();
-  ajustarTela(fundo, gf, 1.5);
+  ajustarTela(fundo, gf, Math.min(1.5, NIVEIS[medidor.nivel].densidade));
 }
 
 function ajustarMenu() {
@@ -198,15 +217,25 @@ function tratarEventos() {
 
 function quadro(t) {
   if (!rodando) return;
-  const dt = ultimoQuadro ? (t - ultimoQuadro) / 1000 : 0;
+  const dt = ultimoQuadro ? Math.min((t - ultimoQuadro) / 1000, 0.25) : 0;
   ultimoQuadro = t;
+  let alfa = L.clamp(relogio.sobra / L.PASSO, 0, 1);
   if (!pausado) {
-    atualizar(partida, dt, direcaoDaEntrada());
+    // o jogo anda em passos fixos (L.PASSO): em qualquer celular, a mesma semente e os mesmos toques dão a mesma partida.
+    // O desenho fica entre o passo anterior e o atual (alfa), para o movimento sair liso em qualquer tela.
+    alfa = avancar(partida, relogio, dt, direcaoDaEntrada());
     tratarEventos();
-    atualizarEfeitos(efeitos, Math.min(dt, 0.05));
-    if (partida.estado === 'jogando') rastroDoMotor(efeitos, partida.jx, L.Y_JOGADOR, Math.min(dt, 0.05));
+    const dtVisual = Math.min(dt, 0.05);
+    atualizarEfeitos(efeitos, dtVisual);
+    if (partida.estado === 'jogando') rastroDoMotor(efeitos, L.entre(partida.jxAntes, partida.jx, alfa), L.Y_JOGADOR, dtVisual);
+    if (contarQuadro(medidor, dt)) {
+      guardarQualidade(medidor.nivel);
+      aplicarQualidade();
+      ajustarCanvas();
+      evento('qualidade_reduzida', { nivel: medidor.nivel });
+    }
   }
-  desenharPartida(g, partida, efeitos, t / 1000, vista);
+  desenharPartida(g, partida, efeitos, t / 1000, vista, alfa);
   if (partida.estado === 'fim') {
     terminar();
     return;
@@ -219,13 +248,14 @@ function alternarPausa() {
   pausado = !pausado;
   if (pausado) evento('partida_pausada');
   $('pausa').hidden = !pausado;
-  ultimoQuadro = 0; // não cobra o tempo da pausa
+  ultimoQuadro = 0; // não cobra o tempo da pausa (a sobra fica: o desenho não pula ao pausar)
 }
 
 function comecarPartida() {
   partida = novaPartida();
-  evento('partida_iniciada');
+  evento('partida_iniciada', { modo: 'normal', conta: partidaServidor ? 'sim' : 'nao' });
   efeitos = novosEfeitos();
+  aplicarQualidade();
   desligarMenu();
   mostrar('tela-jogo');
   ajustarCanvas();
@@ -233,6 +263,7 @@ function comecarPartida() {
   pausado = false;
   $('pausa').hidden = true;
   ultimoQuadro = 0;
+  relogio.sobra = 0;
   toques.clear();
   requestAnimationFrame(quadro);
 }
@@ -254,6 +285,9 @@ async function terminar() {
   $('fim-recorde').textContent = `Recorde neste aparelho: ${Math.max(recorde, res.pontos)}`;
 
   const aviso = $('fim-ranking');
+  $('fim-convite').hidden = semRanking !== 'convidado';
+  $('btn-entrar-fim').hidden = false;
+  $('fim-convite-texto').textContent = 'Sem conta, este recorde fica só neste aparelho. Entre na conta para aparecer no ranking geral e do mês.';
   if (partidaServidor) {
     const id = partidaServidor;
     partidaServidor = null;
@@ -279,7 +313,18 @@ function atualizarBotoesDeConta() {
   const servidor = estadoConta !== null;
   $('btn-conta').hidden = !servidor;
   $('btn-ranking').hidden = !servidor;
+  $('dica-conta').hidden = !servidor || estadoConta.logado;
   if (servidor) $('btn-conta').textContent = estadoConta.logado ? `Perfil: ${estadoConta.apelido}` : 'Entrar';
+}
+
+// No fim de uma partida sem conta: entrar (ou criar a conta) para a próxima valer no ranking.
+async function entrarDepoisDaPartida() {
+  const r = await window.QGConta.entrar();
+  if (!r) return;
+  estadoConta = await eu() || { logado: true, apelido: r.apelido };
+  atualizarBotoesDeConta();
+  $('btn-entrar-fim').hidden = true;
+  $('fim-convite-texto').textContent = `Pronto, você entrou como ${r.apelido}. A próxima partida já vale para o ranking.`;
 }
 
 function abrirInicio() {
@@ -320,16 +365,14 @@ async function jogar() {
   partidaServidor = null;
   semRanking = null;
   if (temSite()) {
-    let e = await eu();
+    const e = await eu();
     if (e === null) {
       semRanking = 'sem-servidor'; // sem conexão com o servidor: joga, mas não entra no ranking
+    } else if (!e.logado) {
+      // sem conta, joga normalmente; só o ranking fica de fora (o servidor precisa contar o tempo desde o começo)
+      semRanking = 'convidado';
+      $('aviso-inicio').textContent = '';
     } else {
-      if (!e.logado) {
-        // a partida só entra no ranking se o servidor começar a contar antes de jogar
-        const r = await window.QGConta.entrar();
-        if (!r) return;
-        e = { logado: true, apelido: r.apelido };
-      }
       partidaServidor = await iniciarPartida();
       if (!partidaServidor) {
         abrirInicio();
@@ -379,10 +422,12 @@ function ligarBotoes() {
   $('btn-sair').addEventListener('click', sairParaInicio);
   $('btn-de-novo').addEventListener('click', jogar);
   $('btn-inicio-fim').addEventListener('click', abrirInicio);
+  $('btn-entrar-fim').addEventListener('click', entrarDepoisDaPartida);
   if (window.QGConta) window.QGConta.aoMudar((e) => { estadoConta = e; atualizarBotoesDeConta(); });
 }
 
 async function iniciar() {
+  aplicarQualidade();
   ligarBotoes();
   atualizarBotaoSom();
   ajustarFundo();

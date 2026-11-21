@@ -8,7 +8,7 @@
 <meta name="description" content="Pilote sua nave, derrube ondas de naves alienígenas e entre no ranking.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icone.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 <!-- login do queres.games: só existe quando o jogo está no site; sem ele, os botões de conta somem -->
 <script src="/conta.js?v=2"></script>
 </head>
@@ -30,6 +30,7 @@
       <button id="btn-conta" class="btn suave" type="button" hidden>Entrar</button>
       <button id="btn-som" class="btn suave" type="button">Som: ligado</button>
     </div>
+    <p id="dica-conta" class="ajuda" hidden>Sem conta você joga normalmente, e o recorde fica só neste aparelho. Entre na conta para aparecer no ranking.</p>
     <p class="ajuda">Segure a metade esquerda ou direita da tela para pilotar. A nave atira sozinha.</p>
   </section>
 
@@ -59,6 +60,10 @@
     <p id="fim-detalhe" class="ajuda"></p>
     <p id="fim-recorde" class="ajuda"></p>
     <p id="fim-ranking" class="ajuda aviso-ranking" role="status"></p>
+    <div id="fim-convite" class="convite" hidden>
+      <p id="fim-convite-texto" role="status"></p>
+      <button id="btn-entrar-fim" class="btn" type="button">Entrar na conta</button>
+    </div>
     <div class="botoes">
       <button id="btn-de-novo" class="btn principal" type="button">Jogar de novo</button>
       <button id="btn-inicio-fim" class="btn suave" type="button">Início</button>
@@ -66,6 +71,6 @@
   </section>
 
 </main>
-<script type="module" src="src/main.js?v=5"></script>
+<script type="module" src="src/main.js?v=6"></script>
 </body>
 </html>
