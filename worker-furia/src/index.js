@@ -23,6 +23,8 @@ import { fetchInfiltrados, SalaInfiltrados } from './infiltrados.js';
 export { SalaInfiltrados };
 import { fetchOrigines, SalaOrigines } from './origines.js';
 export { SalaOrigines };
+import { fetchPartida, SalaPartidaOrigines } from './origines-partida.js';
+export { SalaPartidaOrigines };
 import { fetchInvasao, SalaInvasao } from './invasao-estelar.js';
 export { SalaInvasao };
 
@@ -90,6 +92,8 @@ export default {
     const url = new URL(req.url);
     // Infiltrados na Órbita: outro jogo, mesmo Worker (ver infiltrados.js).
     if (url.pathname.startsWith('/online/infiltrados/')) return fetchInfiltrados(req, env);
+    // Origines, partida online (M6: cada pessoa com a sua tribo, até 4; ver origines-partida.js). Antes da rota do amigo.
+    if (url.pathname.startsWith('/online/origines/partida/')) return fetchPartida(req, env);
     // Origines (jogar com um amigo): outro jogo, mesmo Worker (ver origines.js).
     if (url.pathname.startsWith('/online/origines/')) return fetchOrigines(req, env);
     // Invasão Estelar (duelo e esquadrão): outro jogo, mesmo Worker (ver invasao-estelar.js).
