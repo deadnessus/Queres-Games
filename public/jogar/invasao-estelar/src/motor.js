@@ -1,9 +1,19 @@
-// Motor da partida: estado e atualização a cada quadro. Não desenha nada (quem desenha é desenho.js).
-import * as L from './logica.js?v=5';
+// Motor da partida: estado e atualização a cada passo. Não desenha nada (quem desenha é desenho.js).
+// Repetível: com a mesma semente e as mesmas entradas (esquerda/direita a cada passo), a partida sai igual.
+// Cada passo guarda também as posições de antes (jxAntes, xa, ya), só para o desenho ficar entre dois passos.
+import * as L from './logica.js?v=6';
+import { DIFICULDADE, INIMIGOS, ondaDaFase } from './dados.js?v=6';
 
-export function novaPartida({ rand = Math.random } = {}) {
+// `semente`: número do sorteio (sem ela, uma nova é sorteada). `rand`: troca o sorteio inteiro (usado nos testes).
+export function novaPartida({ semente, rand } = {}) {
+  const s = semente ?? L.sementeAleatoria();
   const p = {
-    rand,
+    semente: s,
+    rand: rand || L.criarSorteio(s),
+    quadro: 0, // quantos passos a partida já andou
+    entradas: [], // gravação: [passo, direção] sempre que a direção muda
+    ultimaEntrada: 0,
+    onda: null, // a descrição da onda atual (dados.js)
     fase: 1,
     pontos: 0,
     vidas: L.VIDAS_INICIAIS,
@@ -11,6 +21,7 @@ export function novaPartida({ rand = Math.random } = {}) {
     tempo: 0,
     estado: 'jogando', // 'jogando' | 'fim'
     jx: L.LARGURA / 2,
+    jxAntes: undefined, // posição da nave no passo anterior (só para o desenho)
     vx: 0,
     tipo: 0,
     padrao: 0,
@@ -34,21 +45,24 @@ export function novaPartida({ rand = Math.random } = {}) {
 }
 
 function comecarFase(p) {
-  const n = L.numNaves(p.fase);
-  p.tipo = L.tipoDaFase(p.fase);
-  p.padrao = L.padraoDaFase(p.fase);
-  p.vel = L.multVelocidade(p.fase);
+  const o = ondaDaFase(p.fase);
+  p.onda = o;
+  const n = o.naves;
+  p.tipo = o.tipo;
+  p.padrao = o.padrao;
+  p.vel = o.vel;
+  const vida = INIMIGOS[o.tipo].vida;
   p.naves = [];
   for (let i = 0; i < n; i++) {
     const col = i % 4;
     const linha = Math.floor(i / 4);
-    p.naves.push({ i, n, hx: 75 + col * 70, hy: 108 + linha * 46, x: 180, y: -50, vivo: true, inclina: 0 });
+    p.naves.push({ i, n, hx: 75 + col * 70, hy: 108 + linha * 46, x: 180, y: -50, vivo: true, vida, inclina: 0 });
   }
   p.descida = 0;
   p.tempoFase = 0;
   p.tm = 0;
   p.abertura = L.ABERTURA_SEG;
-  p.energiaMax = L.energiaDaFase(p.fase);
+  p.energiaMax = o.energia;
   p.energia = p.energiaMax;
   p.tiros = [];
   p.disparos = [];
@@ -75,6 +89,20 @@ function atualizarPosicoes(p, d) {
   }
 }
 
+// Posições antes do passo: o desenho fica entre elas e as novas. Não muda nada no jogo.
+function guardarPosicoes(p) {
+  p.jxAntes = p.jx;
+  for (const n of p.naves) {
+    n.xa = n.x;
+    n.ya = n.y;
+  }
+  for (const t of p.tiros) t.ya = t.y;
+  for (const s of p.disparos) {
+    s.xa = s.x;
+    s.ya = s.y;
+  }
+}
+
 function ganharPontos(p, quantidade) {
   const antes = p.pontos;
   p.pontos += quantidade;
@@ -92,6 +120,16 @@ function abater(p, nave) {
   p.eventos.push({ tipo: 'explosao', x: nave.x, y: nave.y, nave: p.tipo });
 }
 
+// Um laser acertou: tira 1 de vida; a nave só cai quando a vida acaba (hoje todas têm 1, ver dados.js).
+function acertar(p, nave) {
+  nave.vida -= 1;
+  if (nave.vida > 0) {
+    p.eventos.push({ tipo: 'dano', x: nave.x, y: nave.y, nave: p.tipo });
+    return;
+  }
+  abater(p, nave);
+}
+
 // Perde uma vida. Depois de um acerto, fica um tempo invulnerável (não vale para a energia zerada).
 export function perderVida(p, motivo) {
   if (p.estado !== 'jogando') return;
@@ -106,11 +144,17 @@ export function perderVida(p, motivo) {
   }
 }
 
-// Avança a partida em `dt` segundos. `dirEntrada` é -1 (esquerda), 0 (parado) ou 1 (direita).
+// Avança a partida em `dt` segundos (no jogo, sempre L.PASSO). `dirEntrada` é -1 (esquerda), 0 (parado) ou 1 (direita).
 export function atualizar(p, dt, dirEntrada) {
   if (p.estado !== 'jogando') return;
   const d = Math.min(Math.max(dt, 0), 0.05);
+  guardarPosicoes(p);
   p.tempo += d;
+  p.quadro++;
+  if (dirEntrada !== p.ultimaEntrada) {
+    p.entradas.push([p.quadro, dirEntrada]);
+    p.ultimaEntrada = dirEntrada;
+  }
 
   // a nave acelera e freia: o movimento fica mais suave que mudar de velocidade de uma vez
   const alvoVx = dirEntrada * L.VEL_MAX_JOGADOR;
@@ -135,7 +179,7 @@ export function atualizar(p, dt, dirEntrada) {
   // tiro automático: um laser por vez
   p.cooldown -= d;
   if (p.tiros.length === 0 && p.cooldown <= 0) {
-    p.tiros.push({ x: p.jx, y: L.Y_JOGADOR - 26 });
+    p.tiros.push({ x: p.jx, y: L.Y_JOGADOR - 26, ya: L.Y_JOGADOR - 26 });
     p.cooldown = 0.14;
     p.eventos.push({ tipo: 'tiro', x: p.jx, y: L.Y_JOGADOR - 26 });
   }
@@ -146,22 +190,20 @@ export function atualizar(p, dt, dirEntrada) {
     // confere o trecho percorrido neste quadro (o laser é rápido e poderia "pular" uma nave)
     const alvo = p.naves.find((n) => n.vivo && Math.abs(n.x - t.x) < L.RAIO_NAVE + 3 && n.y > t.y - L.RAIO_NAVE && n.y < yAntes + L.RAIO_NAVE);
     if (alvo) {
-      abater(p, alvo);
+      acertar(p, alvo);
       return false;
     }
     return true;
   });
 
-  // plasma dos inimigos: mira um pouco no jogador, mais a cada volta
-  const chance = 0.05 * p.vel * d;
-  const ciclo = L.cicloDaFase(p.fase);
-  const maxDisparos = 5 + Math.min(2, ciclo);
+  // plasma dos inimigos: mira um pouco no jogador, mais a cada volta (números em dados.js)
+  const o = p.onda;
+  const chance = DIFICULDADE.chanceDeTiro * p.vel * d;
   for (const n of p.naves) {
-    if (n.vivo && n.y > 0 && p.disparos.length < maxDisparos && p.rand() < chance) {
-      const mira = Math.min(1, 0.3 + 0.25 * ciclo);
-      const vy = 190 + 30 * ciclo + p.rand() * 40;
-      const vx = L.clamp((p.jx - n.x) * 0.35 * mira, -70, 70);
-      p.disparos.push({ x: n.x, y: n.y + 16, vx, vy });
+    if (n.vivo && n.y > 0 && p.disparos.length < o.maxDisparos && p.rand() < chance) {
+      const vy = o.velDisparo + p.rand() * DIFICULDADE.velDisparoVariacao;
+      const vx = L.clamp((p.jx - n.x) * 0.35 * o.mira, -70, 70);
+      p.disparos.push({ x: n.x, y: n.y + 16, xa: n.x, ya: n.y + 16, vx, vy });
       p.eventos.push({ tipo: 'disparo', x: n.x, y: n.y + 16 });
     }
   }
@@ -208,6 +250,21 @@ export function atualizar(p, dt, dirEntrada) {
   }
 }
 
+// Anda a partida pelo tempo real `dt` (segundos) em passos fixos de L.PASSO. O que sobra fica em `relogio.sobra`
+// para o próximo quadro. Devolve quanto do próximo passo já passou (de 0 a 1): o desenho usa isso para ficar entre
+// o passo anterior e o atual (L.entre), e o movimento sai liso em qualquer tela.
+export function avancar(p, relogio, dt, dir) {
+  relogio.sobra += dt;
+  let passos = 0;
+  while (relogio.sobra >= L.PASSO && passos < L.PASSOS_POR_QUADRO_MAX) {
+    atualizar(p, L.PASSO, dir);
+    relogio.sobra -= L.PASSO;
+    passos++;
+  }
+  if (passos >= L.PASSOS_POR_QUADRO_MAX) relogio.sobra = 0; // celular muito atrasado: não tenta recuperar tudo de uma vez
+  return L.clamp(relogio.sobra / L.PASSO, 0, 1);
+}
+
 // Resultado final, para mandar ao servidor.
 export function resultado(p) {
   return {
@@ -216,4 +273,22 @@ export function resultado(p) {
     naves: p.abates,
     tempoMs: Math.round(p.tempo * 1000),
   };
+}
+
+// Repete uma partida a partir da semente e das entradas gravadas, passo a passo (L.PASSO).
+// Para depois de `quadros` passos ou quando a partida acaba. Serve para testes e, no futuro, para conferir partidas.
+export function repetirPartida({ semente, entradas, quadros }) {
+  const p = novaPartida({ semente });
+  let i = 0;
+  let dir = 0;
+  while (p.estado === 'jogando' && p.quadro < quadros) {
+    const proximo = p.quadro + 1;
+    while (i < entradas.length && entradas[i][0] === proximo) {
+      dir = entradas[i][1];
+      i++;
+    }
+    atualizar(p, L.PASSO, dir);
+    p.eventos.length = 0;
+  }
+  return p;
 }

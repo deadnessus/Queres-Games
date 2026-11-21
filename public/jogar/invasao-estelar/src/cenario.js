@@ -3,7 +3,7 @@
 // Tudo fica escuro e sem contraste de propósito: o que importa na tela são as naves e os tiros.
 // O cenário cobre mais que o campo do jogo (de TOPO a BASE), porque em celulares compridos
 // a tela mostra um pedaço acima e abaixo do campo.
-import { LARGURA } from './logica.js?v=5';
+import { LARGURA } from './logica.js?v=6';
 
 const TAU = Math.PI * 2;
 const W = LARGURA;
@@ -620,19 +620,24 @@ export const CENARIOS = [
 
 // Desenha o cenário `indice` inteiro (de TOPO a BASE, na largura do campo).
 // `mov` é quanto o cenário anda: 1 na partida, menos nos menus, 0 parado.
-export function desenharCenario(g, t, indice, mov = 1) {
+// `nivel` (qualidade automática): 'completo' desenha tudo; 'simples', só céu, névoa e estrelas; 'minimo', céu e estrelas.
+export function desenharCenario(g, t, indice, mov = 1, nivel = 'completo') {
   const c = CENARIOS[indice % CENARIOS.length];
   ceu(g, c.ceu);
-  const n = guardado(`nevoa-${indice}`, () => nevoa(c.nevoa));
-  const desl = volta(t * 6 * mov, ALT);
-  g.drawImage(n, 0, TOPO + desl, W, ALT);
-  g.drawImage(n, 0, TOPO + desl - ALT, W, ALT);
+  if (nivel !== 'minimo') {
+    const n = guardado(`nevoa-${indice}`, () => nevoa(c.nevoa));
+    const desl = volta(t * 6 * mov, ALT);
+    g.drawImage(n, 0, TOPO + desl, W, ALT);
+    g.drawImage(n, 0, TOPO + desl - ALT, W, ALT);
+  }
   estrelas(g, t, mov);
-  c.desenhar(g, t, mov);
-  g.globalCompositeOperation = 'lighter';
-  claroesAoLonge(g, t, 9, c.semente);
-  rajadas(g, t, 8, c.semente);
-  g.globalCompositeOperation = 'source-over';
+  if (nivel === 'completo') {
+    c.desenhar(g, t, mov);
+    g.globalCompositeOperation = 'lighter';
+    claroesAoLonge(g, t, 9, c.semente);
+    rajadas(g, t, 8, c.semente);
+    g.globalCompositeOperation = 'source-over';
+  }
   // véu escuro: empurra o cenário para trás das naves e dos tiros
   g.fillStyle = 'rgba(3,4,16,.2)';
   g.fillRect(0, TOPO, W, ALT);

@@ -1,12 +1,18 @@
 // Desenho da partida no canvas. O campo do jogo é 360 x 640; em celulares compridos a tela mostra
 // também um pedaço acima e abaixo dele (o cenário cobre essa sobra e o painel sobe para o topo).
-import * as L from './logica.js?v=5';
-import { TIPOS, desenharInimigo, desenharJogador } from './naves.js?v=5';
-import { desenharEfeitos, deslocamentoDoTremor } from './efeitos.js?v=5';
-import { CENARIOS, desenharCenario, TOPO, BASE } from './cenario.js?v=5';
+import * as L from './logica.js?v=6';
+import { TIPOS, desenharInimigo, desenharJogador } from './naves.js?v=6';
+import { desenharEfeitos, deslocamentoDoTremor } from './efeitos.js?v=6';
+import { CENARIOS, desenharCenario, TOPO, BASE } from './cenario.js?v=6';
 
 const TAU = Math.PI * 2;
 const ESCURO = '#02030c';
+
+// Nível de qualidade (qualidade.js): main.js troca quando o celular pede menos enfeites.
+let Q = { brilhoPainel: true, halos: true, cenario: 'completo' };
+export function definirQualidade(nivel) {
+  Q = nivel;
+}
 
 // vista: quanto da tela sobra além do campo, em unidades do jogo.
 // ex = sobra de cada lado; ey = sobra em cima e embaixo; topo = área do celular que o painel deve evitar.
@@ -25,7 +31,7 @@ export function pintarFundo(g, t, vista, indice, mov = 1) {
   g.beginPath();
   g.rect(0, y0, L.LARGURA, y1 - y0);
   g.clip();
-  desenharCenario(g, t, indice, mov);
+  desenharCenario(g, t, indice, mov, Q.cenario);
   g.restore();
   if (ex > 0.5) {
     for (const [de, ate] of [[0, 28], [L.LARGURA, L.LARGURA - 28]]) {
@@ -59,43 +65,57 @@ function pintarFundoDaOnda(g, t, vista, fase) {
 
 /* ---------- tiros ---------- */
 
-function desenharLaser(g, tiro) {
-  g.save();
-  g.globalCompositeOperation = 'lighter';
-  const rastro = g.createLinearGradient(0, tiro.y, 0, tiro.y + 54);
-  rastro.addColorStop(0, 'rgba(110,235,255,.8)');
-  rastro.addColorStop(1, 'rgba(110,235,255,0)');
-  g.fillStyle = rastro;
-  g.fillRect(tiro.x - 2.2, tiro.y, 4.4, 54);
-  const halo = g.createRadialGradient(tiro.x, tiro.y, 0, tiro.x, tiro.y, 15);
-  halo.addColorStop(0, 'rgba(140,245,255,.7)');
-  halo.addColorStop(1, 'rgba(140,245,255,0)');
-  g.fillStyle = halo;
-  g.beginPath(); g.arc(tiro.x, tiro.y, 15, 0, TAU); g.fill();
-  g.restore();
+function desenharLaser(g, x, y) {
+  if (Q.halos) {
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    const rastro = g.createLinearGradient(0, y, 0, y + 54);
+    rastro.addColorStop(0, 'rgba(110,235,255,.8)');
+    rastro.addColorStop(1, 'rgba(110,235,255,0)');
+    g.fillStyle = rastro;
+    g.fillRect(x - 2.2, y, 4.4, 54);
+    const halo = g.createRadialGradient(x, y, 0, x, y, 15);
+    halo.addColorStop(0, 'rgba(140,245,255,.7)');
+    halo.addColorStop(1, 'rgba(140,245,255,0)');
+    g.fillStyle = halo;
+    g.beginPath(); g.arc(x, y, 15, 0, TAU); g.fill();
+    g.restore();
+  } else {
+    // versão leve: rastro reto, sem degradê nem halo
+    g.fillStyle = 'rgba(110,235,255,.45)';
+    g.fillRect(x - 1.6, y, 3.2, 30);
+  }
   g.fillStyle = '#ffffff';
   g.beginPath();
-  g.roundRect ? g.roundRect(tiro.x - 1.8, tiro.y - 10, 3.6, 20, 1.8) : g.rect(tiro.x - 1.8, tiro.y - 10, 3.6, 20);
+  g.roundRect ? g.roundRect(x - 1.8, y - 10, 3.6, 20, 1.8) : g.rect(x - 1.8, y - 10, 3.6, 20);
   g.fill();
 }
 
 // tiro dos inimigos: plasma verde ácido (bem diferente do fogo dos cenários)
-function desenharPlasma(g, s, t) {
+function desenharPlasma(g, x, y, t) {
+  if (!Q.halos) {
+    // versão leve: bolinha verde com centro claro
+    g.fillStyle = '#9dff3c';
+    g.beginPath(); g.arc(x, y, 5.5, 0, TAU); g.fill();
+    g.fillStyle = '#ffffff';
+    g.beginPath(); g.arc(x, y, 2.2, 0, TAU); g.fill();
+    return;
+  }
   g.save();
   g.globalCompositeOperation = 'lighter';
-  const cauda = g.createLinearGradient(0, s.y, 0, s.y - 26);
+  const cauda = g.createLinearGradient(0, y, 0, y - 26);
   cauda.addColorStop(0, 'rgba(150,255,60,.7)');
   cauda.addColorStop(1, 'rgba(150,255,60,0)');
   g.fillStyle = cauda;
-  g.fillRect(s.x - 2.5, s.y - 26, 5, 26);
-  const pulsa = 1 + 0.15 * Math.sin(t * 30 + s.x);
+  g.fillRect(x - 2.5, y - 26, 5, 26);
+  const pulsa = 1 + 0.15 * Math.sin(t * 30 + x);
   const r = 9.5 * pulsa;
-  const orbe = g.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+  const orbe = g.createRadialGradient(x, y, 0, x, y, r);
   orbe.addColorStop(0, 'rgba(255,255,235,1)');
   orbe.addColorStop(0.35, 'rgba(170,255,60,.95)');
   orbe.addColorStop(1, 'rgba(40,190,40,0)');
   g.fillStyle = orbe;
-  g.beginPath(); g.arc(s.x, s.y, r, 0, TAU); g.fill();
+  g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
   g.restore();
 }
 
@@ -132,7 +152,7 @@ function desenharHud(g, p, t, acima) {
   textoEsp(g, 'PONTOS', 14, 18, 1.6);
   g.save();
   g.shadowColor = '#5ef2ff';
-  g.shadowBlur = 8;
+  g.shadowBlur = Q.brilhoPainel ? 8 : 0;
   g.fillStyle = '#ffffff';
   g.font = `800 22px ${FONTE}`;
   g.fillText(String(p.pontos).padStart(5, '0'), 14, 40);
@@ -144,7 +164,7 @@ function desenharHud(g, p, t, acima) {
   textoEsp(g, 'ONDA', L.LARGURA / 2, 18, 1.6, 'center');
   g.save();
   g.shadowColor = '#ffd45e';
-  g.shadowBlur = 8;
+  g.shadowBlur = Q.brilhoPainel ? 8 : 0;
   g.fillStyle = '#ffd45e';
   g.font = `800 22px ${FONTE}`;
   g.textAlign = 'center';
@@ -182,7 +202,7 @@ function desenharHud(g, p, t, acima) {
   barra.addColorStop(1, cor[1]);
   g.fillStyle = barra;
   g.shadowColor = cor[0];
-  g.shadowBlur = 8;
+  g.shadowBlur = Q.brilhoPainel ? 8 : 0;
   g.beginPath(); g.roundRect ? g.roundRect(x0, y0, Math.max(6, larg * frac), 9, 4.5) : g.rect(x0, y0, Math.max(6, larg * frac), 9); g.fill();
   g.restore();
   g.fillStyle = 'rgba(8,12,50,.85)';
@@ -216,12 +236,12 @@ function desenharFaixa(g, p) {
   g.fillRect(0, 255, L.LARGURA, 155);
   g.textAlign = 'center';
   g.shadowColor = '#ffd45e';
-  g.shadowBlur = 16;
+  g.shadowBlur = Q.brilhoPainel ? 16 : 0;
   g.fillStyle = '#ffd45e';
   g.font = `900 38px ${FONTE}`;
   textoEsp(g, `ONDA ${p.fase}`, L.LARGURA / 2, 315, 3, 'center');
   g.shadowColor = tipo.cor;
-  g.shadowBlur = 12;
+  g.shadowBlur = Q.brilhoPainel ? 12 : 0;
   g.fillStyle = tipo.cor;
   g.font = `800 20px ${FONTE}`;
   textoEsp(g, tipo.nome.toUpperCase(), L.LARGURA / 2, 350, 2.4, 'center');
@@ -234,7 +254,8 @@ function desenharFaixa(g, p) {
 
 /* ---------- partida inteira ---------- */
 
-export function desenharPartida(g, p, ef, t, vista = VISTA_PADRAO) {
+// `alfa` (0 a 1): quanto do próximo passo já passou. O desenho fica entre o passo anterior e o atual (L.entre).
+export function desenharPartida(g, p, ef, t, vista = VISTA_PADRAO, alfa = 1) {
   pintarFundoDaOnda(g, t, vista, p.fase);
 
   const tr = deslocamentoDoTremor(ef);
@@ -251,18 +272,18 @@ export function desenharPartida(g, p, ef, t, vista = VISTA_PADRAO) {
   for (const n of p.naves) {
     if (!n.vivo) continue;
     g.save();
-    g.translate(n.x, n.y);
+    g.translate(L.entre(n.xa, n.x, alfa), L.entre(n.ya, n.y, alfa));
     g.rotate(n.inclina);
     desenharInimigo(g, p.tipo, Math.floor(t * 5 + n.i) % 2);
     g.restore();
   }
 
-  for (const s of p.disparos) desenharPlasma(g, s, t);
-  for (const tiro of p.tiros) desenharLaser(g, tiro);
+  for (const s of p.disparos) desenharPlasma(g, L.entre(s.xa, s.x, alfa), L.entre(s.ya, s.y, alfa), t);
+  for (const tiro of p.tiros) desenharLaser(g, tiro.x, L.entre(tiro.ya, tiro.y, alfa));
 
   // nave do jogador (pisca quando está invulnerável)
   if (!(p.invulneravel > 0 && Math.floor(p.invulneravel * 14) % 2 === 0)) {
-    desenharJogador(g, p.jx, L.Y_JOGADOR, t, p.vx);
+    desenharJogador(g, L.entre(p.jxAntes, p.jx, alfa), L.Y_JOGADOR, t, p.vx);
   }
 
   desenharEfeitos(g, ef);
