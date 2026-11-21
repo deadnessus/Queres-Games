@@ -1,7 +1,7 @@
 // Regras do jogo, sem tela nem canvas. Testadas com `node --test`.
 // Os números que contam pontos estão também no servidor (servidor/functions/_lib/invasao-estelar.js).
 // Se mudar um número aqui, mude lá também. A dificuldade (naves, velocidade, energia, tiros) fica em dados.js.
-import { DIFICULDADE, INIMIGOS, ondaDaFase } from './dados.js?v=6';
+import { DIFICULDADE, INIMIGOS, COMBO, BONUS, METEOROS_MAX, PONTOS_CHEFE, ondaDaFase, especieDaFase } from './dados.js?v=11';
 
 export const PASSO = 1 / 60; // o jogo anda sempre em passos iguais de 1/60 s: a mesma semente dá a mesma partida
 export const LARGURA = 360;
@@ -34,10 +34,30 @@ export const NUM_TIPOS = INIMIGOS.length; // tipos de inimigo (um por onda, em c
 export const NUM_CENARIOS = 4; // cenários de guerra do fundo
 export const ONDAS_POR_CENARIO = 2; // o cenário troca a cada 2 ondas
 
+// Ataques dos inimigos e cápsulas (os avisos de cada inimigo estão em dados.js).
+export const RAIO_FILHOTE = 13; // os filhotes do parasita são menores
+export const VEL_FERRAO = 360; // px/s: a ferroada da vespa é rápida
+export const VEL_BOMBA = 120; // px/s: a bomba cai devagar e estoura em 3 perto do chão
+export const ALTURA_ESTOURO = Y_JOGADOR - 125; // onde a bomba estoura (mais um sorteio de até 30 px)
+export const VEL_TEIA = 0.75; // a teia anda a 75% de um tiro comum
+export const TEIA_SEG = 2; // segundos com a nave lenta depois de levar teia
+export const LENTO_TEIA = 0.45; // velocidade da nave com teia
+export const VEL_GUIADO = 100; // px/s para baixo
+export const GUIADO_VX = 85; // px/s de lado, no máximo (a nave anda bem mais rápido: dá para desviar)
+export const GUIADO_CURVA = 130; // px/s² de curva
+export const GUIADO_SEG = 2.4; // segundos seguindo a nave; depois segue reto
+export const RAIO_DURACAO = 0.35; // segundos do raio da sentinela, depois da linha piscando
+export const RAIO_LARGURA = 14; // px
+export const CAMERA_LENTA = 0.5; // inimigos e tiros a meia velocidade com a cápsula
+export const VEL_LEQUE = 150; // px/s de lado dos lasers abertos do leque
+
 export const PASSOS_POR_QUADRO_MAX = 8; // celular muito atrasado: o jogo não tenta recuperar mais que isso de uma vez
 export const SALTO_DESENHO = 60; // px: acima disso, de um passo para o outro, a nave deu a volta na tela
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Para onde os inimigos miram: a nave do jogador. No esquadrão (Etapa 4), a nave "da vez" (motor.js, p.alvo).
+export const alvoX = (p) => (p.alvo === undefined ? p.jx : p.alvo);
 const lerp = (a, b, k) => a + (b - a) * k;
 const suave = (k) => 1 - (1 - k) ** 3; // desacelera no fim
 
@@ -59,6 +79,11 @@ export function sementeAleatoria() {
 
 export function pontosPorNave(fase) {
   return PONTOS_NAVE_BASE * Math.min(fase, MULT_MAX);
+}
+
+// Cada meteoro que passa sem acertar a nave vale metade de uma nave.
+export function pontosMeteoro(fase) {
+  return (PONTOS_NAVE_BASE / 2) * Math.min(fase, MULT_MAX);
 }
 
 // O desenho fica entre a posição do passo anterior (`antes`) e a do passo atual, com `alfa` de 0 a 1.
@@ -143,7 +168,7 @@ export function posicaoPadrao(padrao, nave, tm, ctx) {
       const lado = i % 2 ? 1 : -1;
       return {
         x: clamp(fx + (ctx.jx - fx) * fundo * 0.6 + lado * 55 * Math.sin(2 * Math.PI * u), 30, LARGURA - 30),
-        y: fy + (Y_JOGADOR - 28 - fy) * fundo,
+        y: fy + ((ctx.fundo ?? Y_JOGADOR - 28) - fy) * fundo,
       };
     }
     case 4: { // roda: um anel que gira, respira e anda de um lado para o outro
@@ -184,10 +209,20 @@ export function posicaoNave(padrao, nave, t, tm, ctx) {
 }
 
 // Pontuação máxima possível para `naves` derrubadas, terminando na onda informada (usada pelo servidor).
-// As naves valem no máximo o multiplicador da onda mais alta. Quando a energia acaba a onda recomeça,
-// então as naves derrubadas se acumulam: por isso o limite é por total de naves, não por onda.
+// - cada nave vale no máximo o multiplicador da onda mais alta, vezes o combo máximo;
+// - cada onda bônus pode dar o dobro para as naves dela, contando filhotes (até 3 vezes as naves da onda);
+// - cada chuva de meteoros tem no máximo METEOROS_MAX meteoros;
+// - cada chefão dá no máximo os canhões que caem mais o chefão derrotado (a luta não recomeça);
+// - o bônus de energia de cada onda é de no máximo ENERGIA_MAX_SEG segundos.
+// Quando a energia acaba a onda recomeça, então as naves derrubadas se acumulam: por isso o limite é por total de naves.
 export function pontosMaximos(fase, naves) {
-  let bonus = 0;
-  for (let k = 1; k <= fase; k++) bonus += ENERGIA_MAX_SEG * BONUS_POR_SEG * k;
-  return naves * pontosPorNave(fase) + bonus;
+  let extra = 0;
+  for (let k = 1; k <= fase; k++) {
+    extra += ENERGIA_MAX_SEG * BONUS_POR_SEG * k;
+    const especie = especieDaFase(k);
+    if (especie === 'bonus') extra += 3 * NAVES_MAX_FASE * pontosPorNave(k) * COMBO.maximo * (BONUS.multiplicador - 1);
+    if (especie === 'meteoros') extra += METEOROS_MAX * pontosMeteoro(k);
+    if (especie === 'chefe') extra += (PONTOS_CHEFE.partesMax * PONTOS_CHEFE.parte + PONTOS_CHEFE.derrotado) * pontosPorNave(k);
+  }
+  return naves * pontosPorNave(fase) * COMBO.maximo + extra;
 }

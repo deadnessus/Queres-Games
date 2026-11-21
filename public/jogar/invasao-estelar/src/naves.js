@@ -1,7 +1,7 @@
 // Desenho das naves (canvas): 10 tipos de inimigo, cada um com 2 quadros de animação, e a nave do jogador.
 // Os inimigos são naves de guerra e criaturas alienígenas: escuros, com garras, presas e olhos acesos.
 // Os sprites são desenhados uma vez e guardados; o tamanho acompanha a resolução da tela.
-import { clamp } from './logica.js?v=6';
+import { clamp } from './logica.js?v=11';
 
 const TAU = Math.PI * 2;
 const LARG_INIMIGO = 60;
@@ -14,6 +14,9 @@ const CONTORNO = '#07050f';
 let ESC = 2; // pixels por unidade do jogo nos sprites
 const cacheInimigos = new Map();
 let cacheJogador = null;
+const cacheOutras = new Map(); // naves dos outros pilotos (duelo e esquadrão)
+
+export const resolucao = () => ESC;
 
 export function definirResolucao(fator) {
   const novo = clamp(Math.round(fator * 2) / 2, 1, 3);
@@ -21,6 +24,7 @@ export function definirResolucao(fator) {
   ESC = novo;
   cacheInimigos.clear();
   cacheJogador = null;
+  cacheOutras.clear();
 }
 
 function novoCanvas(l, a) {
@@ -487,13 +491,22 @@ export const TIPOS = [
   { nome: 'Olhos', cor: '#c8f03c', desenhar: olhoVigia },
 ];
 
-function spriteInimigo(tipo, quadro) {
-  const chave = `${tipo}|${quadro}`;
+// Variantes do desenho, guardadas como os outros sprites: 'branco' (pisca ao levar tiro) e 'furia' (vermelho).
+const TINTAS = { branco: 'rgba(255,255,255,.88)', furia: 'rgba(255,24,36,.45)' };
+
+function spriteInimigo(tipo, quadro, variante = '') {
+  const chave = `${tipo}|${quadro}|${variante}`;
   let c = cacheInimigos.get(chave);
   if (!c) {
     const nova = novoCanvas(LARG_INIMIGO + FOLGA * 2, ALT_INIMIGO + FOLGA * 2);
     nova.g.translate(FOLGA, FOLGA);
     TIPOS[tipo].desenhar(nova.g, quadro);
+    if (TINTAS[variante]) {
+      nova.g.setTransform(1, 0, 0, 1, 0, 0);
+      nova.g.globalCompositeOperation = 'source-atop';
+      nova.g.fillStyle = TINTAS[variante];
+      nova.g.fillRect(0, 0, nova.c.width, nova.c.height);
+    }
     c = nova.c;
     cacheInimigos.set(chave, c);
   }
@@ -501,35 +514,55 @@ function spriteInimigo(tipo, quadro) {
 }
 
 // Desenha o inimigo com o centro na origem (quem chama já posicionou e girou o canvas).
-export function desenharInimigo(g, tipo, quadro, escala = 1) {
+export function desenharInimigo(g, tipo, quadro, escala = 1, variante = '') {
   const l = (LARG_INIMIGO + FOLGA * 2) * escala;
   const a = (ALT_INIMIGO + FOLGA * 2) * escala;
-  g.drawImage(spriteInimigo(tipo, quadro), -l / 2, -a / 2, l, a);
+  g.drawImage(spriteInimigo(tipo, quadro, variante), -l / 2, -a / 2, l, a);
 }
 
 /* ---------- nave do jogador (56 x 64, centro em 28,32, de frente para cima) ---------- */
 
-function corpoJogador(g) {
+// Cores da nave, escolhidas no hangar. `conta`: só para quem tem conta (boas-vindas, Etapa 3).
+export const CORES_NAVE = [
+  { id: 'azul', nome: 'Azul', asa: ['#7f93ee', '#34479e', '#141d57'], casco: '#8e9fe6', faixa: '#ff4d6d', luzes: ['#ff4d6d', '#3dff9a'] },
+  { id: 'vermelha', nome: 'Vermelha', asa: ['#ff9a9a', '#b8323f', '#4a0d18'], casco: '#f0a0a0', faixa: '#ffd45e', luzes: ['#ffd45e', '#5ef2ff'] },
+  { id: 'verde', nome: 'Verde', asa: ['#8dffbe', '#1f9a5c', '#0a3a22'], casco: '#a8e8c4', faixa: '#5ef2ff', luzes: ['#ff4d6d', '#ffd45e'] },
+  { id: 'roxa', nome: 'Roxa', asa: ['#d3b0ff', '#6b3fc4', '#24104a'], casco: '#c4b0ec', faixa: '#3dffa5', luzes: ['#ff5fd2', '#3dffa5'] },
+  { id: 'laranja', nome: 'Laranja', asa: ['#ffcb8a', '#d0701f', '#4a2208'], casco: '#f2c89a', faixa: '#5ef2ff', luzes: ['#ff4d6d', '#5ef2ff'] },
+  { id: 'dourada', nome: 'Dourada', asa: ['#fff0a8', '#c9a227', '#4a3a08'], casco: '#f4e2a0', faixa: '#ff4d6d', luzes: ['#ff4d6d', '#3dff9a'], conta: true },
+];
+let corDaNave = CORES_NAVE[0];
+
+export function definirCorDaNave(id) {
+  const nova = CORES_NAVE.find((c) => c.id === id) || CORES_NAVE[0];
+  if (nova === corDaNave) return;
+  corDaNave = nova;
+  cacheJogador = null;
+}
+
+export const corAtualDaNave = () => corDaNave.id;
+
+function corpoJogador(g, cores = corDaNave) {
   // asas
   for (const s of [-1, 1]) {
     g.save();
     g.translate(28, 0);
     g.scale(s, 1);
-    g.fillStyle = grad(g, 4, 26, 26, 58, [[0, '#7f93ee'], [0.55, '#34479e'], [1, '#141d57']]);
+    g.fillStyle = grad(g, 4, 26, 26, 58, [[0, cores.asa[0]], [0.55, cores.asa[1]], [1, cores.asa[2]]]);
     g.strokeStyle = '#080c33';
     g.lineWidth = 1.2;
     g.beginPath(); g.moveTo(6, 24); g.lineTo(25, 44); g.lineTo(26, 57); g.lineTo(18, 55); g.lineTo(6, 47); g.closePath();
     g.fill(); g.stroke();
     g.strokeStyle = 'rgba(160,190,255,.6)';
     g.beginPath(); g.moveTo(8, 30); g.lineTo(22, 46); g.stroke();
-    g.fillStyle = s < 0 ? '#ff4d6d' : '#3dff9a';
+    g.fillStyle = s < 0 ? cores.luzes[0] : cores.luzes[1];
     brilho(g, g.fillStyle, 2.5);
     g.beginPath(); g.arc(24.5, 51, 2.2, 0, TAU); g.fill();
     semBrilho(g);
     g.restore();
   }
   // fuselagem
-  g.fillStyle = grad(g, 19, 0, 37, 0, [[0, '#8e9fe6'], [0.5, '#ffffff'], [1, '#8e9fe6']]);
+  g.fillStyle = grad(g, 19, 0, 37, 0, [[0, cores.casco], [0.5, '#ffffff'], [1, cores.casco]]);
   g.strokeStyle = '#080c33';
   g.lineWidth = 1.3;
   g.beginPath();
@@ -538,8 +571,8 @@ function corpoJogador(g) {
   g.lineTo(34, 55); g.lineTo(22, 55); g.lineTo(20, 38);
   g.bezierCurveTo(19.5, 24, 22, 12, 28, 1);
   g.closePath(); g.fill(); g.stroke();
-  // faixa vermelha e detalhes
-  g.fillStyle = '#ff4d6d';
+  // faixa e detalhes
+  g.fillStyle = cores.faixa;
   g.beginPath(); g.moveTo(26, 36); g.lineTo(30, 36); g.lineTo(30.6, 50); g.lineTo(25.4, 50); g.closePath(); g.fill();
   g.strokeStyle = 'rgba(40,60,140,.45)'; g.lineWidth = 1;
   g.beginPath(); g.moveTo(22, 34); g.lineTo(22.5, 52); g.moveTo(34, 34); g.lineTo(33.5, 52); g.stroke();
@@ -558,10 +591,143 @@ function corpoJogador(g) {
   g.fillRect(14.5, 26, 2.2, 9); g.fillRect(39.3, 26, 2.2, 9);
 }
 
+/* ---------- as outras naves do hangar (mesma caixa 56 x 64, de frente para cima, com as cores escolhidas) ---------- */
+
+function cabine(g, x, y, rx, ry) {
+  g.fillStyle = grad(g, x, y - ry, x, y + ry, [[0, '#e6fdff'], [0.45, '#3ec9ff'], [1, '#1456b8']]);
+  g.strokeStyle = '#080c33';
+  g.lineWidth = 1.2;
+  g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.85)';
+  g.beginPath(); g.ellipse(x - rx * 0.3, y - ry * 0.4, rx * 0.28, ry * 0.4, 0.1, 0, TAU); g.fill();
+}
+
+function casco(g, cores, pontos) {
+  g.fillStyle = grad(g, 18, 0, 38, 0, [[0, cores.casco], [0.5, '#ffffff'], [1, cores.casco]]);
+  g.strokeStyle = '#080c33';
+  g.lineWidth = 1.3;
+  forma(g, pontos, g.fillStyle, '#080c33', 1.3);
+}
+
+function asas(g, cores, pontos) {
+  for (const s of [-1, 1]) {
+    g.save();
+    g.translate(28, 0);
+    g.scale(s, 1);
+    g.translate(-28, 0);
+    forma(g, pontos, grad(g, 4, 20, 26, 60, [[0, cores.asa[0]], [0.55, cores.asa[1]], [1, cores.asa[2]]]), '#080c33', 1.2);
+    g.restore();
+  }
+}
+
+function luzesDasPontas(g, cores, x, y) {
+  for (const s of [-1, 1]) {
+    g.fillStyle = s < 0 ? cores.luzes[0] : cores.luzes[1];
+    brilho(g, g.fillStyle, 2.5);
+    g.beginPath(); g.arc(28 + s * (28 - x), y, 2.1, 0, TAU); g.fill();
+    semBrilho(g);
+  }
+}
+
+// Flecha: comprida e fina, asas bem para trás (mais rápida).
+function corpoFlecha(g, cores) {
+  asas(g, cores, [[24, 26], [6, 52], [8, 58], [24, 50]]);
+  casco(g, cores, [[28, 0], [33, 18], [34, 56], [22, 56], [23, 18]]);
+  g.fillStyle = cores.faixa;
+  g.fillRect(26.6, 30, 2.8, 22);
+  cabine(g, 28, 20, 3.6, 8.5);
+  luzesDasPontas(g, cores, 8, 55);
+  g.fillStyle = '#12173a';
+  g.fillRect(24.5, 55, 7, 4);
+}
+
+// Guardiã: arredondada, com um anel de escudo em volta (começa com escudo).
+function corpoGuardia(g, cores) {
+  g.strokeStyle = 'rgba(127,155,255,.75)';
+  g.lineWidth = 2;
+  g.beginPath(); g.ellipse(28, 34, 25, 25, 0, 0, TAU); g.stroke();
+  asas(g, cores, [[20, 28], [6, 40], [8, 50], [21, 48]]);
+  g.fillStyle = grad(g, 16, 0, 40, 0, [[0, cores.casco], [0.5, '#ffffff'], [1, cores.casco]]);
+  g.strokeStyle = '#080c33';
+  g.lineWidth = 1.3;
+  g.beginPath(); g.ellipse(28, 32, 12, 24, 0, 0, TAU); g.fill(); g.stroke();
+  g.fillStyle = cores.faixa;
+  g.beginPath(); g.arc(28, 44, 5, 0, TAU); g.fill();
+  cabine(g, 28, 22, 5.5, 8);
+  luzesDasPontas(g, cores, 7, 46);
+  g.fillStyle = '#12173a';
+  g.fillRect(21.5, 54, 6.5, 4.5);
+  g.fillRect(28, 54, 6.5, 4.5);
+}
+
+// Rajada: asas para a frente e dois canhões grandes nas pontas (atira mais rápido).
+function corpoRajada(g, cores) {
+  asas(g, cores, [[22, 40], [4, 22], [2, 30], [20, 54]]);
+  g.fillStyle = '#c9d4ff';
+  g.strokeStyle = '#080c33';
+  g.lineWidth = 1;
+  for (const x of [1.5, 50.5]) { g.beginPath(); g.rect(x, 12, 4, 20); g.fill(); g.stroke(); }
+  casco(g, cores, [[28, 4], [34, 16], [35, 54], [21, 54], [22, 16]]);
+  g.fillStyle = cores.faixa;
+  forma(g, [[25, 36], [31, 36], [32, 48], [24, 48]], cores.faixa, null);
+  cabine(g, 28, 22, 4.6, 8.5);
+  luzesDasPontas(g, cores, 3.5, 33);
+  g.fillStyle = '#12173a';
+  g.fillRect(21.5, 53, 6.5, 4.5);
+  g.fillRect(28, 53, 6.5, 4.5);
+}
+
+// Cometa: asa em delta, larga e com aletas (gasta menos energia).
+function corpoCometa(g, cores) {
+  asas(g, cores, [[28, 8], [3, 52], [12, 56], [28, 48]]);
+  g.fillStyle = cores.faixa;
+  for (const s of [-1, 1]) forma(g, [[28 + s * 6, 40], [28 + s * 14, 54], [28 + s * 8, 56]], cores.faixa, '#080c33', 1);
+  casco(g, cores, [[28, 2], [32, 20], [32, 54], [24, 54], [24, 20]]);
+  cabine(g, 28, 24, 4, 9);
+  luzesDasPontas(g, cores, 4, 53);
+  g.fillStyle = '#12173a';
+  g.fillRect(23.5, 53, 9, 5);
+}
+
+const CORPOS = { padrao: corpoJogador, flecha: corpoFlecha, guardia: corpoGuardia, rajada: corpoRajada, cometa: corpoCometa };
+let naveDoJogador = 'padrao';
+
+export function definirNaveDoJogador(id) {
+  const nova = CORPOS[id] ? id : 'padrao';
+  if (nova === naveDoJogador) return;
+  naveDoJogador = nova;
+  cacheJogador = null;
+}
+
+export const naveAtualDoJogador = () => naveDoJogador;
+
+// Desenho de uma nave qualquer do hangar, para os botões de escolher (não usa o cache da partida).
+export function desenharNaveDoHangar(g, id, x, y, escala, cores = corDaNave) {
+  g.save();
+  g.translate(x - (LARG_JOGADOR / 2) * escala, y - (ALT_JOGADOR / 2) * escala);
+  g.scale(escala, escala);
+  (CORPOS[id] || corpoJogador)(g, cores);
+  g.restore();
+}
+
+// Naves dos outros pilotos (duelo e esquadrão): cada nave e cor desenhada uma vez e guardada (cacheOutras).
+function spriteDe(id, corId) {
+  const chave = `${id}:${corId}:${ESC}`;
+  let c = cacheOutras.get(chave);
+  if (!c) {
+    const nova = novoCanvas(LARG_JOGADOR, ALT_JOGADOR);
+    (CORPOS[id] || corpoJogador)(nova.g, CORES_NAVE.find((x) => x.id === corId) || CORES_NAVE[0]);
+    c = nova.c;
+    if (cacheOutras.size > 24) cacheOutras.clear();
+    cacheOutras.set(chave, c);
+  }
+  return c;
+}
+
 export function spriteJogador() {
   if (!cacheJogador) {
     const nova = novoCanvas(LARG_JOGADOR, ALT_JOGADOR);
-    corpoJogador(nova.g);
+    CORPOS[naveDoJogador](nova.g, corDaNave);
     cacheJogador = nova.c;
   }
   return cacheJogador;
@@ -569,6 +735,23 @@ export function spriteJogador() {
 
 // Desenha a nave do jogador com o centro em (x, y). `vx` inclina a nave para o lado em que ela anda.
 export function desenharJogador(g, x, y, t, vx, escala = 1) {
+  desenharNaveCom(g, spriteJogador(), x, y, t, vx, escala);
+}
+
+// A nave de outro piloto (`id` da nave e `corId` da cor). `girada`: de cabeça para baixo (o adversário do duelo).
+export function desenharOutraNave(g, id, corId, x, y, t, vx, escala = 1, girada = false) {
+  if (!girada) {
+    desenharNaveCom(g, spriteDe(id, corId), x, y, t, vx, escala);
+    return;
+  }
+  g.save();
+  g.translate(x, y);
+  g.rotate(Math.PI);
+  desenharNaveCom(g, spriteDe(id, corId), 0, 0, t, -vx, escala);
+  g.restore();
+}
+
+function desenharNaveCom(g, sprite, x, y, t, vx, escala) {
   const banco = clamp(vx / 290, -1, 1);
   g.save();
   g.translate(x, y);
@@ -590,6 +773,6 @@ export function desenharJogador(g, x, y, t, vx, escala = 1) {
   g.globalCompositeOperation = 'source-over';
   g.scale(1 - 0.1 * Math.abs(banco), 1);
   g.rotate(banco * 0.07);
-  g.drawImage(spriteJogador(), -LARG_JOGADOR / 2, -ALT_JOGADOR / 2, LARG_JOGADOR, ALT_JOGADOR);
+  g.drawImage(sprite, -LARG_JOGADOR / 2, -ALT_JOGADOR / 2, LARG_JOGADOR, ALT_JOGADOR);
   g.restore();
 }

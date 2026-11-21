@@ -16,6 +16,15 @@ Este Worker também serve `queres.games/online/origines/*`, com o código em `sr
 
 Teste local: `npx wrangler@4 dev --local --persist-to <pasta> --port 8787` aqui e o site com `npx wrangler@4 pages dev dist --persist-to <mesma pasta>`. Os dois usam o mesmo banco local, com contas de teste. Depois abra o jogo com `?online=ws://localhost:8787/online/origines`.
 
+## Também atende a Invasão Estelar (duelo e esquadrão)
+
+Este Worker também serve `queres.games/online/invasao-estelar/*`, com o código em `src/invasao-estelar.js` (Durable Object `SalaInvasao`, ligação `SALAS_IE`, migração `v4`; as salas não se misturam com as dos outros jogos). O código vem de `servidor/worker/invasao-estelar.js` do repositório `deadnessus/Megamania` (copie de lá ao atualizar). Rotas: `GET /online/invasao-estelar/saude`, `POST /online/invasao-estelar/nova` (código, precisa de login) e o WebSocket `GET /online/invasao-estelar/sala/<CODIGO>?modo=criar&jogo=duelo|esquadrao` ou `?modo=entrar`.
+- **Duelo** (2 pilotos, melhor de 3 rodadas): cada celular manda a própria nave; o servidor conta as rodadas e decide quem derrubou cada alienígena do meio (vale quem avisou primeiro). Quem sai no meio perde.
+- **Esquadrão** (2 a 4): o celular de quem criou roda as ondas e manda a "foto" do jogo; os outros mandam a própria nave. Se quem criou sair, a partida acaba para todos.
+- Sala de espera: só entra antes de começar; no fim, quem criou pode começar de novo com quem ficou.
+- Só números passam (qualquer texto derruba a mensagem); o nome é o apelido da conta; sem chat. A sala some 10 min depois que todos saem.
+- Teste local como o do Origines, abrindo o jogo com `?online=ws://localhost:8787/online/invasao-estelar`.
+
 ## O que ele faz
 
 - Só entra quem está **logado** na conta do site (cookie `qg_sessao`). O servidor lê, no mesmo banco D1 do site, as tabelas `sessoes` e `contas` (só leitura) para saber o apelido.

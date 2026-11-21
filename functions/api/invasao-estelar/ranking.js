@@ -1,6 +1,7 @@
 // GET /api/invasao-estelar/ranking?escopo=geral|mes[&mes=AAAA-MM]
-//   -> { escopo, mes, total, top: [{ posicao, apelido, pontos, fase }], eu? }
-// Público (não precisa de login). Com login, "eu" traz a linha da pessoa mesmo fora do top 20.
+//   -> { escopo, mes, total, top: [{ posicao, apelido, pontos, fase, patente, nave }], eu? }
+// Público (não precisa de login). Com login, "eu" traz a linha da pessoa mesmo fora do top 20, com `faltam` (pontos
+// para passar a pessoa logo acima; null se já é a 1ª).
 import { json, semBanco, contaAtual } from '../../_lib/conta.js';
 import { prepararPartidas, rankingDo, mesDe, mesValido } from '../../_lib/invasao-estelar.js';
 

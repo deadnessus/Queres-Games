@@ -3,7 +3,7 @@
 // Tudo fica escuro e sem contraste de propósito: o que importa na tela são as naves e os tiros.
 // O cenário cobre mais que o campo do jogo (de TOPO a BASE), porque em celulares compridos
 // a tela mostra um pedaço acima e abaixo do campo.
-import { LARGURA } from './logica.js?v=6';
+import { LARGURA } from './logica.js?v=11';
 
 const TAU = Math.PI * 2;
 const W = LARGURA;
@@ -59,14 +59,17 @@ function clarao(g, x, y, r, alfa, cor = '255,170,90') {
 
 /* ---------- estrelas e névoa ---------- */
 
+// Três camadas: quanto mais perto, mais rápido passa (dá profundidade ao fundo).
 const ESTRELAS = [
   { v: 5, alfa: 0.5, lista: [] },
   { v: 14, alfa: 0.8, lista: [] },
+  { v: 34, alfa: 0.9, lista: [] },
 ];
 {
   const r = sorteio(11);
   for (let i = 0; i < 90; i++) ESTRELAS[0].lista.push({ x: r() * W, y: r() * ALT, r: 0.4 + r() * 0.5, f: r() * TAU });
   for (let i = 0; i < 34; i++) ESTRELAS[1].lista.push({ x: r() * W, y: r() * ALT, r: 0.6 + r() * 0.7, f: r() * TAU });
+  for (let i = 0; i < 12; i++) ESTRELAS[2].lista.push({ x: r() * W, y: r() * ALT, r: 1.1 + r() * 0.6, f: r() * TAU });
 }
 
 function estrelas(g, t, mov) {
@@ -585,6 +588,69 @@ function cenarioLua(g, t, mov) {
   g.globalAlpha = 1;
 }
 
+/* ---------- acontecimentos ao fundo ligados ao jogo ---------- */
+
+// Quando uma onda acaba, um cruzador explode ao longe: pega fogo, parte ao meio e os pedaços se afastam.
+const ACONTECIMENTOS = [];
+let numeroDoAcontecimento = 0;
+
+export function explodirCruzadorAoFundo(t) {
+  const r = sorteio(1000 + numeroDoAcontecimento++);
+  ACONTECIMENTOS.push({ t0: t, x: 70 + r() * 220, y: 90 + r() * 240, alien: r() < 0.6, e: 0.5 + r() * 0.2, giro: (r() - 0.5) * 0.4 });
+  if (ACONTECIMENTOS.length > 3) ACONTECIMENTOS.shift();
+}
+
+export function limparAcontecimentos() {
+  ACONTECIMENTOS.length = 0;
+}
+
+const DURACAO_ACONTECIMENTO = 3.2;
+
+function desenharAcontecimentos(g, t) {
+  for (const a of ACONTECIMENTOS) {
+    const k = t - a.t0;
+    if (k < 0 || k > DURACAO_ACONTECIMENTO) continue;
+    const base = cruzador(a.alien);
+    const l = base.l * a.e;
+    const al = base.a * a.e;
+    const some = Math.max(0, 1 - Math.max(0, k - 1.6) / (DURACAO_ACONTECIMENTO - 1.6));
+    if (k < 0.7) {
+      // inteiro, pegando fogo
+      g.globalAlpha = 0.85;
+      g.drawImage(base.c, a.x - l / 2, a.y - al / 2, l, al);
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 4; i++) {
+        const fx = a.x + (ruido(i, 3) - 0.5) * l * 0.8;
+        const fy = a.y + (ruido(3, i) - 0.5) * al * 0.5;
+        clarao(g, fx, fy, (4 + 14 * (k / 0.7)) * (0.6 + ruido(i, 9)), 0.9, '255,140,60');
+      }
+      g.globalCompositeOperation = 'source-over';
+    } else {
+      // partiu ao meio: as duas metades se afastam girando devagar
+      const d = (k - 0.7) * 16;
+      for (const lado of [0, 1]) {
+        const pedaco = destroco(a.alien, lado);
+        const s = lado ? 1 : -1;
+        g.save();
+        g.globalAlpha = 0.8 * some;
+        g.translate(a.x + s * d, a.y + d * 0.4);
+        g.rotate(s * a.giro * (k - 0.7));
+        g.drawImage(pedaco.c, -l / 2, -al / 2, l, al);
+        g.restore();
+      }
+    }
+    // o grande clarão da explosão
+    if (k > 0.55 && k < 1.6) {
+      const f = (k - 0.55) / 1.05;
+      g.globalCompositeOperation = 'lighter';
+      clarao(g, a.x, a.y, 20 + 90 * f, 0.9 * (1 - f), '255,190,120');
+      g.globalCompositeOperation = 'source-over';
+    }
+  }
+  g.globalAlpha = 1;
+}
+
 /* ---------- os quatro cenários ---------- */
 
 export const CENARIOS = [
@@ -638,6 +704,7 @@ export function desenharCenario(g, t, indice, mov = 1, nivel = 'completo') {
     rajadas(g, t, 8, c.semente);
     g.globalCompositeOperation = 'source-over';
   }
+  if (nivel !== 'minimo') desenharAcontecimentos(g, t);
   // véu escuro: empurra o cenário para trás das naves e dos tiros
   g.fillStyle = 'rgba(3,4,16,.2)';
   g.fillRect(0, TOPO, W, ALT);
