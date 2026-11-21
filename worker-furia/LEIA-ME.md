@@ -16,6 +16,16 @@ Este Worker também serve `queres.games/online/origines/*`, com o código em `sr
 
 Teste local: `npx wrangler@4 dev --local --persist-to <pasta> --port 8787` aqui e o site com `npx wrangler@4 pages dev dist --persist-to <mesma pasta>`. Os dois usam o mesmo banco local, com contas de teste. Depois abra o jogo com `?online=ws://localhost:8787/online/origines`.
 
+## Também atende o Origines (partida online, M6)
+
+Em `queres.games/online/origines/partida/*`, com o código em `src/origines-partida.js` (Durable Object `SalaPartidaOrigines`, ligação `SALAS_PARTIDA`, migração `v5`). O `index.js` manda esse caminho para lá **antes** da rota do jogo com um amigo. Rotas: `GET /online/origines/partida/saude`, `POST /online/origines/partida/nova` (código, precisa de login) e o WebSocket `GET /online/origines/partida/sala/<CODIGO>?modo=criar|entrar&v=<versão do jogo>`.
+- Sala de espera, até 4: quem criou escolhe o modo (1 contra 1, 2 contra 2, todos contra todos com 3 ou 4) e a dificuldade do computador, troca vagas e começa (com 2 pessoas ou mais). Só entra antes de começar; versão do jogo diferente é recusada.
+- Partida: o servidor repassa os turnos do anfitrião para todos e as ordens de cada um para o anfitrião, com a **vaga carimbada aqui**; os sinais prontos vão só para os aliados.
+- Só números passam (o jogo salvo, com a mesma conferência do save na nuvem). Nome = apelido; sem chat.
+- Quem cai tem 30 s para voltar (alarme do Durable Object); quem sai ou não volta vira computador; se for o anfitrião, quem entrou primeiro passa a dar o ritmo. Na sala de espera, sem quem criou, a sala fecha. Sem ninguém, a sala some.
+
+Teste local: como o do jogo com um amigo (o jogo usa o mesmo `?online=ws://localhost:8787/online/origines` para as duas salas).
+
 ## Também atende a Invasão Estelar (duelo e esquadrão)
 
 Este Worker também serve `queres.games/online/invasao-estelar/*`, com o código em `src/invasao-estelar.js` (Durable Object `SalaInvasao`, ligação `SALAS_IE`, migração `v4`; as salas não se misturam com as dos outros jogos). O código vem de `servidor/worker/invasao-estelar.js` do repositório `deadnessus/Megamania` (copie de lá ao atualizar). Rotas: `GET /online/invasao-estelar/saude`, `POST /online/invasao-estelar/nova` (código, precisa de login) e o WebSocket `GET /online/invasao-estelar/sala/<CODIGO>?modo=criar&jogo=duelo|esquadrao` ou `?modo=entrar`.
