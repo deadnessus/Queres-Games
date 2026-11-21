@@ -188,7 +188,8 @@ export class SalaOrigines {
       await this.ctx.storage.put('sala', { codigo, host: conta, nome: apelido, em: (sala && sala.em) || Date.now() });
       await this.ctx.storage.deleteAlarm();
       servidor.serializeAttachment({ papel: 'anfitriao', conta, nome: apelido });
-      this.enviar(servidor, { t: 'ok', papel: 'anfitriao', codigo });
+      // amigo: quem está no jogo agora ('' = ninguém), para o anfitrião que volta saber se o amigo saiu enquanto isso
+      this.enviar(servidor, { t: 'ok', papel: 'anfitriao', codigo, amigo: conv ? conv.a.nome : '' });
       if (conv) { this.enviar(conv.w, { t: 'voltou' }); this.enviar(servidor, { t: 'entrou', nome: conv.a.nome }); }
       return new Response(null, { status: 101, webSocket: cliente });
     }
@@ -253,7 +254,10 @@ export class SalaOrigines {
     this.enviar(outro.w, { t: 'espera' });
     await this.ctx.storage.setAlarm(Date.now() + ESPERA_ANFITRIAO_MS);
   }
-  async webSocketClose(ws) { await this.sair(ws); }
+  async webSocketClose(ws) {
+    await this.sair(ws);
+    try { ws.close(1000, 'tchau'); } catch { /* já fechada */ }   // responde ao "tchau" de quem fechou: a conexão termina logo dos dois lados
+  }
   async webSocketError(ws) { await this.sair(ws); }
 
   async alarm() {

@@ -1130,3 +1130,67 @@ button.big small.where {
   width: 20px;
   height: 20px;
 }
+.screen .convite .codigo {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 44px;
+  letter-spacing: .22em;
+  text-align: center;
+  color: var(--gold);
+  margin: 2px 0;
+}
+.screen .codigo-in {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: .3em;
+  text-align: center;
+  text-transform: uppercase;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: #00000040;
+  color: var(--gold);
+}
+.screen .codigo-in:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+button.big svg {
+  width: 22px;
+  height: 22px;
+}
+button.big:has(svg) {
+  flex-direction: row;
+  gap: 8px;
+}
+.amigo-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  white-space: nowrap;
+  max-width: 46vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.amigo-chip svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.amigo-faixa {
+  align-self: center;
+  margin: 6px auto 0;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  pointer-events: none;
+}

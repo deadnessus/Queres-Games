@@ -6,6 +6,16 @@ Um Worker do Cloudflare com Durable Objects (uma "sala" por código de 4 letras)
 
 Este Worker também serve `queres.games/online/infiltrados/*`, com o código em `src/infiltrados.js`. As salas do Infiltrados são outro Durable Object (`SalaInfiltrados`, ligação `SALAS_INF`, migração `v2`) e não se misturam com as do Fúria. O `index.js` só repassa esse caminho. Detalhes do Infiltrados: `worker-infiltrados/LEIA-ME.md`.
 
+## Também atende o Origines (jogar com um amigo)
+
+Este Worker também serve `queres.games/online/origines/*`, com o código em `src/origines.js` (Durable Object `SalaOrigines`, ligação `SALAS_ORI`, migração `v3`; as salas não se misturam com as do Fúria nem com as do Infiltrados). Rotas: `GET /online/origines/saude`, `POST /online/origines/nova` (código, precisa de login) e o WebSocket `GET /online/origines/sala/<CODIGO>?modo=criar|entrar`.
+- O anfitrião cria a sala no jogo dele; **um** amigo entra.
+- O servidor só repassa: os turnos (anfitrião → amigo), as ordens (amigo → anfitrião), a pausa e o jogo salvo quando o amigo entra.
+- Turnos, ordens e pausa: só números. O jogo salvo passa pela mesma conferência do save na nuvem.
+- Se o anfitrião cai, o amigo espera 30 s (alarme do Durable Object); se o anfitrião sai, a sala acaba.
+
+Teste local: `npx wrangler@4 dev --local --persist-to <pasta> --port 8787` aqui e o site com `npx wrangler@4 pages dev dist --persist-to <mesma pasta>`. Os dois usam o mesmo banco local, com contas de teste. Depois abra o jogo com `?online=ws://localhost:8787/online/origines`.
+
 ## O que ele faz
 
 - Só entra quem está **logado** na conta do site (cookie `qg_sessao`). O servidor lê, no mesmo banco D1 do site, as tabelas `sessoes` e `contas` (só leitura) para saber o apelido.
