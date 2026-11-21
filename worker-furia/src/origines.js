@@ -136,7 +136,7 @@ function soNumeros(x, nivel) {
   }
   return false;
 }
-const jogoValido = (d) => !!d && typeof d === 'object' && !Array.isArray(d) && d.v === 1 && !!d.meta && typeof d.meta === 'object' && soNumeros(d, 0);
+const jogoValido = (d) => !!d && typeof d === 'object' && !Array.isArray(d) && (d.v === 1 || d.v === 2) && !!d.meta && typeof d.meta === 'object' && soNumeros(d, 0);   // v2: guarda a versão do mapa
 
 export class SalaOrigines {
   constructor(ctx, env) {
