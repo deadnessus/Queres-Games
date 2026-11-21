@@ -8,7 +8,7 @@
 <meta name="description" content="Pilote sua nave, derrube ondas de naves alienígenas e entre no ranking.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icone.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=11">
 <!-- login do queres.games: só existe quando o jogo está no site; sem ele, os botões de conta somem -->
 <script src="/conta.js?v=2"></script>
 </head>
@@ -26,12 +26,23 @@
     <p id="aviso-inicio" class="aviso" role="status"></p>
     <div class="botoes">
       <button id="btn-jogar" class="btn principal" type="button">Jogar</button>
-      <button id="btn-ranking" class="btn" type="button" hidden>Ranking</button>
-      <button id="btn-conta" class="btn suave" type="button" hidden>Entrar</button>
-      <button id="btn-som" class="btn suave" type="button">Som: ligado</button>
+      <button id="btn-desafio" class="btn desafio" type="button" hidden>Desafio do dia</button>
+      <button id="btn-amigos" class="btn amigos" type="button" hidden>Jogar com amigos</button>
+      <div class="linha-botoes">
+        <button id="btn-recruta" class="btn" type="button">Recruta</button>
+        <button id="btn-ranking" class="btn" type="button" hidden>Ranking</button>
+      </div>
+      <div class="linha-botoes">
+        <button id="btn-hangar" class="btn suave" type="button">Hangar</button>
+        <button id="btn-piloto" class="btn suave" type="button" hidden>Piloto</button>
+      </div>
+      <div class="linha-botoes">
+        <button id="btn-opcoes" class="btn suave" type="button">Opções</button>
+        <button id="btn-conta" class="btn suave" type="button" hidden>Entrar</button>
+      </div>
     </div>
     <p id="dica-conta" class="ajuda" hidden>Sem conta você joga normalmente, e o recorde fica só neste aparelho. Entre na conta para aparecer no ranking.</p>
-    <p class="ajuda">Segure a metade esquerda ou direita da tela para pilotar. A nave atira sozinha.</p>
+    <p class="ajuda">Segure a metade esquerda ou direita da tela para pilotar. A nave atira sozinha. O Recruta é mais calmo, para treinar.</p>
   </section>
 
   <section id="tela-ranking" class="tela" hidden>
@@ -41,8 +52,127 @@
       <button class="aba" type="button" data-escopo="mes">Do mês</button>
     </div>
     <ol id="lista-ranking" class="ranking"></ol>
+    <p id="meu-lugar" class="meu-lugar" role="status"></p>
     <p id="status-ranking" class="ajuda" role="status"></p>
     <button id="btn-voltar-ranking" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-hangar" class="tela" hidden>
+    <h2>Hangar</h2>
+    <canvas id="nave-hangar" class="nave-hangar" width="320" height="320" aria-hidden="true"></canvas>
+    <div id="naves-do-hangar" class="naves-hangar" role="radiogroup" aria-label="Nave"></div>
+    <p id="traco-da-nave" class="ajuda" role="status"></p>
+    <p id="nome-da-cor" class="nome-da-cor" role="status"></p>
+    <div id="cores-da-nave" class="cores" role="radiogroup" aria-label="Cor da nave"></div>
+    <p id="dica-hangar" class="ajuda"></p>
+    <button id="btn-voltar-hangar" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-desafio" class="tela" hidden>
+    <h2>Desafio do dia</h2>
+    <p id="desafio-dia" class="ajuda"></p>
+    <p id="desafio-situacao" class="desafio-situacao" role="status"></p>
+    <div class="botoes">
+      <button id="btn-jogar-desafio" class="btn principal" type="button" hidden>Jogar o desafio</button>
+      <button id="btn-treinar-desafio" class="btn" type="button" hidden>Treinar este desafio</button>
+    </div>
+    <div class="abas">
+      <button class="aba on" type="button" data-desafio="dia">Hoje</button>
+      <button class="aba" type="button" data-desafio="mes">Do mês</button>
+    </div>
+    <ol id="lista-desafio" class="ranking"></ol>
+    <p id="status-desafio" class="ajuda" role="status"></p>
+    <button id="btn-voltar-desafio" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-piloto" class="tela" hidden>
+    <h2>Piloto</h2>
+    <div id="piloto-patente" class="patente"></div>
+    <h3 class="sub">Missões da semana</h3>
+    <ul id="piloto-missoes" class="missoes"></ul>
+    <p class="ajuda">As missões mudam toda segunda-feira.</p>
+    <h3 class="sub">Medalhas</h3>
+    <div id="piloto-medalhas" class="medalhas"></div>
+    <p id="status-piloto" class="ajuda" role="status"></p>
+    <button id="btn-voltar-piloto" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-opcoes" class="tela" hidden>
+    <h2>Opções</h2>
+    <div class="botoes">
+      <button id="btn-musica" class="btn" type="button" aria-pressed="true">Música: ligada</button>
+      <button id="btn-efeitos" class="btn" type="button" aria-pressed="true">Efeitos: ligados</button>
+      <button id="btn-tremor" class="btn" type="button" aria-pressed="false">Menos tremor: não</button>
+    </div>
+    <p class="ajuda">"Menos tremor" tira o balanço da tela e os clarões fortes.</p>
+    <button id="btn-voltar-opcoes" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-amigos" class="tela" hidden>
+    <h2>Jogar com amigos</h2>
+    <p id="amigos-conta" class="ajuda" hidden>Para jogar com amigos, entre na conta do site. O nome que os outros veem é o apelido da conta.</p>
+    <button id="btn-amigos-entrar" class="btn principal" type="button" hidden>Entrar na conta</button>
+    <div id="amigos-opcoes" class="amigos-opcoes">
+      <h3 class="sub">Ao vivo</h3>
+      <p id="amigos-ao-vivo-aviso" class="ajuda" role="status"></p>
+      <div id="amigos-ao-vivo" class="botoes" hidden>
+        <button id="btn-criar-duelo" class="btn principal" type="button">Criar duelo</button>
+        <button id="btn-criar-esquadrao" class="btn" type="button">Criar esquadrão</button>
+        <p class="ajuda">Duelo: um contra o outro, cada um na sua ponta da tela. Esquadrão: de 2 a 4 pilotos juntos contra as ondas.</p>
+      </div>
+      <h3 class="sub">Tenho um código</h3>
+      <div class="linha-codigo">
+        <input id="campo-codigo" class="campo-codigo" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="4" placeholder="ABCD" aria-label="Código de 4 letras">
+        <button id="btn-usar-codigo" class="btn" type="button">Entrar</button>
+      </div>
+      <h3 class="sub">Desafiar por código</h3>
+      <p class="ajuda">Crie um código e passe para um amigo: quem tiver o código joga as mesmas ondas, quando quiser, durante 7 dias. Não precisa jogar ao mesmo tempo.</p>
+      <button id="btn-criar-codigo" class="btn" type="button">Criar código de desafio</button>
+    </div>
+    <p id="status-amigos" class="ajuda aviso-ranking" role="status"></p>
+    <button id="btn-voltar-amigos" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-sala" class="tela" hidden>
+    <h2 id="sala-titulo">Duelo</h2>
+    <p class="ajuda">Código da sala</p>
+    <p id="sala-codigo" class="codigo-grande">----</p>
+    <p class="ajuda">Passe este código para quem vai jogar com você. Ele toca em "Jogar com amigos" e põe o código em "Tenho um código".</p>
+    <p id="sala-regras" class="ajuda"></p>
+    <ul id="sala-pilotos" class="pilotos"></ul>
+    <p id="sala-status" class="desafio-situacao" role="status"></p>
+    <div class="botoes">
+      <button id="btn-comecar-sala" class="btn principal" type="button" hidden>Começar</button>
+      <button id="btn-sair-sala" class="btn suave" type="button">Sair da sala</button>
+    </div>
+  </section>
+
+  <section id="tela-codigo" class="tela" hidden>
+    <h2>Desafio <span id="codigo-titulo"></span></h2>
+    <div id="codigo-novo" class="convite" hidden>
+      <p>Seu código de desafio:</p>
+      <p id="codigo-novo-letras" class="codigo-grande"></p>
+      <p>Passe para os amigos. Quem tiver o código joga as mesmas ondas e entra neste placar.</p>
+    </div>
+    <p id="codigo-info" class="ajuda"></p>
+    <div class="botoes">
+      <button id="btn-jogar-codigo" class="btn principal" type="button" hidden>Jogar este desafio</button>
+    </div>
+    <ol id="lista-codigo" class="ranking"></ol>
+    <p id="status-codigo" class="ajuda" role="status"></p>
+    <button id="btn-voltar-codigo" class="btn suave" type="button">Voltar</button>
+  </section>
+
+  <section id="tela-fim-online" class="tela" hidden>
+    <h2 id="fim-online-titulo">Fim</h2>
+    <p id="fim-online-placar" class="placar"></p>
+    <ul id="fim-online-pilotos" class="pilotos"></ul>
+    <p id="fim-online-status" class="ajuda aviso-ranking" role="status"></p>
+    <p id="fim-online-espera" class="ajuda" role="status"></p>
+    <div class="botoes">
+      <button id="btn-revanche" class="btn principal" type="button" hidden>Jogar de novo</button>
+      <button id="btn-sair-online" class="btn suave" type="button">Sair da sala</button>
+    </div>
   </section>
 
   <section id="tela-jogo" class="tela tela-jogo" hidden>
@@ -52,18 +182,29 @@
       <button id="btn-continuar" class="btn principal" type="button">Continuar</button>
       <button id="btn-sair" class="btn suave" type="button">Sair para o início</button>
     </div>
+    <div id="sair-online" class="sobre" hidden>
+      <h2>Sair?</h2>
+      <p id="sair-online-texto" class="ajuda"></p>
+      <button id="btn-ficar-online" class="btn principal" type="button">Continuar jogando</button>
+      <button id="btn-deixar-online" class="btn suave" type="button">Sair da partida</button>
+    </div>
   </section>
 
   <section id="tela-fim" class="tela" hidden>
     <h2>Fim de jogo</h2>
+    <p id="fim-novo-recorde" class="selo" hidden>Novo recorde!</p>
     <p class="placar"><span id="fim-pontos">0</span> pontos</p>
+    <div id="fim-stats" class="numeros"></div>
+    <div id="fim-inimigos" class="inimigos-fim" hidden></div>
     <p id="fim-detalhe" class="ajuda"></p>
     <p id="fim-recorde" class="ajuda"></p>
     <p id="fim-ranking" class="ajuda aviso-ranking" role="status"></p>
+    <div id="fim-progresso" class="progresso-fim" hidden></div>
     <div id="fim-convite" class="convite" hidden>
       <p id="fim-convite-texto" role="status"></p>
       <button id="btn-entrar-fim" class="btn" type="button">Entrar na conta</button>
     </div>
+    <button id="btn-placar-codigo" class="btn" type="button" hidden>Ver o placar do código</button>
     <div class="botoes">
       <button id="btn-de-novo" class="btn principal" type="button">Jogar de novo</button>
       <button id="btn-inicio-fim" class="btn suave" type="button">Início</button>
@@ -71,6 +212,6 @@
   </section>
 
 </main>
-<script type="module" src="src/main.js?v=6"></script>
+<script type="module" src="src/main.js?v=11"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 ---
 titulo: Invasão Estelar
-descricao: Jogo de nave para celular. Derrube ondas de naves alienígenas e entre no ranking.
+descricao: "Jogo de nave para celular. Derrube ondas de alienígenas e chefões, faça o desafio do dia e jogue com amigos: duelo ou esquadrão."
 status: jogavel
 autores: [jojo, bento]
 ordem: 11

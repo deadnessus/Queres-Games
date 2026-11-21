@@ -1,10 +1,13 @@
-// POST /api/invasao-estelar/enviar { partida, pontos, fase, naves, tempoMs } (precisa estar logado)
-// Confere a partida (é desta conta, está aberta e não foi enviada) e a pontuação (possível para a fase,
-// as naves e o tempo medido pelo servidor). Cada partida vale uma vez.
+// POST /api/invasao-estelar/enviar { partida, pontos, fase, naves, tempoMs, est?, nave? } (precisa estar logado)
+// Confere a partida (é desta conta, está aberta e não foi enviada) e a pontuação (possível para a fase, as naves e o
+// tempo medido pelo servidor). Cada partida vale uma vez. Com `est` (os números da partida, só números), confere
+// também esses números e soma a partida ao progresso do piloto (patente, medalhas, missões da semana).
+// Sem `est` (jogo antigo, ainda no cache do celular), grava só o ranking.
 import { json, semBanco, origemInvalida, lerJson, contaAtual } from '../../_lib/conta.js';
 import {
-  prepararPartidas, conferirEnvio, rankingDo, mesDe, VIDA_DA_PARTIDA_MS,
+  prepararPartidas, conferirEnvio, rankingDo, mesDe, VIDA_DA_PARTIDA_MS, progressoDa, naveValida, registrarProgresso,
 } from '../../_lib/invasao-estelar.js';
+import { conferirEstatisticas } from '../../_lib/ie-progresso.js';
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return semBanco();
@@ -29,18 +32,28 @@ export async function onRequestPost({ request, env }) {
   }
   const motivo = conferirEnvio(corpo, decorrido);
   if (motivo) return json({ erro: motivo }, 422);
+  const r = { pontos: corpo.pontos, fase: corpo.fase, naves: corpo.naves, tempoMs: corpo.tempoMs };
+  const est = corpo.est === undefined ? null : corpo.est;
+  if (est !== null) {
+    const errado = conferirEstatisticas(est, r);
+    if (errado) return json({ erro: errado }, 422);
+  }
+  const prog = await progressoDa(env.DB, conta.id);
+  const nave = naveValida(corpo.nave, prog);
 
-  const r = await env.DB.prepare(
-    "UPDATE ie_partidas SET estado = 'enviada', pontos = ?, fase = ?, naves = ?, tempo_ms = ?, enviado_em = ? WHERE id = ? AND estado = 'jogando'",
-  ).bind(corpo.pontos, corpo.fase, corpo.naves, corpo.tempoMs, agora, partida).run();
-  if (!r.meta.changes) return json({ erro: 'essa partida já foi enviada' }, 409);
+  const res = await env.DB.prepare(
+    "UPDATE ie_partidas SET estado = 'enviada', pontos = ?, fase = ?, naves = ?, tempo_ms = ?, nave = ?, enviado_em = ? WHERE id = ? AND estado = 'jogando'",
+  ).bind(r.pontos, r.fase, r.naves, r.tempoMs, nave, agora, partida).run();
+  if (!res.meta.changes) return json({ erro: 'essa partida já foi enviada' }, 409);
 
+  const progresso = est ? await registrarProgresso(env.DB, conta.id, r, est, { desafio: false, agora }) : null;
   const geral = await rankingDo(env.DB, { mes: null, contaId: conta.id });
   const doMes = await rankingDo(env.DB, { mes: mesDe(agora), contaId: conta.id });
   return json({
     ok: true,
-    pontos: corpo.pontos,
-    geral: { posicao: geral.eu ? geral.eu.posicao : null, total: geral.total },
+    pontos: r.pontos,
+    geral: { posicao: geral.eu ? geral.eu.posicao : null, total: geral.total, recorde: geral.eu ? geral.eu.pontos : null, faltam: geral.eu ? geral.eu.faltam : null },
     mes: { posicao: doMes.eu ? doMes.eu.posicao : null, total: doMes.total },
+    progresso,
   });
 }

@@ -1,15 +1,19 @@
 {
-  "commit": "d7d0a75",
-  "data_do_commit": "2026-11-21T11:11:18+00:00",
+  "commit": "7bc46c1",
+  "data_do_commit": "2026-11-21T13:33:44+00:00",
   "branch": "main",
   "origem": "deadnessus/Megamania",
-  "gravado_em": "2026-11-21T11:12:23.572Z",
+  "gravado_em": "2026-11-21T13:34:03.533Z",
   "eventos": [
     "partida_iniciada",
     "partida_terminada",
     "partida_pausada",
     "saiu_da_partida",
     "ranking_aberto",
-    "qualidade_reduzida"
+    "qualidade_reduzida",
+    "chefe",
+    "desafio_dia",
+    "missao_concluida",
+    "online"
   ]
 }

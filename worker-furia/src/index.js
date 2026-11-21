@@ -23,6 +23,8 @@ import { fetchInfiltrados, SalaInfiltrados } from './infiltrados.js';
 export { SalaInfiltrados };
 import { fetchOrigines, SalaOrigines } from './origines.js';
 export { SalaOrigines };
+import { fetchInvasao, SalaInvasao } from './invasao-estelar.js';
+export { SalaInvasao };
 
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem 0/O/1/I
 const CODIGO_RE = /^[A-HJ-NP-Z2-9]{4}$/;
@@ -90,6 +92,8 @@ export default {
     if (url.pathname.startsWith('/online/infiltrados/')) return fetchInfiltrados(req, env);
     // Origines (jogar com um amigo): outro jogo, mesmo Worker (ver origines.js).
     if (url.pathname.startsWith('/online/origines/')) return fetchOrigines(req, env);
+    // Invasão Estelar (duelo e esquadrão): outro jogo, mesmo Worker (ver invasao-estelar.js).
+    if (url.pathname.startsWith('/online/invasao-estelar/')) return fetchInvasao(req, env);
     if (!url.pathname.startsWith(BASE + '/')) return new Response('Not found', { status: 404 });
     const rota = url.pathname.slice(BASE.length);
 
