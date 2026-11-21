@@ -4,11 +4,12 @@
   "name": "furia-online",
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
-  "durable_objects": { "bindings": [{ "name": "SALAS", "class_name": "Sala" }, { "name": "SALAS_INF", "class_name": "SalaInfiltrados" }, { "name": "SALAS_ORI", "class_name": "SalaOrigines" }, { "name": "SALAS_IE", "class_name": "SalaInvasao" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sala"] }, { "tag": "v2", "new_sqlite_classes": ["SalaInfiltrados"] }, { "tag": "v3", "new_sqlite_classes": ["SalaOrigines"] }, { "tag": "v4", "new_sqlite_classes": ["SalaInvasao"] }],
+  "durable_objects": { "bindings": [{ "name": "SALAS", "class_name": "Sala" }, { "name": "SALAS_INF", "class_name": "SalaInfiltrados" }, { "name": "SALAS_ORI", "class_name": "SalaOrigines" }, { "name": "SALAS_IE", "class_name": "SalaInvasao" }, { "name": "SALAS_PARTIDA", "class_name": "SalaPartidaOrigines" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sala"] }, { "tag": "v2", "new_sqlite_classes": ["SalaInfiltrados"] }, { "tag": "v3", "new_sqlite_classes": ["SalaOrigines"] }, { "tag": "v4", "new_sqlite_classes": ["SalaInvasao"] }, { "tag": "v5", "new_sqlite_classes": ["SalaPartidaOrigines"] }],
   // Mesmo banco do site: este Worker só LÊ as tabelas `sessoes` e `contas` para saber quem está logado.
   "d1_databases": [{ "binding": "DB", "database_name": "queres-games", "database_id": "c820ac18-262f-4815-9f28-4a63ea712a91" }],
-  // Também atende o Infiltrados na Órbita (src/infiltrados.js), o Origines com um amigo (src/origines.js) e a Invasão Estelar
-  // com amigos (src/invasao-estelar.js), para não precisar de outro deploy.
+  // Também atende o Infiltrados na Órbita (src/infiltrados.js), o Origines com um amigo (src/origines.js) e na partida
+  // online (src/origines-partida.js, em /online/origines/partida/) e a Invasão Estelar com amigos (src/invasao-estelar.js),
+  // para não precisar de outro deploy.
   "routes": [{ "pattern": "queres.games/online/furia/*", "zone_name": "queres.games" }, { "pattern": "queres.games/online/infiltrados/*", "zone_name": "queres.games" }, { "pattern": "queres.games/online/origines/*", "zone_name": "queres.games" }, { "pattern": "queres.games/online/invasao-estelar/*", "zone_name": "queres.games" }]
 }
