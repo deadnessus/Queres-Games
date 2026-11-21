@@ -21,6 +21,8 @@
 
 import { fetchInfiltrados, SalaInfiltrados } from './infiltrados.js';
 export { SalaInfiltrados };
+import { fetchOrigines, SalaOrigines } from './origines.js';
+export { SalaOrigines };
 
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem 0/O/1/I
 const CODIGO_RE = /^[A-HJ-NP-Z2-9]{4}$/;
@@ -86,6 +88,8 @@ export default {
     const url = new URL(req.url);
     // Infiltrados na Órbita: outro jogo, mesmo Worker (ver infiltrados.js).
     if (url.pathname.startsWith('/online/infiltrados/')) return fetchInfiltrados(req, env);
+    // Origines (jogar com um amigo): outro jogo, mesmo Worker (ver origines.js).
+    if (url.pathname.startsWith('/online/origines/')) return fetchOrigines(req, env);
     if (!url.pathname.startsWith(BASE + '/')) return new Response('Not found', { status: 404 });
     const rota = url.pathname.slice(BASE.length);
 

@@ -1,9 +1,9 @@
 {
-  "commit": "7a8d9e5",
-  "data_do_commit": "2026-11-21T11:06:18+00:00",
+  "commit": "4c6eedb",
+  "data_do_commit": "2026-11-21T13:08:07+00:00",
   "branch": "claude/festive-mayer-9xiul1",
   "origem": "deadnessus/idade-da-pedra",
-  "gravado_em": "2026-11-21T11:06:31.636Z",
+  "gravado_em": "2026-11-21T13:08:18.988Z",
   "eventos": [
     "partida_nova",
     "partida_continuada",
@@ -15,6 +15,7 @@
     "fome",
     "ordem_primeira",
     "desempenho",
-    "problema"
+    "problema",
+    "amigo"
   ]
 }
