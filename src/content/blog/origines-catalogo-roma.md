@@ -1,7 +1,7 @@
 ---
 titulo: "Origines: o catálogo ganhou o Reino e a República"
 resumo: "Os dois PDFs do catálogo agora mostram as construções e as tropas de Roma: do templo à estrada, do hoplita à balista."
-data: 2026-11-22T15:30:00-03:00
+data: 2026-11-22T15:09:00-03:00
 jogo: origines
 ---
 O **catálogo** do **Origines**, os dois PDFs ao lado do botão Jogar, foi refeito com as eras novas.
