@@ -1,7 +1,7 @@
 ---
 titulo: "Origines: muros desenhados com o dedo e as regras beta"
 resumo: "Agora dá para desenhar muros com o dedo, os coletores fogem dos inimigos e quem quiser pode jogar com as regras beta."
-data: 2026-11-22T08:50:00-03:00
+data: 2026-11-22T09:15:00-03:00
 jogo: origines
 ---
 Muita novidade no **Origines** hoje.
