@@ -26,7 +26,7 @@ No computador: arraste com o mouse para desenhar, clique para ligar em linha ret
 
 ## Como os muros funcionam
 
-- O muro pronto **barra os inimigos**: as outras tribos, os bárbaros e os bichos. **A sua tribo passa** por ele (na partida online, os aliados também).
+- O muro pronto **barra os inimigos**: as outras tribos, os bárbaros e os bichos. **A sua tribo passa** por ele (na partida online, os aliados também), mas ninguém fica parado em cima do muro: quem parar ali anda para o lado.
 - Para passar pelo muro de outra tribo, escolha as tropas e **toque num bloco**. Elas derrubam aquele bloco, e o resto do muro fica lá. Depois, lutam sozinhas com os inimigos que virem.
 - O **guerreiro de machado** e o **aríete** derrubam muro depressa; lanceiros e cavaleiros, devagar. O botão das espadas cruzadas (quem vence quem) mostra isso.
 - **Arqueiros, caçadores e fundeiros atiram por cima do muro.**
