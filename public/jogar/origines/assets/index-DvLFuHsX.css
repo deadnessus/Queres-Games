@@ -306,6 +306,19 @@ button svg {
 .cal[data-season="3"] .cal-prog i {
   background: #a9d3f2;
 }
+.cal .festa {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(255, 255, 255, .18);
+  color: #e9c46a;
+  font-weight: 600;
+}
+.cal .festa svg {
+  width: 16px;
+  height: 16px;
+}
 .tools {
   display: flex;
   align-items: center;
@@ -1522,6 +1535,14 @@ button.vaga[aria-pressed=true] {
   }
   .row.top {
     gap: 5px;
+  }
+}
+@media (max-width: 760px), (max-height: 520px) {
+  .cal .festa span {
+    display: none;
+  }
+  .cal .festa {
+    padding-left: 5px;
   }
 }
 .tip.panel {
