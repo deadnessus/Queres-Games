@@ -20,3 +20,7 @@ Sim. Na página do Origines, toque em **Construções (PDF)** ou **Unidades (PDF
 ## O que vem a seguir
 
 Quando o jogo ganhar as próximas eras (o Reino e a República), o catálogo ganha as construções e as unidades novas.
+
+## Atualização de 22/11/2026
+
+O catálogo ganhou o Reino e a República: veja [o post novo](/blog/origines-catalogo-roma/).
