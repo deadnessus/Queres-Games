@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Caçador de Monstros</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+  <canvas id="mundo" aria-label="Área do jogo"></canvas>
+  <canvas id="hud2d" aria-hidden="true"></canvas>
+  <div id="dano" aria-hidden="true"></div>
+
+  <header class="barra" id="hud" hidden>
+    <div class="hud-esq">
+      <div class="barra-vida" aria-label="Vida"><div id="vida-cheia"></div><span id="vida-texto">70/70</span></div>
+      <div class="barra-xp" aria-label="Experiência"><div id="xp-cheia"></div><span id="nivel-texto">Nível 1</span></div>
+    </div>
+    <div class="hud-dir">
+      <span class="moedas"><span class="moeda-icone"></span><span id="moedas-texto">0</span></span>
+      <button id="btn-pocao" type="button" aria-label="Tomar poção">🧪<span id="pocoes-texto">0</span></button>
+      <button id="btn-loja" type="button">Loja</button>
+      <button id="btn-pausar" type="button" aria-label="Pausar">II</button>
+    </div>
+  </header>
+  <button id="btn-atacar" type="button" hidden aria-label="Atacar">⚔️</button>
+  <div id="construir" class="construir" hidden></div>
+
+  <section id="tela-inicio" class="tela">
+    <h1>Caçador de Monstros</h1>
+    <p>Derrote monstros, ganhe moedas e compre armas e armaduras melhores.<br>
+      Quanto maior o seu nível, mais monstros aparecem, e mais fortes eles ficam!</p>
+    <p class="dica" id="dica-controles"></p>
+    <button id="btn-jogar" class="grande" type="button">Jogar</button>
+    <button id="btn-recomecar" type="button" hidden>Começar do zero</button>
+  </section>
+
+  <section id="tela-pausa" class="tela" hidden>
+    <h2>Pausado</h2>
+    <button id="btn-continuar" class="grande" type="button">Continuar</button>
+    <button id="btn-som" type="button">Som: ligado</button>
+    <button id="btn-graficos" type="button">Gráficos: alto</button>
+    <button id="btn-sair" type="button">Sair para o início</button>
+  </section>
+
+  <section id="tela-confirmar" class="tela" hidden>
+    <h2>Começar do zero?</h2>
+    <p>Você perde o nível, as moedas, as armas e as armaduras.</p>
+    <button id="btn-confirmar-sim" type="button">Sim, apagar tudo</button>
+    <button id="btn-confirmar-nao" class="grande" type="button">Não</button>
+  </section>
+
+  <section id="tela-morte" class="tela" hidden>
+    <h2>Você foi derrotado!</h2>
+    <p id="morte-texto"></p>
+    <button id="btn-reviver" class="grande" type="button">Voltar à luta</button>
+    <button id="btn-loja-morte" type="button">Ir à loja</button>
+  </section>
+
+  <section id="tela-loja" class="tela loja" hidden>
+    <div class="loja-topo">
+      <h2>Loja</h2>
+      <span class="moedas"><span class="moeda-icone"></span><span id="loja-moedas">0</span></span>
+      <button id="btn-fechar-loja" class="grande" type="button">Voltar</button>
+    </div>
+    <div class="abas">
+      <button id="aba-armas" type="button" class="aba ativa">Armas</button>
+      <button id="aba-armaduras" type="button" class="aba">Armaduras</button>
+      <button id="aba-defesas" type="button" class="aba">Defesas</button>
+      <button id="aba-ajudantes" type="button" class="aba">Ajudantes</button>
+      <button id="aba-pocoes" type="button" class="aba">Poções</button>
+    </div>
+    <div id="loja-lista" class="loja-lista"></div>
+  </section>
+
+  <section id="tela-erro" class="tela" hidden>
+    <h2>Ops!</h2>
+    <p>Este aparelho não conseguiu abrir o jogo em 3D.</p>
+  </section>
+
+  <div id="aviso" class="aviso" hidden></div>
+</main>
+<script src="vendor/three.min.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>

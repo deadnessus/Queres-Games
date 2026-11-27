@@ -1,0 +1,11 @@
+{
+  "commit": "0836220",
+  "data_do_commit": "2026-11-27T11:08:51+00:00",
+  "branch": "claude/keen-euler-k8x1tm",
+  "origem": "deadnessus/Bento-4",
+  "gravado_em": "2026-11-27T21:52:27.540Z",
+  "eventos": [
+    "partida_iniciada",
+    "partida_terminada"
+  ]
+}
