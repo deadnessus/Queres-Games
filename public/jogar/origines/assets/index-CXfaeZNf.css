@@ -706,6 +706,11 @@ button svg {
 .modal .hint-copy {
   font-size: 13px;
 }
+.cb.perigo,
+.cb.perigo:hover {
+  background: var(--bad);
+  color: #fff;
+}
 .modal button.rever {
   background: var(--chip);
   margin: 0 0 10px;
